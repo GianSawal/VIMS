@@ -214,7 +214,7 @@ function PhotoPanel({ v }) {
   return (
     <div className="rounded-lg border border-slate-200 bg-white p-4">
       {preview
-        ? <div className="aspect-[4/3] overflow-hidden rounded-md ring-2 ring-gold"><img src={preview} alt="Preview of the new photo" className="h-full w-full object-cover" /></div>
+        ? <div className="aspect-[4/3] overflow-hidden rounded-md bg-white ring-2 ring-gold"><img src={preview} alt="Preview of the new photo" className="h-full w-full object-contain" /></div>
         : <VehiclePhoto vehicle={v} />}
 
       {error && <p role="alert" className="mt-2 text-sm text-danger">{error}</p>}
