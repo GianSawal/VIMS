@@ -60,13 +60,14 @@ export default function Login() {
         <div aria-hidden="true" className="pointer-events-none absolute top-10 -right-10 h-40 w-40 -rotate-12 bg-accent/30 [clip-path:polygon(50%_0,100%_100%,0_100%)]" />
         <div aria-hidden="true" className="pointer-events-none absolute bottom-40 left-[-3rem] h-24 w-24 rounded-full bg-gold/20" />
 
-        <div className="relative flex items-center gap-4">
-          <div className="rounded-2xl bg-white p-2 shadow-lg">
-            <img src="/dole-logo.png" alt="Department of Labor and Employment logo" className="h-20 w-20 object-contain" />
-          </div>
-          <div>
-            <div className="text-sm font-medium tracking-wide text-white/80 uppercase">Department of Labor and Employment</div>
-            <div className="text-2xl font-bold">DOLE VRS</div>
+        <div className="relative flex items-center gap-3">
+          {/* Emblem cropped from the official logo (IMAGES/DOLE.png); the full logo with wordmark is used on light backgrounds. */}
+          <span className="flex h-14 w-14 items-center justify-center rounded-full bg-white shadow-md">
+            <img src="/dole-emblem.png" alt="DOLE emblem" className="h-9 w-9 object-contain" />
+          </span>
+          <div className="leading-tight">
+            <div className="text-lg font-bold">DOLE VRS</div>
+            <div className="text-sm text-white/75">Department of Labor and Employment</div>
           </div>
         </div>
 

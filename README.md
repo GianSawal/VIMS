@@ -102,6 +102,8 @@ this by inheriting `accounts.permissions.OfficeScopedMixin` and setting `office_
 ## Branding
 
 Logo: `IMAGES/DOLE.png` (the only candidate in the folder), copied to `frontend/public/dole-logo.png`.
+`frontend/public/dole-emblem.png` is the triangle emblem cropped from that same file (no wordmark), used on the blue
+login panel where the small wordmark would be unreadable.
 Tokens are in `frontend/src/index.css` (`@theme`), used as Tailwind classes such as `bg-brand` and `text-danger`.
 
 | Token | Hex | Source / use |
