@@ -44,7 +44,7 @@ fields, and reports.
 
 ## Repository
 
--   [x] Create Git repository
+-   [x] Create Git repository (github.com/GianSawal/VIMS, branches `main` + `develop`)
 -   [x] Add `.gitignore`
 -   [x] Define `main` and `develop` workflow (README)
 -   [x] Define feature branch naming (README)
@@ -509,7 +509,7 @@ and no production data is silently overwritten.
 -   [ ] Safe upload paths/file names
 -   [ ] Authorization review for every endpoint
 -   [ ] Office-scoping penetration tests
--   [ ] Remove secrets from repository/history
+-   [ ] Remove secrets from repository/history (verified clean at first push; re-check before production)
 -   [ ] Production `DEBUG=False`
 -   [ ] Secure headers
 -   [ ] Logging does not expose credentials/tokens
