@@ -263,6 +263,47 @@ correctly and preserves history.
 
 ------------------------------------------------------------------------
 
+# Phase 6B --- Trip Schedule TV Display
+
+> Added 2026-10-08 at the client's request: a wall-mounted TV showing the
+> trip schedule. Trips are currently created at dispatch time, so the
+> schedule needs "scheduled" (future) trips first.
+
+## Requirements
+
+-   [ ] Confirm where the TV(s) will be (which office/s) and whose trips each screen shows
+-   [ ] Confirm what is shown publicly (e.g. plate, driver, destination, time; passengers and purpose may be sensitive)
+-   [ ] Confirm display hours, screen size/resolution and the device driving the TV (smart TV browser, mini PC, Chromecast)
+
+## Trip scheduling
+
+-   [ ] "Scheduled" trip status: book a vehicle and driver for a future date/time
+-   [ ] Prevent double-booking a vehicle or driver in overlapping schedules
+-   [ ] Dispatch a scheduled trip (scheduled → dispatched) and cancel/reschedule it
+-   [ ] Schedule calendar/list view in the Trips page
+-   [ ] Audit scheduling, rescheduling and cancellation
+
+## Display
+
+-   [ ] Read-only schedule API for the display (today's and upcoming trips, out now, returned today), office-filtered
+-   [ ] Display access without a staff login: dedicated read-only display account or revocable display token
+-   [ ] Full-screen TV route (e.g. `/display`) with DOLE branding, large high-contrast text, live date and clock
+-   [ ] Columns: time, vehicle/plate, driver, destination, status
+-   [ ] Status shown in words and color: Scheduled, Departed/On trip, Returned, Delayed, Cancelled
+-   [ ] Highlight delayed departures and overdue returns
+-   [ ] Auto-refresh (about every 60 seconds) with no interaction needed
+-   [ ] Auto-page or scroll when the list is longer than the screen
+-   [ ] "Connection lost / last updated" indicator if the network drops
+-   [ ] Readable at a distance at 1920×1080 landscape; avoid static elements that cause screen burn-in
+-   [ ] Tests (display API scoping, token/permission, no sensitive fields)
+-   [ ] UAT on the actual TV
+
+**Phase gate:** The TV shows the correct, current schedule for its
+office without anyone logging in, and exposes no data beyond what was
+approved for public display.
+
+------------------------------------------------------------------------
+
 # Phase 7 --- Fuel Management
 
 -   [ ] Fuel CRUD API
