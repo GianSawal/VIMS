@@ -1,4 +1,5 @@
 from django.db import transaction
+from django.db.models import Count
 from django.utils import timezone
 from rest_framework import mixins, serializers, status, viewsets
 from rest_framework.decorators import action
@@ -45,7 +46,7 @@ class VehicleViewSet(OfficeScopedMixin, mixins.ListModelMixin, mixins.RetrieveMo
     def get_queryset(self):
         qs = super().get_queryset()
         p = self.request.query_params
-        if self.action == 'list' and 'is_archived' not in p and not p.get('include_archived'):
+        if self.action in ('list', 'summary') and 'is_archived' not in p and not p.get('include_archived'):
             qs = qs.filter(is_archived=False)
         return qs
 
@@ -61,6 +62,13 @@ class VehicleViewSet(OfficeScopedMixin, mixins.ListModelMixin, mixins.RetrieveMo
         action_name = 'odometer_correction' if v.current_odometer < old_odo else 'update'
         if changes:
             log(self.request, action_name, v, f'Updated vehicle {v}', changes)
+
+    @action(detail=False, methods=['get'])
+    def summary(self, request):
+        """Counts per status for the same filters as the list (send everything except `status` to power status cards)."""
+        rows = self.filter_queryset(self.get_queryset()).order_by().values('status').annotate(n=Count('id'))
+        by_status = {r['status']: r['n'] for r in rows}
+        return Response({'total': sum(by_status.values()), 'by_status': by_status})
 
     @action(detail=True, methods=['post'], permission_classes=CAN_CHANGE)
     def archive(self, request, pk=None):

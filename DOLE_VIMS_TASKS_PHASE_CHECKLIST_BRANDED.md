@@ -175,7 +175,7 @@ records even by directly calling the API.
 -   [x] Vehicle master list
 -   [x] Search bar
 -   [x] Office filter
--   [x] Status filter
+-   [x] Status filter (clickable status cards with live counts, active-filter chips)
 -   [x] Vehicle type filter
 -   [x] Add Vehicle form
 -   [x] Edit Vehicle form

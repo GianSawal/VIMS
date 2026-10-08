@@ -183,3 +183,14 @@ def test_photo_validation(fo1, settings):
 def test_viewer_cannot_change_photo(fo1):
     v = make_vehicle(fo1, 'PIC 3')
     assert as_role('Viewer').post(f'/api/vehicles/{v.pk}/photo/', {'photo': image()}).status_code == 403
+
+
+def test_summary_counts_respect_filters_and_scope(fo1, fo2):
+    make_vehicle(fo1, 'S 1'), make_vehicle(fo1, 'S 2', status='IN_USE'), make_vehicle(fo2, 'S 3', status='IN_USE')
+    make_vehicle(fo1, 'S 4', status='IN_USE', is_archived=True)
+    admin = as_role('Fleet Administrator')
+    assert admin.get('/api/vehicles/summary/').json() == {'total': 3, 'by_status': {'SERVICEABLE': 1, 'IN_USE': 2}}
+    assert admin.get(f'/api/vehicles/summary/?office={fo1.pk}').json()['total'] == 2
+    assert admin.get('/api/vehicles/summary/?is_archived=true').json()['by_status'] == {'IN_USE': 1}
+    scoped = as_role('Field Office User', [fo1])
+    assert scoped.get('/api/vehicles/summary/').json()['total'] == 2  # FO2 vehicle never counted
