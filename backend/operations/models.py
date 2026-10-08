@@ -28,7 +28,7 @@ class Trip(Tracked):
         expression=models.F('odometer_end') - models.F('odometer_start'),
         output_field=models.IntegerField(null=True), db_persist=True,
     )
-    status = models.CharField(max_length=20, choices=Status.choices, default=Status.DISPATCHED)
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.DISPATCHED, db_index=True)
     remarks = models.TextField(blank=True)
 
     class Meta:
@@ -38,6 +38,9 @@ class Trip(Tracked):
             ordered('odometer_start', 'odometer_end'),
             ordered('departed_at', 'returned_at'),
         ]
+
+    def __str__(self):
+        return self.ticket_number
 
     def clean(self):
         if self.odometer_end is not None and self.odometer_start is not None and self.odometer_end < self.odometer_start:

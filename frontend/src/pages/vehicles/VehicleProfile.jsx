@@ -10,13 +10,14 @@ import { Button, ConfirmDialog, formatDateTime } from '../../components/ui'
 import { useToast } from '../../components/toast'
 import { NotFound } from '../Errors'
 import AssignmentsTab from './AssignmentsTab'
+import TripsTab from './TripsTab'
 import { duration, formatDate, formatKm, formatPeso, fuelLabel, StatusBadge, VehiclePhoto } from './common'
 
 // Tabs fill in as their phases land; `phase` marks ones not built yet.
 const TABS = [
   ['overview', 'Overview'],
   ['assignments', 'Assignments'],
-  ['trips', 'Trips', 6],
+  ['trips', 'Trips'],
   ['fuel', 'Fuel', 7],
   ['maintenance', 'Maintenance', 8],
   ['documents', 'Documents', 9],
@@ -98,7 +99,7 @@ export default function VehicleProfile() {
       </div>
 
       <div role="tabpanel">
-        {tab === 'overview' ? <Overview v={v} onHistory={() => setParams({ tab: 'assignments' }, { replace: true })} /> : tab === 'assignments' ? <AssignmentsTab v={v} /> : (
+        {tab === 'overview' ? <Overview v={v} onHistory={() => setParams({ tab: 'assignments' }, { replace: true })} /> : tab === 'assignments' ? <AssignmentsTab v={v} /> : tab === 'trips' ? <TripsTab v={v} /> : (
           <div className="rounded-lg border border-dashed border-slate-300 bg-white p-8 text-center text-slate-500">
             {TABS.find(([k]) => k === tab)?.[1] ?? 'This section'} history arrives in Phase {TABS.find(([k]) => k === tab)?.[2]}.
           </div>

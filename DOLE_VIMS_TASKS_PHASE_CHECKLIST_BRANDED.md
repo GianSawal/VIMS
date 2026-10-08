@@ -235,26 +235,26 @@ instead of overwriting it.
 
 # Phase 6 --- Trip Management
 
--   [ ] Trip CRUD API
--   [ ] Trip-ticket/reference number
--   [ ] Vehicle selection
--   [ ] Driver selection
--   [ ] Passenger/requesting office
--   [ ] Origin/destination
--   [ ] Purpose
--   [ ] Date/time out
--   [ ] Date/time returned
--   [ ] Starting odometer
--   [ ] Ending odometer
--   [ ] Calculate distance
--   [ ] Odometer validation
--   [ ] Vehicle-status dispatch validation
--   [ ] Trip attachment
--   [ ] Trip list
--   [ ] Trip detail
--   [ ] Vehicle trip-history tab
--   [ ] Trip filters
--   [ ] Tests
+-   [x] Trip CRUD API (dispatch / complete / cancel; PATCH descriptive fields only; no DELETE)
+-   [x] Trip-ticket/reference number (manual or auto `TT-YYYY-00001`)
+-   [x] Vehicle selection
+-   [x] Driver selection
+-   [x] Passenger/requesting office
+-   [x] Origin/destination
+-   [x] Purpose
+-   [x] Date/time out
+-   [x] Date/time returned
+-   [x] Starting odometer
+-   [x] Ending odometer
+-   [x] Calculate distance (DB generated column)
+-   [x] Odometer validation (start ≥ vehicle odometer; end ≥ start and ≥ vehicle odometer; completion moves vehicle odometer)
+-   [x] Vehicle-status dispatch validation (only Serviceable/In Use; one open trip per vehicle and per driver)
+-   [x] Trip attachment (shared `AttachmentsMixin`)
+-   [x] Trip list
+-   [x] Trip detail
+-   [x] Vehicle trip-history tab
+-   [x] Trip filters (status cards, office, date range, search)
+-   [x] Tests (`operations/test_trips.py`)
 
 **Phase gate:** Trip completion updates/validates vehicle odometer
 correctly and preserves history.

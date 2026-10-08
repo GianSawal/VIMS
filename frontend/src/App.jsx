@@ -12,11 +12,12 @@ import VehicleForm from './pages/vehicles/VehicleForm'
 import VehicleProfile from './pages/vehicles/VehicleProfile'
 import DriverList from './pages/drivers/DriverList'
 import DriverProfile from './pages/drivers/DriverProfile'
+import TripList from './pages/trips/TripList'
+import TripDetail from './pages/trips/TripDetail'
 
 // Each route gets a real page as its phase is built; Pending marks what's not built yet.
 const pending = [
   ['dashboard', 'Dashboard', 12],
-  ['trips', 'Trips', 6],
   ['fuel', 'Fuel', 7],
   ['maintenance', 'Maintenance', 8],
   ['documents', 'Documents & Renewals', 9],
@@ -45,6 +46,10 @@ export default function App() {
           <Route element={<RequirePerm perm="fleet.view_driver" />}>
             <Route path="drivers" element={<DriverList />} />
             <Route path="drivers/:id" element={<DriverProfile />} />
+          </Route>
+          <Route element={<RequirePerm perm="operations.view_trip" />}>
+            <Route path="trips" element={<TripList />} />
+            <Route path="trips/:id" element={<TripDetail />} />
           </Route>
           <Route element={<RequirePerm perm="accounts.view_office" />}>
             <Route path="admin/offices" element={<Offices />} />
