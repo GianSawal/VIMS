@@ -1,4 +1,5 @@
 import { Car } from 'lucide-react'
+import { z } from 'zod'
 import { Badge } from '../../components/ui'
 
 // Mirrors fleet.models.Vehicle choices.
@@ -56,3 +57,8 @@ export function duration(startDate, endDate) {
   if (days < 730) return plural(Math.round(days / 30), 'month')
   return plural(Math.round(days / 365), 'year')
 }
+
+// Odometer input: accepts "45210", "45,210" or "45 210"; the parsed form value is "45210".
+export const parseKm = (v) => String(v ?? '').replace(/[,\s]/g, '')
+export const odometerField = () =>
+  z.string().transform(parseKm).refine((v) => /^\d+$/.test(v), 'Enter the odometer in whole km, e.g. 45210 or 45,210')

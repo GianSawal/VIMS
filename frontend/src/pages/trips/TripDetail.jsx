@@ -13,6 +13,7 @@ import { useToast } from '../../components/toast'
 import { NotFound } from '../Errors'
 import { useAllOffices } from '../admin/Offices'
 import { fromLocalInput, km, toLocalInput, tripDuration, TripStatusBadge } from './common'
+import { odometerField, parseKm } from '../vehicles/common'
 
 export default function TripDetail() {
   const { id } = useParams()
@@ -126,7 +127,7 @@ function useTripMutation(trip, path, message, onClose, setError, fields) {
 
 const completeSchema = z.object({
   returned_at: z.string().min(1, 'Return time is required'),
-  odometer_end: z.string().trim().refine((v) => /^\d+$/.test(v), 'Enter the odometer in whole km'),
+  odometer_end: odometerField(),
   remarks: z.string(),
 })
 
@@ -136,7 +137,7 @@ function CompleteForm({ trip, onClose }) {
     defaultValues: { returned_at: toLocalInput(), odometer_end: '', remarks: trip.remarks ?? '' },
   })
   const [save, error] = useTripMutation(trip, 'complete', 'Trip completed. Vehicle odometer updated.', onClose, setError, ['returned_at', 'odometer_end', 'remarks'])
-  const end = Number(watch('odometer_end'))
+  const end = Number(parseKm(watch('odometer_end')))
   const distance = end >= trip.odometer_start ? end - trip.odometer_start : null
 
   return (

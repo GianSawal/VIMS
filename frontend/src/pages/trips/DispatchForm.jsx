@@ -8,6 +8,7 @@ import { Button, Field, inputClass } from '../../components/ui'
 import { useToast } from '../../components/toast'
 import { useAllOffices } from '../admin/Offices'
 import { fromLocalInput, km, toLocalInput } from './common'
+import { odometerField } from '../vehicles/common'
 
 const DISPATCHABLE = ['SERVICEABLE', 'IN_USE']
 
@@ -21,7 +22,7 @@ const schema = z.object({
   destination: z.string().trim().min(1, 'Destination is required').max(255),
   purpose: z.string().trim().min(1, 'Purpose is required'),
   departed_at: z.string().min(1, 'Departure time is required'),
-  odometer_start: z.string().trim().refine((v) => /^\d+$/.test(v), 'Enter the odometer in whole km'),
+  odometer_start: odometerField(),
   remarks: z.string(),
 })
 const FIELDS = Object.keys(schema.shape)

@@ -10,7 +10,7 @@ import { Button, Field, inputClass, PageHeader } from '../../components/ui'
 import { useToast } from '../../components/toast'
 import { Forbidden } from '../Errors'
 import { useAllOffices } from '../admin/Offices'
-import { FUELS, STATUSES, TYPES } from './common'
+import { FUELS, odometerField, STATUSES, TYPES } from './common'
 
 const optionalNumber = (msg) => z.string().trim().refine((v) => v === '' || (!isNaN(v) && Number(v) >= 0), msg)
 
@@ -28,7 +28,7 @@ const schema = z.object({
   fuel_type: z.string().min(1, 'Select a fuel type'),
   acquisition_date: z.string(),
   acquisition_cost: optionalNumber('Enter a non-negative amount'),
-  current_odometer: z.string().trim().refine((v) => /^\d+$/.test(v), 'Enter the odometer in whole km'),
+  current_odometer: odometerField(),
   office: z.string().min(1, 'Select an office'),
   status: z.string().min(1),
   remarks: z.string(),
