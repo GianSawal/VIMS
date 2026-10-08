@@ -3,16 +3,26 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { KeyRound, Pencil, Plus, Power, Search } from 'lucide-react'
+import { Car, Eye, KeyRound, MapPin, Pencil, Plus, Power, ShieldCheck, Users as UsersIcon } from 'lucide-react'
 import { api, applyFieldErrors, errorMessage, useList } from '../../api'
 import { useMe } from '../../auth'
 import DataTable from '../../components/DataTable'
-import { Badge, Button, ConfirmDialog, Field, formatDateTime, inputBase, inputClass, Modal, PageHeader } from '../../components/ui'
+import { Avatar, CardGrid, SearchBox, selectClass, StatCard, Toolbar } from '../../components/filters'
+import { Badge, Button, ConfirmDialog, Field, formatDateTime, inputClass, Modal, PageHeader } from '../../components/ui'
 import { useToast } from '../../components/toast'
 import { useAllOffices } from './Offices'
 
 export const ROLES = ['System Administrator', 'Fleet Administrator', 'Field Office User', 'Viewer']
 const roleTone = { 'System Administrator': 'red', 'Fleet Administrator': 'blue', 'Field Office User': 'gold', Viewer: 'gray' }
+
+const ROLE_CARDS = {
+  ALL: [UsersIcon, 'bg-slate-100 text-slate-700', 'All users'],
+  'System Administrator': [ShieldCheck, 'bg-red-50 text-danger', 'System admins'],
+  'Fleet Administrator': [Car, 'bg-brand-light text-brand', 'Fleet admins'],
+  'Field Office User': [MapPin, 'bg-amber-50 text-amber-700', 'Field office'],
+  Viewer: [Eye, 'bg-slate-100 text-slate-600', 'Viewers'],
+}
+const roleCard = (r) => ({ icon: ROLE_CARDS[r][0], tint: ROLE_CARDS[r][1], label: ROLE_CARDS[r][2] })
 
 export default function Users() {
   const { data: me } = useMe()
@@ -26,6 +36,8 @@ export default function Users() {
   const [resetting, setResetting] = useState(null)
   const [toggling, setToggling] = useState(null)
   const query = useList('/users/', { page, search, groups__name: role, is_active: active })
+  const everyone = useList('/users/', { page_size: 500 }) // unfiltered, for the role cards (user lists are small)
+  const count = (r) => everyone.data?.results.filter((u) => !r || u.role_name === r).length
 
   const toggle = useMutation({
     mutationFn: (u) => api.patch(`/users/${u.id}/`, { is_active: !u.is_active }),
@@ -37,20 +49,48 @@ export default function Users() {
     onError: (err) => { toast(errorMessage(err), 'error'); setToggling(null) },
   })
 
+  const filter = (setter) => (value) => { setter(value); setPage(1) }
+  const chips = [
+    search && ['search', `Search: “${search}”`],
+    role && ['role', `Role: ${role}`],
+    active && ['active', active === 'true' ? 'Active only' : 'Inactive only'],
+  ].filter(Boolean)
+  const clear = { search: () => setSearch(''), role: () => setRole(''), active: () => setActive('') }
+  const clearAll = () => { setSearch(''); setRole(''); setActive(''); setPage(1) }
+
   const columns = [
-    { key: 'username', label: 'Username', className: 'font-medium' },
-    { key: 'name', label: 'Name', render: (u) => `${u.first_name} ${u.last_name}`.trim() || '—' },
-    { key: 'role', label: 'Role', render: (u) => u.role_name ? <Badge tone={roleTone[u.role_name]}>{u.role_name}</Badge> : '—' },
-    { key: 'offices', label: 'Offices', render: (u) => u.office_details.map((o) => o.code).join(', ') || '—' },
+    { key: 'user', label: 'User', render: (u) => {
+      const name = `${u.first_name} ${u.last_name}`.trim()
+      return (
+        <div className="flex items-center gap-3">
+          <Avatar name={name || u.username} />
+          <div className="min-w-0">
+            <div className="font-semibold">{name || u.username}</div>
+            <div className="truncate text-xs text-slate-500">@{u.username}{u.email && ` · ${u.email}`}</div>
+          </div>
+        </div>
+      )
+    } },
+    { key: 'role', label: 'Role', render: (u) => u.role_name ? <Badge tone={roleTone[u.role_name]}>{u.role_name}</Badge> : <span className="text-slate-400">No role</span> },
+    { key: 'offices', label: 'Offices', render: (u) => {
+      const codes = u.office_details.map((o) => o.code)
+      if (!codes.length) return <span className="text-slate-400">—</span>
+      return (
+        <div className="flex flex-wrap gap-1" title={u.office_details.map((o) => o.name).join(', ')}>
+          {codes.slice(0, 3).map((c) => <span key={c} className="rounded bg-slate-100 px-1.5 py-0.5 font-mono text-xs text-slate-700">{c}</span>)}
+          {codes.length > 3 && <span className="px-1 text-xs text-slate-500">+{codes.length - 3}</span>}
+        </div>
+      )
+    } },
     { key: 'status', label: 'Status', render: (u) => (
-      <span className="space-x-1">
-        <Badge tone={u.is_active ? 'green' : 'gray'}>{u.is_active ? 'Active' : 'Inactive'}</Badge>
-        {u.must_change_password && <Badge tone="gold">Must change password</Badge>}
-      </span>
+      <div className="flex flex-col items-start gap-1">
+        <Badge tone={u.is_active ? 'green' : 'gray'} dot>{u.is_active ? 'Active' : 'Inactive'}</Badge>
+        {u.must_change_password && <span className="text-xs text-amber-700">Password change pending</span>}
+      </div>
     ) },
-    { key: 'last_login', label: 'Last login', render: (u) => formatDateTime(u.last_login) },
-    { key: 'actions', label: <span className="sr-only">Actions</span>, render: (u) => (
-      <div className="flex gap-1">
+    { key: 'last_login', label: 'Last login', render: (u) => u.last_login ? formatDateTime(u.last_login) : <span className="text-slate-400">Never</span> },
+    { key: 'actions', label: <span className="sr-only">Actions</span>, className: 'text-right', render: (u) => (
+      <div className="flex justify-end gap-1">
         <Button variant="ghost" onClick={() => setEditing(u)} aria-label={`Edit ${u.username}`} title="Edit"><Pencil size={16} /></Button>
         <Button variant="ghost" onClick={() => setResetting(u)} aria-label={`Reset password for ${u.username}`} title="Reset password"><KeyRound size={16} /></Button>
         {u.id !== me?.id && (
@@ -61,7 +101,20 @@ export default function Users() {
     ) },
   ]
 
-  const filter = (setter) => (e) => { setter(e.target.value); setPage(1) }
+  const toolbar = (
+    <Toolbar chips={chips} onRemove={(k) => { clear[k](); setPage(1) }} onClear={clearAll}>
+      <SearchBox id="user-search" label="Search users" placeholder="Search name, username, email…" value={search} onChange={filter(setSearch)} />
+      <select className={`${selectClass} w-48`} aria-label="Filter by role" value={role} onChange={(e) => filter(setRole)(e.target.value)}>
+        <option value="">All roles</option>
+        {ROLES.map((r) => <option key={r}>{r}</option>)}
+      </select>
+      <select className={`${selectClass} w-36`} aria-label="Filter by status" value={active} onChange={(e) => filter(setActive)(e.target.value)}>
+        <option value="">All statuses</option>
+        <option value="true">Active</option>
+        <option value="false">Inactive</option>
+      </select>
+    </Toolbar>
+  )
 
   return (
     <div>
@@ -69,24 +122,16 @@ export default function Users() {
         Accounts, roles and office access.
       </PageHeader>
 
-      <div className="mb-3 flex flex-wrap gap-2">
-        <label className="relative">
-          <span className="sr-only">Search users</span>
-          <Search size={16} className="absolute top-2.5 left-3 text-slate-400" aria-hidden="true" />
-          <input className={`${inputBase} w-64 pl-9`} placeholder="Search name, username, email" value={search} onChange={filter(setSearch)} />
-        </label>
-        <select className={`${inputBase} w-52`} value={role} onChange={filter(setRole)} aria-label="Filter by role">
-          <option value="">All roles</option>
-          {ROLES.map((r) => <option key={r}>{r}</option>)}
-        </select>
-        <select className={`${inputBase} w-40`} value={active} onChange={filter(setActive)} aria-label="Filter by status">
-          <option value="">All statuses</option>
-          <option value="true">Active</option>
-          <option value="false">Inactive</option>
-        </select>
-      </div>
+      <CardGrid label="Filter by role">
+        <StatCard {...roleCard('ALL')} count={count()} loading={everyone.isLoading} selected={!role} onClick={() => filter(setRole)('')} />
+        {ROLES.map((r) => (
+          <StatCard key={r} {...roleCard(r)} count={count(r)} loading={everyone.isLoading}
+            selected={role === r} onClick={() => filter(setRole)(role === r ? '' : r)} />
+        ))}
+      </CardGrid>
 
-      <DataTable columns={columns} query={query} page={page} onPage={setPage} />
+      <DataTable columns={columns} query={query} page={page} onPage={setPage} toolbar={toolbar}
+        empty={chips.length ? 'No users match these filters.' : 'No users yet.'} />
 
       <Modal open={!!editing} onClose={() => setEditing(null)} title={editing?.id ? `Edit ${editing.username}` : 'Add user'} wide>
         {editing && <UserForm key={editing.id ?? 'new'} user={editing} onClose={() => setEditing(null)} />}

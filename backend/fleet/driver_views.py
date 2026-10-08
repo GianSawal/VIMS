@@ -3,7 +3,7 @@ from datetime import timedelta
 
 from django.contrib.contenttypes.models import ContentType
 from django.db import transaction
-from django.db.models import Prefetch
+from django.db.models import Count, Prefetch, Q
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from django_filters import rest_framework as filters
@@ -66,6 +66,19 @@ class DriverViewSet(OfficeScopedMixin, mixins.ListModelMixin, mixins.RetrieveMod
         changes = diff(before, snapshot(d))
         if changes:
             log(self.request, 'update', d, f'Updated driver {d.full_name}', changes)
+
+    @action(detail=False, methods=['get'])
+    def summary(self, request):
+        """License-status counts for the same filters as the list (omit `license_status` to power status cards)."""
+        today = timezone.localdate()
+        soon = today + timedelta(days=Driver.EXPIRING_DAYS)
+        agg = self.filter_queryset(self.get_queryset()).order_by().aggregate(
+            total=Count('id'),
+            expired=Count('id', filter=Q(license_expiry_date__lt=today)),
+            expiring=Count('id', filter=Q(license_expiry_date__gte=today, license_expiry_date__lte=soon)))
+        return Response({'total': agg['total'], 'by_license': {
+            'VALID': agg['total'] - agg['expired'] - agg['expiring'],
+            'EXPIRING': agg['expiring'], 'EXPIRED': agg['expired']}})
 
     @action(detail=True, methods=['get'], permission_classes=[require('fleet.view_vehicleassignment'), PasswordChangeNotRequired])
     def assignments(self, request, pk=None):

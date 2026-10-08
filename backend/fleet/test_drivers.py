@@ -169,3 +169,15 @@ def test_attachment_permissions(fo1, fo2):
     # an attachment id from another driver can't be deleted through this driver's URL
     other_att = as_role('Fleet Administrator').post(f'/api/drivers/{other.pk}/attachments/', {'file': pdf()}).json()
     assert as_role('Fleet Administrator').delete(f'/api/drivers/{d.pk}/attachments/{other_att["id"]}/').status_code == 404
+
+
+def test_summary_counts_respect_filters_and_scope(fo1, fo2):
+    make_driver(fo1, 'A', 'L-1', days=200), make_driver(fo1, 'B', 'L-2', days=10)
+    make_driver(fo1, 'C', 'L-3', days=-3), make_driver(fo2, 'D', 'L-4', days=-3)
+    make_driver(fo1, 'E', 'L-5', days=200, is_active=False)
+    admin = as_role('Viewer')
+    assert admin.get('/api/drivers/summary/').json() == {
+        'total': 5, 'by_license': {'VALID': 2, 'EXPIRING': 1, 'EXPIRED': 2}}
+    assert admin.get(f'/api/drivers/summary/?office={fo1.pk}&is_active=true').json()['total'] == 3
+    scoped = as_role('Field Office User', [fo1])
+    assert scoped.get('/api/drivers/summary/').json()['by_license']['EXPIRED'] == 1  # FO2's expired driver hidden
