@@ -45,3 +45,14 @@ export function VehiclePhoto({ vehicle, className = '' }) {
     </div>
   )
 }
+
+// "3 days", "5 months", "2 years"; same-day stints read "Same day". `end` defaults to today.
+export function duration(startDate, endDate) {
+  const end = endDate ? new Date(endDate) : new Date(new Date().toLocaleDateString('en-CA'))
+  const days = Math.round((end - new Date(startDate)) / 86400000)
+  const plural = (n, unit) => `${n} ${unit}${n === 1 ? '' : 's'}`
+  if (days < 1) return 'Same day'
+  if (days < 60) return plural(days, 'day')
+  if (days < 730) return plural(Math.round(days / 30), 'month')
+  return plural(Math.round(days / 365), 'year')
+}

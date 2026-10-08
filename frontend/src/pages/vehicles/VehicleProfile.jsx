@@ -1,14 +1,16 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Archive, ArchiveRestore, ImagePlus, Pencil, Trash2, Upload } from 'lucide-react'
+import {
+  Archive, ArchiveRestore, Building2, CalendarDays, CircleDot, Fuel, Gauge, History, IdCard, ImagePlus, Pencil, Trash2, Upload,
+} from 'lucide-react'
 import { api, errorMessage } from '../../api'
 import { useCan } from '../../auth'
 import { Button, ConfirmDialog, formatDateTime } from '../../components/ui'
 import { useToast } from '../../components/toast'
 import { NotFound } from '../Errors'
 import AssignmentsTab from './AssignmentsTab'
-import { formatDate, formatKm, formatPeso, fuelLabel, StatusBadge, VehiclePhoto } from './common'
+import { duration, formatDate, formatKm, formatPeso, fuelLabel, StatusBadge, VehiclePhoto } from './common'
 
 // Tabs fill in as their phases land; `phase` marks ones not built yet.
 const TABS = [
@@ -96,7 +98,7 @@ export default function VehicleProfile() {
       </div>
 
       <div role="tabpanel">
-        {tab === 'overview' ? <Overview v={v} /> : tab === 'assignments' ? <AssignmentsTab v={v} /> : (
+        {tab === 'overview' ? <Overview v={v} onHistory={() => setParams({ tab: 'assignments' }, { replace: true })} /> : tab === 'assignments' ? <AssignmentsTab v={v} /> : (
           <div className="rounded-lg border border-dashed border-slate-300 bg-white p-8 text-center text-slate-500">
             {TABS.find(([k]) => k === tab)?.[1] ?? 'This section'} history arrives in Phase {TABS.find(([k]) => k === tab)?.[2]}.
           </div>
@@ -119,46 +121,107 @@ export default function VehicleProfile() {
   )
 }
 
-function Overview({ v }) {
+function Overview({ v, onHistory }) {
   const a = v.current_assignment
-  const rows = [
-    ['Property number', v.property_number ?? '—'],
-    ['Vehicle type', v.vehicle_type_display],
-    ['Fuel type', fuelLabel[v.fuel_type]],
-    ['Color', v.color || '—'],
-    ['Engine number', v.engine_number ?? '—'],
-    ['Chassis number', v.chassis_number ?? '—'],
-    ['Acquisition date', formatDate(v.acquisition_date)],
-    ['Acquisition cost', formatPeso(v.acquisition_cost)],
+  const age = v.acquisition_date ? duration(v.acquisition_date) : '—'
+  const sections = [
+    ['Identification', [
+      ['Plate number', v.plate_number],
+      ['Property number', v.property_number],
+      ['Engine number', v.engine_number, true],
+      ['Chassis number', v.chassis_number, true],
+    ]],
+    ['Specifications', [
+      ['Make', v.make],
+      ['Model', [v.model, v.variant].filter(Boolean).join(' ')],
+      ['Year model', v.year_model],
+      ['Vehicle type', v.vehicle_type_display],
+      ['Fuel type', fuelLabel[v.fuel_type]],
+      ['Color', v.color],
+    ]],
+    ['Acquisition', [
+      ['Date acquired', formatDate(v.acquisition_date)],
+      ['Cost', formatPeso(v.acquisition_cost)],
+      ['In service for', age],
+    ]],
   ]
+
   return (
     <div className="grid gap-4 lg:grid-cols-3">
       <PhotoPanel v={v} />
       <div className="space-y-4 lg:col-span-2">
-        <div className="grid gap-3 sm:grid-cols-3">
-          <Stat label="Current odometer" value={formatKm(v.current_odometer)} />
-          <Stat label="Owning office" value={v.office_name} />
-          <Stat label="Status" value={v.status_display} />
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <Stat icon={Gauge} label="Odometer" value={formatKm(v.current_odometer)} />
+          <Stat icon={Building2} label="Owning office" value={v.office_code} hint={v.office_name} />
+          <Stat icon={CircleDot} label="Status" value={<StatusBadge vehicle={v} />} />
+          <Stat icon={Fuel} label="Fuel type" value={fuelLabel[v.fuel_type]} />
         </div>
-        <Card title="Current assignment">
+
+        <Card title="Current assignment" action={
+          <Button variant="ghost" onClick={onHistory}><History size={16} /> View history</Button>
+        }>
           {a ? (
-            <dl className="grid gap-3 text-sm sm:grid-cols-2">
-              <Item label="Assigned office" value={a.office} />
-              <Item label="Accountable person" value={a.accountable_person} />
-              <Item label="Driver" value={a.driver ?? '—'} />
-              <Item label="Since" value={formatDate(a.start_date)} />
-            </dl>
-          ) : <p className="text-sm text-slate-500">Not currently assigned. Use the Assignments tab to assign this vehicle.</p>}
+            <div className="flex flex-wrap items-center gap-x-8 gap-y-4">
+              <div className="flex items-center gap-3">
+                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-brand text-sm font-semibold text-white" aria-hidden="true">
+                  {initials(a.accountable_person)}
+                </span>
+                <div>
+                  <div className="text-xs text-slate-500">Accountable person</div>
+                  <div className="font-semibold">{a.accountable_person}</div>
+                  <div className="text-sm text-slate-500">{a.office}</div>
+                </div>
+              </div>
+              <div>
+                <div className="flex items-center gap-1 text-xs text-slate-500"><IdCard size={14} aria-hidden="true" /> Driver</div>
+                <div className="font-medium">
+                  {a.driver_id ? <Link to={`/drivers/${a.driver_id}`} className="text-brand hover:underline">{a.driver}</Link> : (a.driver ?? '—')}
+                </div>
+              </div>
+              <div>
+                <div className="flex items-center gap-1 text-xs text-slate-500"><CalendarDays size={14} aria-hidden="true" /> Assigned since</div>
+                <div className="font-medium">{formatDate(a.start_date)}</div>
+                <div className="text-sm text-slate-500">{duration(a.start_date)}</div>
+              </div>
+            </div>
+          ) : (
+            <div className="rounded-lg border border-dashed border-slate-300 px-4 py-5 text-center text-sm text-slate-500">
+              Not currently assigned. Open the history to assign this vehicle.
+            </div>
+          )}
         </Card>
-        <Card title="Details">
-          <dl className="grid gap-3 text-sm sm:grid-cols-2">{rows.map(([l, val]) => <Item key={l} label={l} value={val} />)}</dl>
-          {v.remarks && <div className="mt-4 border-t border-slate-100 pt-3 text-sm"><Item label="Remarks" value={v.remarks} /></div>}
-          <p className="mt-4 text-xs text-slate-400">Last updated {formatDateTime(v.updated_at)}</p>
+
+        <Card title="Vehicle details">
+          <div className="grid gap-x-8 gap-y-6 md:grid-cols-3">
+            {sections.map(([title, rows]) => (
+              <section key={title} aria-label={title}>
+                <h3 className="mb-1 text-[11px] font-semibold tracking-wider text-slate-500 uppercase">{title}</h3>
+                <dl>
+                  {rows.map(([label, value, mono]) => (
+                    <div key={label} className="flex items-baseline justify-between gap-4 border-b border-slate-100 py-2 text-sm last:border-0">
+                      <dt className="text-slate-500">{label}</dt>
+                      <dd className={`text-right font-medium break-all ${mono ? 'font-mono text-[13px]' : ''}`}>{value || <span className="text-slate-400">—</span>}</dd>
+                    </div>
+                  ))}
+                </dl>
+              </section>
+            ))}
+          </div>
+          {v.remarks && (
+            <div className="mt-5 rounded-lg bg-slate-50 px-4 py-3 text-sm">
+              <div className="mb-1 text-[11px] font-semibold tracking-wider text-slate-500 uppercase">Remarks</div>
+              <p className="whitespace-pre-line">{v.remarks}</p>
+            </div>
+          )}
+          <p className="mt-4 text-xs text-slate-400">Added {formatDateTime(v.created_at)} · Last updated {formatDateTime(v.updated_at)}</p>
         </Card>
       </div>
     </div>
   )
 }
+
+// "Atty. SARAH BUENA S. MIRASOL" -> "SM": skips titles/initials that end with a period.
+const initials = (name) => name.split(/\s+/).filter((w) => w && !w.endsWith('.')).slice(0, 2).map((w) => w[0]).join('').toUpperCase() || '?'
 
 const ACCEPT = ['image/jpeg', 'image/png', 'image/webp']
 const MAX_MB = 5 // matches VEHICLE_PHOTO_MAX_BYTES default; the server enforces the real limit
@@ -251,29 +314,27 @@ function PhotoPanel({ v }) {
   )
 }
 
-function Card({ title, children }) {
+function Card({ title, action, children }) {
   return (
-    <section className="rounded-lg border border-slate-200 bg-white p-4">
-      <h2 className="mb-3 text-sm font-semibold text-brand">{title}</h2>
+    <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+      <div className="mb-4 flex items-center justify-between gap-2">
+        <h2 className="text-sm font-semibold text-brand">{title}</h2>
+        {action}
+      </div>
       {children}
     </section>
   )
 }
 
-function Stat({ label, value }) {
+function Stat({ icon: Icon, label, value, hint }) {
   return (
-    <div className="rounded-lg border border-slate-200 bg-white p-4">
-      <div className="text-xs text-slate-500 uppercase">{label}</div>
-      <div className="mt-1 text-lg font-semibold">{value}</div>
-    </div>
-  )
-}
-
-function Item({ label, value }) {
-  return (
-    <div>
-      <dt className="text-slate-500">{label}</dt>
-      <dd className="font-medium whitespace-pre-line">{value}</dd>
+    <div className="flex items-start gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand-light text-brand"><Icon size={18} aria-hidden="true" /></span>
+      <div className="min-w-0">
+        <div className="text-xs text-slate-500">{label}</div>
+        <div className="mt-0.5 text-lg leading-tight font-semibold">{value}</div>
+        {hint && <div className="truncate text-xs text-slate-500" title={hint}>{hint}</div>}
+      </div>
     </div>
   )
 }

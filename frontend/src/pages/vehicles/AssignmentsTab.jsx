@@ -11,7 +11,7 @@ import { Badge, Button, Field, inputClass, Modal } from '../../components/ui'
 import { useToast } from '../../components/toast'
 import { useAllOffices } from '../admin/Offices'
 import { todayISO } from '../drivers/common'
-import { formatDate } from './common'
+import { duration, formatDate } from './common'
 
 export default function AssignmentsTab({ v }) {
   const can = useCan()
@@ -53,17 +53,6 @@ export default function AssignmentsTab({ v }) {
   )
 }
 
-// "3 days", "5 months", "2 years"; same-day handovers read "Same day".
-function duration(a) {
-  const end = a.end_date ? new Date(a.end_date) : new Date(todayISO())
-  const days = Math.round((end - new Date(a.start_date)) / 86400000)
-  const plural = (n, unit) => `${n} ${unit}${n === 1 ? '' : 's'}`
-  if (days < 1) return 'Same day'
-  if (days < 60) return plural(days, 'day')
-  if (days < 730) return plural(Math.round(days / 30), 'month')
-  return plural(Math.round(days / 365), 'year')
-}
-
 function Timeline({ query }) {
   if (query.isLoading) {
     return <div className="space-y-3">{[0, 1].map((i) => <div key={i} className="h-24 animate-pulse rounded-lg bg-slate-200" />)}</div>
@@ -84,7 +73,7 @@ function Timeline({ query }) {
             <div className={`rounded-xl border bg-white p-4 shadow-sm ${a.is_current ? 'border-green-200' : 'border-slate-200'}`}>
               <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
                 <span className="font-semibold">{formatDate(a.start_date)} – {a.end_date ? formatDate(a.end_date) : 'Present'}</span>
-                <span className="text-sm text-slate-500">{duration(a)}</span>
+                <span className="text-sm text-slate-500">{duration(a.start_date, a.end_date)}</span>
                 <span className="ml-auto"><Badge tone={a.is_current ? 'green' : 'gray'} dot>{a.is_current ? 'Current' : 'Ended'}</Badge></span>
               </div>
               <dl className="mt-3 grid gap-3 text-sm sm:grid-cols-3">
