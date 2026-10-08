@@ -20,8 +20,8 @@ const statusTone = Object.fromEntries(STATUSES.map(([v, , t]) => [v, t]))
 export const fuelLabel = Object.fromEntries(FUELS)
 
 export function StatusBadge({ vehicle }) {
-  if (vehicle.is_archived) return <Badge tone="gray">Archived</Badge>
-  return <Badge tone={statusTone[vehicle.status]}>{vehicle.status_display}</Badge>
+  if (vehicle.is_archived) return <Badge tone="gray" dot>Archived</Badge>
+  return <Badge tone={statusTone[vehicle.status]} dot>{vehicle.status_display}</Badge>
 }
 
 const peso = new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' })

@@ -40,8 +40,13 @@ const tones = {
   gold: 'bg-amber-100 text-amber-900',
 }
 
-export function Badge({ tone = 'gray', children }) {
-  return <span className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${tones[tone]}`}>{children}</span>
+export function Badge({ tone = 'gray', dot = false, children }) {
+  return (
+    <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium whitespace-nowrap ${tones[tone]}`}>
+      {dot && <span className="h-1.5 w-1.5 rounded-full bg-current" aria-hidden="true" />}
+      {children}
+    </span>
+  )
 }
 
 export function PageHeader({ title, actions, children }) {
