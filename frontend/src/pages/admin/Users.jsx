@@ -7,7 +7,7 @@ import { KeyRound, Pencil, Plus, Power, Search } from 'lucide-react'
 import { api, applyFieldErrors, errorMessage, useList } from '../../api'
 import { useMe } from '../../auth'
 import DataTable from '../../components/DataTable'
-import { Badge, Button, ConfirmDialog, Field, formatDateTime, inputClass, Modal, PageHeader } from '../../components/ui'
+import { Badge, Button, ConfirmDialog, Field, formatDateTime, inputBase, inputClass, Modal, PageHeader } from '../../components/ui'
 import { useToast } from '../../components/toast'
 import { useAllOffices } from './Offices'
 
@@ -73,13 +73,13 @@ export default function Users() {
         <label className="relative">
           <span className="sr-only">Search users</span>
           <Search size={16} className="absolute top-2.5 left-3 text-slate-400" aria-hidden="true" />
-          <input className={`${inputClass} w-64 pl-9`} placeholder="Search name, username, email" value={search} onChange={filter(setSearch)} />
+          <input className={`${inputBase} w-64 pl-9`} placeholder="Search name, username, email" value={search} onChange={filter(setSearch)} />
         </label>
-        <select className={`${inputClass} w-52`} value={role} onChange={filter(setRole)} aria-label="Filter by role">
+        <select className={`${inputBase} w-52`} value={role} onChange={filter(setRole)} aria-label="Filter by role">
           <option value="">All roles</option>
           {ROLES.map((r) => <option key={r}>{r}</option>)}
         </select>
-        <select className={`${inputClass} w-40`} value={active} onChange={filter(setActive)} aria-label="Filter by status">
+        <select className={`${inputBase} w-40`} value={active} onChange={filter(setActive)} aria-label="Filter by status">
           <option value="">All statuses</option>
           <option value="true">Active</option>
           <option value="false">Inactive</option>

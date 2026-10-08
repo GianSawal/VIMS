@@ -5,7 +5,7 @@ import { FileText, Paperclip, Pencil, Trash2, Upload } from 'lucide-react'
 import { api, errorMessage, useList } from '../../api'
 import { useCan } from '../../auth'
 import DataTable from '../../components/DataTable'
-import { Badge, Button, ConfirmDialog, formatDateTime, inputClass, Modal } from '../../components/ui'
+import { Badge, Button, ConfirmDialog, formatDateTime, inputBase, Modal } from '../../components/ui'
 import { useToast } from '../../components/toast'
 import { NotFound } from '../Errors'
 import { formatDate } from '../vehicles/common'
@@ -168,7 +168,7 @@ function Attachments({ driver }) {
           {file ? (
             <div className="flex flex-wrap items-center gap-2">
               <span className="text-sm">{file.name} ({formatBytes(file.size)})</span>
-              <input className={`${inputClass} w-64`} placeholder="Description (optional)" aria-label="Attachment description"
+              <input className={`${inputBase} w-64`} placeholder="Description (optional)" aria-label="Attachment description"
                 maxLength={255} value={description} onChange={(e) => setDescription(e.target.value)} />
               <Button onClick={() => upload.mutate()} disabled={upload.isPending}>
                 <Upload size={16} /> {upload.isPending ? `Uploading ${progress}%` : 'Upload'}

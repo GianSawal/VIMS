@@ -7,7 +7,7 @@ import { Pencil, Plus, Search } from 'lucide-react'
 import { api, applyFieldErrors, useList } from '../../api'
 import { useCan } from '../../auth'
 import DataTable from '../../components/DataTable'
-import { Badge, Button, Field, inputClass, Modal, PageHeader } from '../../components/ui'
+import { Badge, Button, Field, inputBase, inputClass, Modal, PageHeader } from '../../components/ui'
 import { useToast } from '../../components/toast'
 
 export const OFFICE_TYPES = [
@@ -53,10 +53,10 @@ export default function Offices() {
         <label className="relative">
           <span className="sr-only">Search offices</span>
           <Search size={16} className="absolute top-2.5 left-3 text-slate-400" aria-hidden="true" />
-          <input className={`${inputClass} w-64 pl-9`} placeholder="Search code or name" value={search}
+          <input className={`${inputBase} w-64 pl-9`} placeholder="Search code or name" value={search}
             onChange={(e) => { setSearch(e.target.value); setPage(1) }} />
         </label>
-        <select className={`${inputClass} w-48`} value={type} aria-label="Filter by type"
+        <select className={`${inputBase} w-48`} value={type} aria-label="Filter by type"
           onChange={(e) => { setType(e.target.value); setPage(1) }}>
           <option value="">All types</option>
           {OFFICE_TYPES.map(([v, l]) => <option key={v} value={v}>{l}</option>)}

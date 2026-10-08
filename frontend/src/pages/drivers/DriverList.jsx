@@ -4,7 +4,7 @@ import { Plus, Search } from 'lucide-react'
 import { useList } from '../../api'
 import { useCan, useMe } from '../../auth'
 import DataTable from '../../components/DataTable'
-import { Badge, Button, inputClass, Modal, PageHeader } from '../../components/ui'
+import { Badge, Button, inputBase, Modal, PageHeader } from '../../components/ui'
 import { useAllOffices } from '../admin/Offices'
 import { formatDate } from '../vehicles/common'
 import DriverForm from './DriverForm'
@@ -63,20 +63,20 @@ export default function DriverList() {
         <form className="relative" onSubmit={(e) => { e.preventDefault(); set('search', search.trim()) }}>
           <label htmlFor="driver-search" className="sr-only">Search drivers</label>
           <Search size={16} className="absolute top-2.5 left-3 text-slate-400" aria-hidden="true" />
-          <input id="driver-search" className={`${inputClass} w-72 pl-9`} placeholder="Name, employee no., license no."
+          <input id="driver-search" className={`${inputBase} w-72 pl-9`} placeholder="Name, employee no., license no."
             value={search} onChange={(e) => setSearch(e.target.value)} onBlur={() => set('search', search.trim())} />
         </form>
         {(me?.view_all_offices || (me?.offices.length ?? 0) > 1) && (
-          <select className={`${inputClass} w-48`} aria-label="Filter by office" value={f.office ?? ''} onChange={(e) => set('office', e.target.value)}>
+          <select className={`${inputBase} w-48`} aria-label="Filter by office" value={f.office ?? ''} onChange={(e) => set('office', e.target.value)}>
             <option value="">All offices</option>
             {offices.data?.results.map((o) => <option key={o.id} value={o.id}>{o.code} - {o.name}</option>)}
           </select>
         )}
-        <select className={`${inputClass} w-44`} aria-label="Filter by license status" value={f.license_status ?? ''} onChange={(e) => set('license_status', e.target.value)}>
+        <select className={`${inputBase} w-44`} aria-label="Filter by license status" value={f.license_status ?? ''} onChange={(e) => set('license_status', e.target.value)}>
           <option value="">All licenses</option>
           {LICENSE_STATUSES.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
         </select>
-        <select className={`${inputClass} w-40`} aria-label="Filter by status" value={f.is_active ?? ''} onChange={(e) => set('is_active', e.target.value)}>
+        <select className={`${inputBase} w-40`} aria-label="Filter by status" value={f.is_active ?? ''} onChange={(e) => set('is_active', e.target.value)}>
           <option value="">All statuses</option>
           <option value="true">Active</option>
           <option value="false">Inactive</option>

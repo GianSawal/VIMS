@@ -18,8 +18,10 @@ export function Button({ variant = 'primary', className = '', ...props }) {
   )
 }
 
-export const inputClass =
-  'w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm focus:border-brand focus:ring-2 focus:ring-brand/30 focus:outline-none'
+// inputBase has no width: filter bars set their own (w-44 etc.). Form fields use inputClass (full width).
+export const inputBase =
+  'rounded-md border border-slate-300 bg-white px-3 py-2 text-sm focus:border-brand focus:ring-2 focus:ring-brand/30 focus:outline-none'
+export const inputClass = `w-full ${inputBase}`
 
 export function Field({ label, htmlFor, error, hint, children }) {
   return (

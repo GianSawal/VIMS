@@ -6,7 +6,7 @@ import {
 import { useList } from '../../api'
 import { useCan, useMe } from '../../auth'
 import DataTable from '../../components/DataTable'
-import { Button, inputClass, PageHeader } from '../../components/ui'
+import { Button, inputBase, PageHeader } from '../../components/ui'
 import { useAllOffices } from '../admin/Offices'
 import { formatKm, STATUSES, StatusBadge, TYPES, VehiclePhoto } from './common'
 
@@ -21,7 +21,7 @@ const CARDS = {
   DISPOSED: [PackageX, 'bg-slate-100 text-slate-500'],
 }
 
-const control = `${inputClass} h-9 py-0`
+const control = `${inputBase} h-9 py-0`
 
 export default function VehicleList() {
   const can = useCan()
@@ -89,7 +89,7 @@ export default function VehicleList() {
         <div className="relative w-full sm:w-80">
           <label htmlFor="vehicle-search" className="sr-only">Search vehicles</label>
           <Search size={16} className="absolute top-2.5 left-3 text-slate-400" aria-hidden="true" />
-          <input id="vehicle-search" type="search" className={`${control} pl-9`} placeholder="Search plate, property no., make, model…"
+          <input id="vehicle-search" type="search" className={`${control} w-full pl-9`} placeholder="Search plate, property no., make, model…"
             value={search} onChange={(e) => setSearch(e.target.value)} />
         </div>
         {showOffice && (
