@@ -1,4 +1,6 @@
-# DOLE VIMS (Vehicle Information Management System)
+# DOLE VRS (Vehicle Record System)
+
+Formerly named VIMS; the repo, folder, database (`vims`) and spec file names keep the old name on purpose.
 
 React (Vite, Tailwind v4) + Django REST Framework + MySQL. Replaces DOLE's spreadsheet-based vehicle records.
 

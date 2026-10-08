@@ -1,4 +1,6 @@
-# DOLE Vehicle Information Management System (VIMS)
+# DOLE Vehicle Record System (VRS)
+
+> Renamed from VIMS (Vehicle Information Management System) on 2026-10-08.
 
 ## Development Tasks and Phase Checklist
 

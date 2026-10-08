@@ -1,4 +1,4 @@
-# VIMS ERD
+# VRS ERD
 
 Generated from the Django models (Phase 2). `Tracked` models also carry `created_at`, `updated_at`, `created_by → User`.
 
@@ -97,7 +97,7 @@ erDiagram
 
 | Group | Model permissions |
 |---|---|
-| System Administrator | all, every VIMS app |
+| System Administrator | all, every VRS app |
 | Fleet Administrator | add/change/view on fleet, operations, maintenance; view offices |
 | Field Office User | view fleet; add/change trips, fuel, tolls, maintenance records |
 | Viewer | view only (no audit, no users) |

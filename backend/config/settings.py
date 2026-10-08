@@ -1,4 +1,4 @@
-"""DOLE VIMS settings. All secrets and environment-specific values come from .env."""
+"""DOLE VRS settings. All secrets and environment-specific values come from .env."""
 from pathlib import Path
 
 import environ
@@ -129,8 +129,8 @@ REST_FRAMEWORK = {
 }
 
 SPECTACULAR_SETTINGS = {
-    'TITLE': 'DOLE VIMS API',
-    'DESCRIPTION': 'DOLE Vehicle Information Management System',
+    'TITLE': 'DOLE VRS API',
+    'DESCRIPTION': 'DOLE Vehicle Record System',
     'VERSION': '1.0.0',
     'SERVE_INCLUDE_SCHEMA': False,
 }

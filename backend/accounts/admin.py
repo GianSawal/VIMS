@@ -6,7 +6,7 @@ from .models import Office, User
 
 @admin.register(User)
 class UserAdmin(BaseUserAdmin):
-    fieldsets = BaseUserAdmin.fieldsets + (('VIMS', {'fields': ('offices', 'must_change_password')}),)
+    fieldsets = BaseUserAdmin.fieldsets + (('VRS', {'fields': ('offices', 'must_change_password')}),)
     filter_horizontal = ('offices', 'groups', 'user_permissions')
 
 

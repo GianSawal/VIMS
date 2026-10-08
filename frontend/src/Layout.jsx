@@ -42,8 +42,8 @@ export default function Layout() {
         <div className="flex items-center gap-3 border-b border-slate-200 px-4 py-4">
           <img src="/dole-logo.png" alt="DOLE logo" className="h-12 w-12 object-contain" />
           <div className="leading-tight">
-            <div className="text-base font-bold text-brand">DOLE VIMS</div>
-            <div className="text-xs text-slate-500">Vehicle Information Mgmt.</div>
+            <div className="text-base font-bold text-brand">DOLE VRS</div>
+            <div className="text-xs text-slate-500">Vehicle Record System</div>
           </div>
           <button className="ml-auto lg:hidden" onClick={() => setOpen(false)} aria-label="Close menu">
             <X size={20} />

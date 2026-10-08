@@ -5,11 +5,11 @@ from django.db import transaction
 
 from maintenance.models import MaintenanceCategory
 
-VIMS_APPS = ['accounts', 'fleet', 'operations', 'maintenance', 'notifications', 'audit']
+VRS_APPS = ['accounts', 'fleet', 'operations', 'maintenance', 'notifications', 'audit']
 
 # role -> list of (app_label, model or '*', actions)
 ROLES = {
-    'System Administrator': [(app, '*', '*') for app in VIMS_APPS],  # every permission, incl. custom ones
+    'System Administrator': [(app, '*', '*') for app in VRS_APPS],  # every permission, incl. custom ones
     'Fleet Administrator': [
         ('accounts', 'office', 'view'),
         ('fleet', '*', 'add change view'),
