@@ -4,10 +4,9 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { Link } from 'react-router-dom'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { ArrowRightLeft, UserPlus, UserX } from 'lucide-react'
-import { api, applyFieldErrors, invalidatePrefix, useList } from '../../api'
+import { ArrowRightLeft, Building2, IdCard, UserPlus, UserRound, UserX } from 'lucide-react'
+import { api, applyFieldErrors, errorMessage, invalidatePrefix, useList } from '../../api'
 import { useCan } from '../../auth'
-import DataTable from '../../components/DataTable'
 import { Badge, Button, Field, inputClass, Modal } from '../../components/ui'
 import { useToast } from '../../components/toast'
 import { useAllOffices } from '../admin/Offices'
@@ -16,24 +15,12 @@ import { formatDate } from './common'
 
 export default function AssignmentsTab({ v }) {
   const can = useCan()
-  const [page, setPage] = useState(1)
   const [dialog, setDialog] = useState(null) // 'assign' | 'end'
-  const query = useList(`/vehicles/${v.id}/assignments/`, { page })
+  const query = useList(`/vehicles/${v.id}/assignments/`, { page_size: 100 })
   const current = v.current_assignment
   const canAssign = can('fleet.add_vehicleassignment') && can('fleet.change_vehicleassignment')
     && !v.is_archived && v.status !== 'DISPOSED'
   const canEnd = can('fleet.change_vehicleassignment') && !v.is_archived
-
-  const columns = [
-    { key: 'period', label: 'Period', render: (a) => `${formatDate(a.start_date)} – ${a.end_date ? formatDate(a.end_date) : 'present'}` },
-    { key: 'office', label: 'Office', render: (a) => a.office_name },
-    { key: 'accountable_person', label: 'Accountable person' },
-    { key: 'driver', label: 'Driver', render: (a) => a.driver
-      ? <Link to={`/drivers/${a.driver}`} className="text-brand hover:underline">{a.driver_name}</Link>
-      : (a.driver_name || '—') },
-    { key: 'remarks', label: 'Remarks', render: (a) => a.remarks || '—' },
-    { key: 'status', label: 'Status', render: (a) => <Badge tone={a.is_current ? 'green' : 'gray'}>{a.is_current ? 'Current' : 'Ended'}</Badge> },
-  ]
 
   return (
     <div>
@@ -54,7 +41,7 @@ export default function AssignmentsTab({ v }) {
         )}
       </div>
 
-      <DataTable columns={columns} query={query} page={page} onPage={setPage} empty="This vehicle has never been assigned." />
+      <Timeline query={query} />
 
       <Modal open={dialog === 'assign'} onClose={() => setDialog(null)} title={current ? `Reassign ${v.plate_number}` : `Assign ${v.plate_number}`} wide>
         {dialog === 'assign' && <AssignForm v={v} current={current} onClose={() => setDialog(null)} />}
@@ -62,6 +49,67 @@ export default function AssignmentsTab({ v }) {
       <Modal open={dialog === 'end'} onClose={() => setDialog(null)} title="End assignment">
         {dialog === 'end' && <EndForm v={v} current={current} onClose={() => setDialog(null)} />}
       </Modal>
+    </div>
+  )
+}
+
+// "3 days", "5 months", "2 years"; same-day handovers read "Same day".
+function duration(a) {
+  const end = a.end_date ? new Date(a.end_date) : new Date(todayISO())
+  const days = Math.round((end - new Date(a.start_date)) / 86400000)
+  const plural = (n, unit) => `${n} ${unit}${n === 1 ? '' : 's'}`
+  if (days < 1) return 'Same day'
+  if (days < 60) return plural(days, 'day')
+  if (days < 730) return plural(Math.round(days / 30), 'month')
+  return plural(Math.round(days / 365), 'year')
+}
+
+function Timeline({ query }) {
+  if (query.isLoading) {
+    return <div className="space-y-3">{[0, 1].map((i) => <div key={i} className="h-24 animate-pulse rounded-lg bg-slate-200" />)}</div>
+  }
+  if (query.isError) return <p className="text-sm text-danger">{errorMessage(query.error)}</p>
+  const rows = query.data?.results ?? []
+  if (rows.length === 0) {
+    return <div className="rounded-xl border border-dashed border-slate-300 bg-white p-8 text-center text-sm text-slate-500">This vehicle has never been assigned.</div>
+  }
+  return (
+    <section aria-label="Assignment history">
+      <h2 className="mb-3 text-sm font-semibold text-brand">Assignment history <span className="font-normal text-slate-500">· {rows.length} {rows.length === 1 ? 'record' : 'records'}</span></h2>
+      <ol className="relative ml-2 border-l-2 border-slate-200">
+        {rows.map((a) => (
+          <li key={a.id} className="relative pb-5 pl-7 last:pb-0">
+            <span aria-hidden="true" className={`absolute top-4 -left-[9px] h-4 w-4 rounded-full border-2 bg-white ${
+              a.is_current ? 'border-green-600 ring-4 ring-green-100' : 'border-slate-300'}`} />
+            <div className={`rounded-xl border bg-white p-4 shadow-sm ${a.is_current ? 'border-green-200' : 'border-slate-200'}`}>
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                <span className="font-semibold">{formatDate(a.start_date)} – {a.end_date ? formatDate(a.end_date) : 'Present'}</span>
+                <span className="text-sm text-slate-500">{duration(a)}</span>
+                <span className="ml-auto"><Badge tone={a.is_current ? 'green' : 'gray'} dot>{a.is_current ? 'Current' : 'Ended'}</Badge></span>
+              </div>
+              <dl className="mt-3 grid gap-3 text-sm sm:grid-cols-3">
+                <Detail icon={UserRound} label="Accountable person" value={a.accountable_person} />
+                <Detail icon={Building2} label="Office" value={a.office_name} />
+                <Detail icon={IdCard} label="Driver"
+                  value={a.driver ? <Link to={`/drivers/${a.driver}`} className="text-brand hover:underline">{a.driver_name}</Link> : (a.driver_name || '—')} />
+              </dl>
+              {a.remarks && <p className="mt-3 border-t border-slate-100 pt-2 text-sm text-slate-600">{a.remarks}</p>}
+            </div>
+          </li>
+        ))}
+      </ol>
+    </section>
+  )
+}
+
+function Detail({ icon: Icon, label, value }) {
+  return (
+    <div className="flex items-start gap-2">
+      <Icon size={16} className="mt-0.5 shrink-0 text-slate-400" aria-hidden="true" />
+      <div className="min-w-0">
+        <dt className="text-xs text-slate-500">{label}</dt>
+        <dd className="font-medium break-words">{value}</dd>
+      </div>
     </div>
   )
 }
