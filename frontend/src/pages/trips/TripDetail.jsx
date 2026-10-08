@@ -4,7 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { Link, useParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowDown, CalendarClock, CircleCheck, Gauge, MapPin, Pencil, UserRound, Users, XCircle } from 'lucide-react'
+import { ArrowDown, CalendarClock, Check, CircleCheck, Clock, Gauge, MapPin, Pencil, UserRound, Users, X, XCircle } from 'lucide-react'
 import { api, applyFieldErrors, errorMessage, invalidatePrefix } from '../../api'
 import { useCan } from '../../auth'
 import Attachments from '../../components/Attachments'
@@ -45,8 +45,20 @@ export default function TripDetail() {
         </div>
         {canChange && <Button variant="secondary" onClick={() => setDialog('edit')}><Pencil size={16} /> Edit details</Button>}
         {canChange && open && <Button variant="secondary" className="text-danger" onClick={() => setDialog('cancel')}><XCircle size={16} /> Cancel trip</Button>}
-        {canChange && open && <Button onClick={() => setDialog('complete')}><CircleCheck size={16} /> Record return</Button>}
       </div>
+
+      <TripProgress trip={t} />
+
+      {open && (
+        <div className="mb-4 flex flex-wrap items-center gap-3 rounded-xl border border-brand/20 bg-brand-light/60 px-4 py-3">
+          <Clock size={18} className="text-brand" aria-hidden="true" />
+          <p className="mr-auto text-sm text-ink">
+            <strong className="font-semibold">Out for {tripDuration(t.departed_at)}.</strong>{' '}
+            Record the return with the ending odometer when the vehicle is back.
+          </p>
+          {canChange && <Button onClick={() => setDialog('complete')}><CircleCheck size={16} /> Record return</Button>}
+        </div>
+      )}
 
       <div className="grid gap-4 lg:grid-cols-3">
         <div className="space-y-4 lg:col-span-2">
@@ -108,6 +120,44 @@ export default function TripDetail() {
   )
 }
 
+/** Dispatched -> Out on trip -> Returned (or Cancelled), with timestamps. Text labels carry the meaning, not color. */
+function TripProgress({ trip: t }) {
+  const cancelled = t.status === 'CANCELLED'
+  const done = t.status === 'COMPLETED'
+  const steps = [
+    { label: 'Dispatched', detail: formatDateTime(t.departed_at), state: 'done' },
+    { label: 'Out on trip', detail: cancelled ? 'Did not complete' : done ? tripDuration(t.departed_at, t.returned_at) : `${tripDuration(t.departed_at)} so far`,
+      state: done ? 'done' : cancelled ? 'skipped' : 'current' },
+    cancelled
+      ? { label: 'Cancelled', detail: formatDateTime(t.updated_at), state: 'cancelled' }
+      : { label: 'Returned', detail: done ? formatDateTime(t.returned_at) : 'Pending', state: done ? 'done' : 'todo' },
+  ]
+  const dot = {
+    done: 'bg-brand text-white',
+    current: 'bg-white text-brand ring-2 ring-brand',
+    todo: 'bg-white text-slate-400 ring-2 ring-slate-200',
+    skipped: 'bg-slate-100 text-slate-400 ring-2 ring-slate-200',
+    cancelled: 'bg-slate-500 text-white',
+  }
+  return (
+    <ol aria-label="Trip progress" className="mb-4 grid grid-cols-3 rounded-xl border border-slate-200 bg-white px-4 py-4 shadow-sm">
+      {steps.map((st, i) => (
+        <li key={st.label} className="relative flex flex-col items-center text-center" aria-current={st.state === 'current' ? 'step' : undefined}>
+          {i > 0 && (
+            <span aria-hidden="true" className={`absolute top-4 right-1/2 h-0.5 w-full -translate-y-1/2 ${
+              st.state === 'done' || st.state === 'current' ? 'bg-brand' : 'bg-slate-200'}`} />
+          )}
+          <span className={`relative z-10 flex h-8 w-8 items-center justify-center rounded-full text-sm font-semibold ${dot[st.state]}`}>
+            {st.state === 'done' ? <Check size={16} aria-hidden="true" /> : st.state === 'cancelled' ? <X size={16} aria-hidden="true" /> : i + 1}
+          </span>
+          <span className="mt-2 text-sm font-semibold">{st.label}</span>
+          <span className="text-xs text-slate-500">{st.detail}</span>
+        </li>
+      ))}
+    </ol>
+  )
+}
+
 function useTripMutation(trip, path, message, onClose, setError, fields) {
   const qc = useQueryClient()
   const toast = useToast()
@@ -131,7 +181,7 @@ const completeSchema = z.object({
   remarks: z.string(),
 })
 
-function CompleteForm({ trip, onClose }) {
+export function CompleteForm({ trip, onClose }) {
   const { register, handleSubmit, setError, watch, formState: { errors } } = useForm({
     resolver: zodResolver(completeSchema),
     defaultValues: { returned_at: toLocalInput(), odometer_end: '', remarks: trip.remarks ?? '' },

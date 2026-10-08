@@ -73,80 +73,109 @@ export default function DispatchForm({ vehicle, onClose, onSaved }) {
   )
   const vehicleField = register('vehicle')
 
-  return (
-    <form noValidate className="grid gap-4 sm:grid-cols-2" onSubmit={handleSubmit(submit)}>
-      {error && <div role="alert" className="rounded-md bg-red-50 px-3 py-2 text-sm text-danger sm:col-span-2">{error}</div>}
+  const chosenDriver = drivers.data?.results.find((d) => String(d.id) === watch('driver'))
 
-      {vehicle ? (
-        <div>
-          <span className="mb-1 block text-sm font-medium">Vehicle</span>
-          <input type="hidden" {...vehicleField} />
-          <div className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm">{vehicle.plate_number} · {vehicle.make} {vehicle.model}</div>
-        </div>
-      ) : (
-        <Field label="Vehicle *" htmlFor="vehicle" error={errors.vehicle?.message}>
-          <select id="vehicle" className={inputClass} {...vehicleField}
-            onChange={(e) => {
-              vehicleField.onChange(e)
-              const v = vehicles.data?.results.find((x) => String(x.id) === e.target.value)
-              if (v) setValue('odometer_start', String(v.current_odometer))
-            }}>
-            <option value="">Select…</option>
-            {vehicles.data?.results.map((v) => (
-              <option key={v.id} value={v.id} disabled={!DISPATCHABLE.includes(v.status)}>
-                {v.plate_number} · {v.make} {v.model}{DISPATCHABLE.includes(v.status) ? '' : ` (${v.status_display})`}
+  return (
+    <form noValidate className="space-y-5" onSubmit={handleSubmit(submit)}>
+      {error && <div role="alert" className="rounded-md bg-red-50 px-3 py-2 text-sm text-danger">{error}</div>}
+
+      <Section step="1" title="Vehicle and driver">
+        {vehicle ? (
+          <div>
+            <span className="mb-1 block text-sm font-medium">Vehicle</span>
+            <input type="hidden" {...vehicleField} />
+            <div className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm">{vehicle.plate_number} · {vehicle.make} {vehicle.model}</div>
+          </div>
+        ) : (
+          <Field label="Vehicle *" htmlFor="vehicle" error={errors.vehicle?.message}>
+            <select id="vehicle" className={inputClass} {...vehicleField}
+              onChange={(e) => {
+                vehicleField.onChange(e)
+                const v = vehicles.data?.results.find((x) => String(x.id) === e.target.value)
+                if (v) setValue('odometer_start', String(v.current_odometer))
+              }}>
+              <option value="">Select a vehicle…</option>
+              {vehicles.data?.results.map((v) => (
+                <option key={v.id} value={v.id} disabled={!DISPATCHABLE.includes(v.status)}>
+                  {v.plate_number} · {v.make} {v.model}{DISPATCHABLE.includes(v.status) ? '' : ` (${v.status_display})`}
+                </option>
+              ))}
+            </select>
+          </Field>
+        )}
+        <Field label="Driver *" htmlFor="driver" error={errors.driver?.message}
+          hint={chosenDriver?.license_status === 'EXPIRING' ? `License expires ${chosenDriver.license_expiry_date}. Remind the driver to renew.` : undefined}>
+          <select id="driver" className={inputClass} {...register('driver')}>
+            <option value="">Select a driver…</option>
+            {drivers.data?.results.map((d) => (
+              <option key={d.id} value={d.id} disabled={d.license_status === 'EXPIRED'}>
+                {d.full_name} ({d.office_code}){d.license_status === 'EXPIRED' ? ' – license expired' : d.license_status === 'EXPIRING' ? ' – license expiring' : ''}
               </option>
             ))}
           </select>
         </Field>
-      )}
-      <Field label="Driver *" htmlFor="driver" error={errors.driver?.message}>
-        <select id="driver" className={inputClass} {...register('driver')}>
-          <option value="">Select…</option>
-          {drivers.data?.results.map((d) => (
-            <option key={d.id} value={d.id} disabled={d.license_status === 'EXPIRED'}>
-              {d.full_name} ({d.office_code}){d.license_status === 'EXPIRED' ? ' – license expired' : ''}
-            </option>
-          ))}
-        </select>
-      </Field>
+        {chosen && (
+          <div className="flex flex-wrap items-center gap-x-6 gap-y-1 rounded-lg bg-brand-light/50 px-3 py-2 text-sm sm:col-span-2">
+            <span><span className="text-slate-500">Status</span> <strong className="font-medium">{chosen.status_display}</strong></span>
+            <span><span className="text-slate-500">Office</span> <strong className="font-medium">{chosen.office_code}</strong></span>
+            <span><span className="text-slate-500">Odometer</span> <strong className="font-medium tabular-nums">{km(chosen.current_odometer)}</strong></span>
+          </div>
+        )}
+      </Section>
 
-      {text('departed_at', 'Departure *', { type: 'datetime-local' })}
-      {text('odometer_start', 'Starting odometer (km) *', {
-        inputMode: 'numeric',
-        hint: chosen ? `Vehicle is at ${km(chosen.current_odometer)}; cannot start lower.` : undefined,
-      })}
+      <Section step="2" title="Departure">
+        {text('departed_at', 'Date and time out *', { type: 'datetime-local' })}
+        {text('odometer_start', 'Starting odometer (km) *', {
+          inputMode: 'numeric',
+          hint: chosen ? `Pre-filled from the vehicle (${km(chosen.current_odometer)}). Correct it if the dashboard shows more; it cannot be lower.` : 'Read it from the dashboard before leaving.',
+        })}
+      </Section>
 
-      {text('origin', 'Origin *', { placeholder: 'e.g. DOLE Regional Office' })}
-      {text('destination', 'Destination / places visited *')}
-      <div className="sm:col-span-2">
-        <Field label="Purpose *" htmlFor="purpose" error={errors.purpose?.message}>
-          <textarea id="purpose" rows={2} className={inputClass} {...register('purpose')} />
+      <Section step="3" title="Route and purpose">
+        {text('origin', 'Origin *', { placeholder: 'e.g. DOLE Regional Office' })}
+        {text('destination', 'Destination / places visited *', { placeholder: 'e.g. Provincial Office, Tarlac' })}
+        <div className="sm:col-span-2">
+          <Field label="Purpose *" htmlFor="purpose" error={errors.purpose?.message}>
+            <textarea id="purpose" rows={2} className={inputClass} placeholder="e.g. Labor inspection, document delivery" {...register('purpose')} />
+          </Field>
+        </div>
+      </Section>
+
+      <Section step="4" title="Other details" note="Optional">
+        <Field label="Requesting office" htmlFor="requesting_office" error={errors.requesting_office?.message}>
+          <select id="requesting_office" className={inputClass} {...register('requesting_office')}>
+            <option value="">None</option>
+            {offices.data?.results.filter((o) => o.is_active).map((o) => <option key={o.id} value={o.id}>{o.code} - {o.name}</option>)}
+          </select>
         </Field>
-      </div>
-
-      <Field label="Requesting office" htmlFor="requesting_office" error={errors.requesting_office?.message}>
-        <select id="requesting_office" className={inputClass} {...register('requesting_office')}>
-          <option value="">None</option>
-          {offices.data?.results.filter((o) => o.is_active).map((o) => <option key={o.id} value={o.id}>{o.code} - {o.name}</option>)}
-        </select>
-      </Field>
-      {text('ticket_number', 'Trip ticket no.', { placeholder: 'Leave blank to auto-number', className: `${inputClass} uppercase` })}
-      <div className="sm:col-span-2">
+        {text('ticket_number', 'Trip ticket no.', {
+          placeholder: 'Auto-numbered if blank', className: `${inputClass} uppercase`,
+          hint: 'Type the paper trip ticket number, or leave blank for TT-YYYY-00001.',
+        })}
         <Field label="Passengers" htmlFor="passengers" error={errors.passengers?.message}>
           <textarea id="passengers" rows={2} className={inputClass} placeholder="One name per line" {...register('passengers')} />
         </Field>
-      </div>
-      <div className="sm:col-span-2">
         <Field label="Remarks" htmlFor="remarks" error={errors.remarks?.message}>
           <textarea id="remarks" rows={2} className={inputClass} {...register('remarks')} />
         </Field>
-      </div>
+      </Section>
 
-      <div className="flex justify-end gap-2 sm:col-span-2">
+      <div className="sticky bottom-0 -mx-5 -mb-5 flex justify-end gap-2 border-t border-slate-200 bg-white px-5 py-3">
         <Button variant="secondary" onClick={onClose}>Cancel</Button>
         <Button type="submit" disabled={save.isPending}>{save.isPending ? 'Dispatching…' : 'Dispatch trip'}</Button>
       </div>
     </form>
+  )
+}
+
+function Section({ step, title, note, children }) {
+  return (
+    <fieldset className="rounded-lg border border-slate-200 p-4">
+      <legend className="flex items-center gap-2 px-1 text-sm font-semibold text-brand">
+        <span className="flex h-5 w-5 items-center justify-center rounded-full bg-brand text-[11px] text-white" aria-hidden="true">{step}</span>
+        {title}{note && <span className="font-normal text-slate-400">· {note}</span>}
+      </legend>
+      <div className="grid gap-4 sm:grid-cols-2">{children}</div>
+    </fieldset>
   )
 }
