@@ -29,6 +29,16 @@ class ModelPermissions(DjangoModelPermissions):
     }
 
 
+def require(*perms):
+    """Permission class needing all `perms`; for custom actions where POST/DELETE don't mean add/delete."""
+    class Required(BasePermission):
+        message = 'You do not have permission to perform this action.'
+
+        def has_permission(self, request, view):
+            return request.user.is_authenticated and request.user.has_perms(perms)
+    return Required
+
+
 def scope_to_offices(qs, user, office_field):
     """Limit a queryset to the user's offices unless they may see all offices."""
     if office_field is None or user.has_perm(VIEW_ALL_OFFICES):
@@ -55,8 +65,9 @@ class OfficeScopedMixin:
 
     def perform_create(self, serializer):
         check_office_access(self.request.user, serializer.validated_data.get('office'))
-        serializer.save()
+        extra = {'created_by': self.request.user} if hasattr(serializer.Meta.model, 'created_by') else {}
+        return serializer.save(**extra)
 
     def perform_update(self, serializer):
         check_office_access(self.request.user, serializer.validated_data.get('office'))
-        serializer.save()
+        return serializer.save()

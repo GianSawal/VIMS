@@ -9,10 +9,11 @@ VIMS_APPS = ['accounts', 'fleet', 'operations', 'maintenance', 'notifications', 
 
 # role -> list of (app_label, model or '*', actions)
 ROLES = {
-    'System Administrator': [(app, '*', 'add change delete view') for app in VIMS_APPS],
+    'System Administrator': [(app, '*', '*') for app in VIMS_APPS],  # every permission, incl. custom ones
     'Fleet Administrator': [
         ('accounts', 'office', 'view'),
         ('fleet', '*', 'add change view'),
+        ('fleet', 'vehicle', 'manage'),  # manage_vehicle_photo
         ('operations', '*', 'add change view'),
         ('maintenance', '*', 'add change view'),
         ('notifications', 'notification', 'view change'),
@@ -48,8 +49,9 @@ CATEGORIES = ['Preventive Maintenance', 'Engine', 'Tires', 'Brakes', 'Air Condit
 def permissions_for(rules):
     perms = Permission.objects.none()
     for app, model, actions in rules:
-        qs = Permission.objects.filter(content_type__app_label=app,
-                                       codename__regex=rf'^({"|".join(actions.split())})_')
+        qs = Permission.objects.filter(content_type__app_label=app)
+        if actions != '*':
+            qs = qs.filter(codename__regex=rf'^({"|".join(actions.split())})_')
         if model != '*':
             qs = qs.filter(content_type__model=model)
         perms |= qs

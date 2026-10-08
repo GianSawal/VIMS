@@ -74,6 +74,9 @@ Django session in an HttpOnly cookie plus CSRF token. The SPA calls `GET /api/au
 | `/api/auth/change-password/` | POST | `{current_password, new_password}` |
 | `/api/users/` | CRUD (no delete) | System Administrator only; `POST /api/users/{id}/reset-password/` |
 | `/api/offices/` | CRUD (no delete) | scoped to the user's offices |
+| `/api/vehicles/` | CRUD (no delete) | `?search= &status= &office= &vehicle_type= &is_archived=true &ordering=` |
+| `/api/vehicles/{id}/archive/` · `/reactivate/` | POST | needs `fleet.change_vehicle` |
+| `/api/vehicles/{id}/photo/` | POST (multipart `photo`) / DELETE | needs `fleet.manage_vehicle_photo`; JPEG/PNG/WebP ≤ `VEHICLE_PHOTO_MAX_BYTES` |
 
 Unauthenticated requests get **401**; authenticated but not permitted get **403**; records outside the user's
 offices get **404**. Users flagged `must_change_password` get 403 everywhere except me/change-password/logout.

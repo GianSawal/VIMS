@@ -59,6 +59,10 @@ class Vehicle(Tracked):
     class Meta:
         ordering = ['plate_number']
         constraints = non_negative('current_odometer', 'acquisition_cost')
+        permissions = [
+            ('manage_vehicle_photo', 'Can upload, replace and remove vehicle photos'),
+            ('correct_odometer', 'Can lower a vehicle odometer (authorized correction)'),
+        ]
 
     def __str__(self):
         return f'{self.plate_number} ({self.make} {self.model})'

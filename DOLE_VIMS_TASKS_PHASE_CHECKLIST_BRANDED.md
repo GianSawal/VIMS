@@ -158,32 +158,32 @@ records even by directly calling the API.
 
 ## Backend
 
--   [ ] Vehicle CRUD API
--   [ ] Vehicle search
--   [ ] Vehicle filtering
--   [ ] Vehicle sorting
--   [ ] Pagination
--   [ ] Vehicle status validation
--   [ ] Vehicle image upload
--   [ ] Archive/reactivate vehicle
--   [ ] Plate/property/engine/chassis uniqueness rules
--   [ ] Vehicle permissions
--   [ ] Vehicle tests
+-   [x] Vehicle CRUD API (no DELETE; archive instead)
+-   [x] Vehicle search
+-   [x] Vehicle filtering
+-   [x] Vehicle sorting
+-   [x] Pagination
+-   [x] Vehicle status validation (disposed is terminal; archived is read-only)
+-   [x] Vehicle image upload
+-   [x] Archive/reactivate vehicle
+-   [x] Plate/property/engine/chassis uniqueness rules (case-insensitive; plate unique among active)
+-   [x] Vehicle permissions
+-   [x] Vehicle tests (`fleet/test_vehicles.py`)
 
 ## Frontend
 
--   [ ] Vehicle master list
--   [ ] Search bar
--   [ ] Office filter
--   [ ] Status filter
--   [ ] Vehicle type filter
--   [ ] Add Vehicle form
--   [ ] Edit Vehicle form
--   [ ] Vehicle status badges
--   [ ] Vehicle profile layout
--   [ ] Overview tab
--   [ ] Empty/loading/error states
--   [ ] Confirmation dialogs
+-   [x] Vehicle master list
+-   [x] Search bar
+-   [x] Office filter
+-   [x] Status filter
+-   [x] Vehicle type filter
+-   [x] Add Vehicle form
+-   [x] Edit Vehicle form
+-   [x] Vehicle status badges
+-   [x] Vehicle profile layout
+-   [x] Overview tab
+-   [x] Empty/loading/error states
+-   [x] Confirmation dialogs
 
 **Phase gate:** Users can securely create, locate, view, update and
 archive vehicles according to role/office permissions.
@@ -192,21 +192,21 @@ archive vehicles according to role/office permissions.
 
 ### Vehicle Profile Photo Upload (Admin)
 - [x] Add vehicle photo field/storage model and migration (`Vehicle.photo`, random file names)
-- [ ] Configure Django media storage for vehicle photos
-- [ ] Create authenticated photo upload endpoint
-- [ ] Create photo replacement and removal endpoints
-- [ ] Restrict photo changes to authorized administrators
-- [ ] Enforce office-level access restrictions
-- [ ] Validate JPEG/PNG/WebP and file size on backend
-- [ ] Generate safe file names and prevent unsafe uploads
-- [ ] Add upload control to Vehicle Profile Overview
-- [ ] Add preview before upload and progress/error states
-- [ ] Display primary photo on Vehicle Profile
-- [ ] Display photo thumbnails on Vehicle Master List
-- [ ] Display placeholder when photo is missing
-- [ ] Make photo display responsive with correct aspect ratio
-- [ ] Audit photo uploads, replacements and removals
-- [ ] Test upload, replacement, deletion and unauthorized access
+- [x] Configure Django media storage for vehicle photos
+- [x] Create authenticated photo upload endpoint
+- [x] Create photo replacement and removal endpoints
+- [x] Restrict photo changes to authorized administrators (`fleet.manage_vehicle_photo`)
+- [x] Enforce office-level access restrictions
+- [x] Validate JPEG/PNG/WebP and file size on backend
+- [x] Generate safe file names and prevent unsafe uploads
+- [x] Add upload control to Vehicle Profile Overview
+- [x] Add preview before upload and progress/error states
+- [x] Display primary photo on Vehicle Profile
+- [x] Display photo thumbnails on Vehicle Master List
+- [x] Display placeholder when photo is missing
+- [x] Make photo display responsive with correct aspect ratio
+- [x] Audit photo uploads, replacements and removals
+- [x] Test upload, replacement, deletion and unauthorized access (backend API tests)
 - [ ] Include photo management in client UAT
 
 # Phase 5 --- Driver and Assignment Module
@@ -447,9 +447,9 @@ correct records and totals.
 # Phase 14 --- Audit Trail
 
 -   [x] Create audit service/middleware/signals strategy (`audit.services.log()` called explicitly from views)
--   [ ] Vehicle creation/update/archive logs
+-   [x] Vehicle creation/update/archive logs
 -   [ ] Assignment change logs
--   [ ] Odometer correction logs
+-   [x] Odometer correction logs (lowering odometer needs `fleet.correct_odometer`)
 -   [ ] Fuel change logs
 -   [ ] Maintenance change logs
 -   [ ] Document change logs
@@ -504,9 +504,9 @@ and no production data is silently overwritten.
 -   [ ] Secure cookie/token configuration
 -   [x] Password policy (min 10 chars, common/numeric/similarity checks, forced change for new accounts)
 -   [ ] Rate-limit sensitive endpoints (partial: login 10/min)
--   [ ] File extension/MIME validation
--   [ ] File size limits
--   [ ] Safe upload paths/file names
+-   [ ] File extension/MIME validation (partial: vehicle photos done; documents/attachments pending)
+-   [ ] File size limits (partial: vehicle photos `VEHICLE_PHOTO_MAX_BYTES`)
+-   [x] Safe upload paths/file names
 -   [ ] Authorization review for every endpoint
 -   [ ] Office-scoping penetration tests
 -   [ ] Remove secrets from repository/history (verified clean at first push; re-check before production)

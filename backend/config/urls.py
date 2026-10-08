@@ -6,10 +6,12 @@ from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 from rest_framework.routers import DefaultRouter
 
 from accounts.views import OfficeViewSet, UserViewSet
+from fleet.views import VehicleViewSet
 
 router = DefaultRouter()
 router.register('offices', OfficeViewSet)
 router.register('users', UserViewSet)
+router.register('vehicles', VehicleViewSet)
 
 urlpatterns = [
     path('admin/', admin.site.urls),
