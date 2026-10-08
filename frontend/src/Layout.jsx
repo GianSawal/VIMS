@@ -43,7 +43,7 @@ export default function Layout() {
           <img src="/dole-logo.png" alt="DOLE logo" className="h-12 w-12 object-contain" />
           <div className="leading-tight">
             <div className="text-base font-bold text-brand">DOLE VRS</div>
-            <div className="text-xs text-slate-500">Vehicle Record System</div>
+            <div className="text-xs text-slate-500">Vehicle Records System</div>
           </div>
           <button className="ml-auto lg:hidden" onClick={() => setOpen(false)} aria-label="Close menu">
             <X size={20} />

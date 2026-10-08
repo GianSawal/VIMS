@@ -130,7 +130,7 @@ REST_FRAMEWORK = {
 
 SPECTACULAR_SETTINGS = {
     'TITLE': 'DOLE VRS API',
-    'DESCRIPTION': 'DOLE Vehicle Record System',
+    'DESCRIPTION': 'DOLE Vehicle Records System',
     'VERSION': '1.0.0',
     'SERVE_INCLUDE_SCHEMA': False,
 }

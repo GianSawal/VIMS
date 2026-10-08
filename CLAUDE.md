@@ -1,4 +1,4 @@
-# DOLE VRS (Vehicle Record System)
+# DOLE VRS (Vehicle Records System)
 
 Formerly named VIMS; the repo, folder, database (`vims`) and spec file names keep the old name on purpose.
 

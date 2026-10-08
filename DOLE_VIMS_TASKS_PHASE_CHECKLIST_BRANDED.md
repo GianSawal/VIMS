@@ -1,4 +1,4 @@
-# DOLE Vehicle Record System (VRS)
+# DOLE Vehicle Records System (VRS)
 
 > Renamed from VIMS (Vehicle Information Management System) on 2026-10-08.
 

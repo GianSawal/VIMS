@@ -41,7 +41,7 @@ export default function Login() {
       <div className="w-full max-w-sm rounded-xl border border-slate-200 bg-white p-8 shadow-sm">
         <div className="mb-6 text-center">
           <img src="/dole-logo.png" alt="Department of Labor and Employment logo" className="mx-auto h-28 w-28 object-contain" />
-          <h1 className="mt-3 text-xl font-bold text-brand">Vehicle Record System</h1>
+          <h1 className="mt-3 text-xl font-bold text-brand">Vehicle Records System</h1>
           <p className="text-sm text-slate-500">Sign in to continue</p>
         </div>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>

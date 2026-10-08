@@ -1,4 +1,4 @@
-# DOLE VRS: Vehicle Record System
+# DOLE VRS: Vehicle Records System
 
 > Renamed from VIMS (Vehicle Information Management System). The repository, folders, database name (`vims`) and the
 > original spec/checklist file names keep the old name.
