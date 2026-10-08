@@ -1,0 +1,22 @@
+@import "tailwindcss";
+
+/* Palette sampled from IMAGES/DOLE.png. See README "Branding". */
+@theme {
+  --color-brand: #0305ba;        /* logo blue: primary actions, nav */
+  --color-brand-dark: #020390;   /* hover/pressed */
+  --color-brand-light: #e8e9fb;  /* active nav bg, subtle fills */
+  --color-accent: #ff0103;       /* logo red: decorative only (3.9:1 on white) */
+  --color-danger: #c40002;       /* red darkened for text/buttons (>= 5.9:1) */
+  --color-gold: #ffc603;         /* logo stars: highlights, focus ring */
+  --color-ink: #2f2f2f;          /* logo wordmark: body text */
+  --font-sans: ui-sans-serif, system-ui, "Segoe UI", sans-serif;
+}
+
+body {
+  @apply bg-slate-50 text-ink antialiased;
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-gold);
+  outline-offset: 2px;
+}

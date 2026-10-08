@@ -1,0 +1,10 @@
+Django>=5.2,<6
+djangorestframework>=3.16
+django-environ>=0.12
+django-cors-headers>=4.6
+django-filter>=24
+drf-spectacular>=0.28
+PyMySQL>=1.1
+Pillow>=11
+pytest>=8
+pytest-django>=4.9
