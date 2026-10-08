@@ -86,19 +86,19 @@ export default function VehicleList() {
   const toolbar = (
     <div className="border-b border-slate-200">
       <div className="flex flex-wrap items-center gap-2 p-3">
-        <div className="relative min-w-64 flex-1">
+        <div className="relative w-full sm:w-80">
           <label htmlFor="vehicle-search" className="sr-only">Search vehicles</label>
           <Search size={16} className="absolute top-2.5 left-3 text-slate-400" aria-hidden="true" />
-          <input id="vehicle-search" type="search" className={`${control} pl-9`} placeholder="Search plate, property no., engine, chassis, make, model…"
+          <input id="vehicle-search" type="search" className={`${control} pl-9`} placeholder="Search plate, property no., make, model…"
             value={search} onChange={(e) => setSearch(e.target.value)} />
         </div>
         {showOffice && (
-          <select className={`${control} w-48`} aria-label="Filter by office" value={f.office ?? ''} onChange={(e) => set('office', e.target.value)}>
+          <select className={`${control} w-44`} aria-label="Filter by office" value={f.office ?? ''} onChange={(e) => set('office', e.target.value)}>
             <option value="">All offices</option>
             {offices.data?.results.map((o) => <option key={o.id} value={o.id}>{o.code} - {o.name}</option>)}
           </select>
         )}
-        <select className={`${control} w-40`} aria-label="Filter by vehicle type" value={f.vehicle_type ?? ''} onChange={(e) => set('vehicle_type', e.target.value)}>
+        <select className={`${control} w-36`} aria-label="Filter by vehicle type" value={f.vehicle_type ?? ''} onChange={(e) => set('vehicle_type', e.target.value)}>
           <option value="">All types</option>
           {TYPES.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
         </select>
