@@ -76,6 +76,11 @@ Django session in an HttpOnly cookie plus CSRF token. The SPA calls `GET /api/au
 | `/api/offices/` | CRUD (no delete) | scoped to the user's offices |
 | `/api/vehicles/` | CRUD (no delete) | `?search= &status= &office= &vehicle_type= &is_archived=true &ordering=` |
 | `/api/vehicles/{id}/archive/` · `/reactivate/` | POST | needs `fleet.change_vehicle` |
+| `/api/vehicles/{id}/assignments/` | GET history / POST assign or reassign | POST needs `add` + `change` on `vehicleassignment`; ends the current assignment on the start date |
+| `/api/vehicles/{id}/end-assignment/` | POST `{end_date}` | leaves the vehicle unassigned |
+| `/api/drivers/` | CRUD (no delete) | `?search= &office= &is_active= &license_status=VALID\|EXPIRING\|EXPIRED` |
+| `/api/drivers/{id}/assignments/` | GET | the driver's vehicle history |
+| `/api/drivers/{id}/attachments/` | GET / POST multipart `file`, `description` · `DELETE …/attachments/{att_id}/` | PDF/JPEG/PNG/WebP ≤ `ATTACHMENT_MAX_BYTES`; changes need `fleet.change_driver` |
 | `/api/vehicles/{id}/photo/` | POST (multipart `photo`) / DELETE | needs `fleet.manage_vehicle_photo`; JPEG/PNG/WebP ≤ `VEHICLE_PHOTO_MAX_BYTES` |
 
 Unauthenticated requests get **401**; authenticated but not permitted get **403**; records outside the user's

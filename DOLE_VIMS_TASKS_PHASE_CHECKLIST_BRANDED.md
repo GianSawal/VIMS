@@ -211,22 +211,22 @@ archive vehicles according to role/office permissions.
 
 # Phase 5 --- Driver and Assignment Module
 
--   [ ] Driver CRUD API
--   [ ] Driver list/profile UI
--   [ ] Driver license fields
--   [ ] Driver license attachments
--   [ ] Driver license expiration logic
--   [ ] Vehicle assignment API
--   [ ] Assign vehicle to office
--   [ ] Assign accountable person
--   [ ] Assign driver
--   [ ] Assignment start/end dates
--   [ ] Prevent conflicting current assignments
--   [ ] Assignment history
--   [ ] Reassignment workflow
--   [ ] Display current assignment on vehicle profile
--   [ ] Driver/assignment permissions
--   [ ] Tests
+-   [x] Driver CRUD API (no DELETE; deactivate instead)
+-   [x] Driver list/profile UI
+-   [x] Driver license fields
+-   [x] Driver license attachments (PDF/JPEG/PNG/WebP, content-checked, 10 MB)
+-   [x] Driver license expiration logic (valid / expiring ≤60 days / expired + list filter; alerts come in Phase 11)
+-   [x] Vehicle assignment API
+-   [x] Assign vehicle to office
+-   [x] Assign accountable person
+-   [x] Assign driver
+-   [x] Assignment start/end dates
+-   [x] Prevent conflicting current assignments (row-locked service + model check)
+-   [x] Assignment history
+-   [x] Reassignment workflow
+-   [x] Display current assignment on vehicle profile
+-   [x] Driver/assignment permissions (admins assign; Field Office Users view only)
+-   [x] Tests (`test_drivers.py`, `test_assignments.py`)
 
 **Phase gate:** Reassignment preserves previous assignment history
 instead of overwriting it.
@@ -448,7 +448,7 @@ correct records and totals.
 
 -   [x] Create audit service/middleware/signals strategy (`audit.services.log()` called explicitly from views)
 -   [x] Vehicle creation/update/archive logs
--   [ ] Assignment change logs
+-   [x] Assignment change logs
 -   [x] Odometer correction logs (lowering odometer needs `fleet.correct_odometer`)
 -   [ ] Fuel change logs
 -   [ ] Maintenance change logs

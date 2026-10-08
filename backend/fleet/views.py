@@ -2,16 +2,20 @@ from django.db import transaction
 from django.utils import timezone
 from rest_framework import mixins, serializers, status, viewsets
 from rest_framework.decorators import action
+from rest_framework.exceptions import PermissionDenied
 from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.response import Response
 
 from accounts.permissions import OfficeScopedMixin, PasswordChangeNotRequired, require
 from audit.services import diff, log
 
+from . import assignments as assignment_service
+from .driver_serializers import AssignInputSerializer, AssignmentSerializer, EndAssignmentSerializer
 from .models import Vehicle
 from .serializers import PhotoSerializer, VehicleDetailSerializer, VehicleSerializer
 
 CAN_CHANGE = [require('fleet.change_vehicle'), PasswordChangeNotRequired]
+CAN_VIEW_ASSIGNMENTS = [require('fleet.view_vehicleassignment'), PasswordChangeNotRequired]
 CAN_PHOTO = [require('fleet.change_vehicle', 'fleet.manage_vehicle_photo'), PasswordChangeNotRequired]
 
 AUDITED = ['plate_number', 'property_number', 'engine_number', 'chassis_number', 'office', 'status',
@@ -107,3 +111,39 @@ class VehicleViewSet(OfficeScopedMixin, mixins.ListModelMixin, mixins.RetrieveMo
             transaction.on_commit(lambda: storage.delete(old))
         data = VehicleDetailSerializer(v, context={'request': request}).data
         return Response(data, status=status.HTTP_200_OK)
+
+    # ---- assignments (history is append-only: reassigning ends the old row and starts a new one) ----
+
+    @action(detail=True, methods=['get', 'post'], permission_classes=CAN_VIEW_ASSIGNMENTS)
+    def assignments(self, request, pk=None):
+        """GET: assignment history, newest first. POST: assign or reassign the vehicle."""
+        v = self.get_object()
+        if request.method == 'GET':
+            qs = v.assignments.select_related('vehicle', 'office').order_by('-start_date', '-id')
+            page = self.paginate_queryset(qs)
+            return self.get_paginated_response(AssignmentSerializer(page, many=True).data)
+
+        if not request.user.has_perms(['fleet.add_vehicleassignment', 'fleet.change_vehicleassignment']):
+            raise PermissionDenied('You are not allowed to assign vehicles.')
+        s = AssignInputSerializer(data=request.data)
+        s.is_valid(raise_exception=True)
+        new, ended = assignment_service.start_assignment(v, user=request.user, **s.validated_data)
+        changes = {'driver': [ended.driver_name or None if ended else None, new.driver_name or None],
+                   'accountable_person': [ended.accountable_person if ended else None, new.accountable_person],
+                   'office': [ended.office.code if ended else None, new.office.code]}
+        log(request, 'reassign' if ended else 'assign', v,
+            f'{"Reassigned" if ended else "Assigned"} {v.plate_number} to {new.accountable_person} ({new.office.code})', changes)
+        return Response(AssignmentSerializer(new).data, status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=['post'], url_path='end-assignment', permission_classes=CAN_VIEW_ASSIGNMENTS)
+    def end_assignment(self, request, pk=None):
+        """End the current assignment, leaving the vehicle unassigned."""
+        if not request.user.has_perm('fleet.change_vehicleassignment'):
+            raise PermissionDenied('You are not allowed to end assignments.')
+        v = self.get_object()
+        s = EndAssignmentSerializer(data=request.data)
+        s.is_valid(raise_exception=True)
+        ended = assignment_service.end_assignment(v, end_date=s.validated_data['end_date'])
+        log(request, 'end_assignment', v, f'Ended assignment of {v.plate_number} ({ended.accountable_person})',
+            {'end_date': [None, str(ended.end_date)]})
+        return Response(AssignmentSerializer(ended).data)

@@ -77,7 +77,7 @@ class VehicleDetailSerializer(VehicleSerializer):
         if not a:
             return None
         return {'id': a.id, 'office': a.office.name, 'accountable_person': a.accountable_person,
-                'driver': a.driver.full_name if a.driver else None, 'start_date': a.start_date}
+                'driver': a.driver_name or None, 'start_date': a.start_date}
 
 
 class PhotoSerializer(serializers.Serializer):

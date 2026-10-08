@@ -2,6 +2,7 @@ from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ValidationError
 from django.db import models
+from django.utils import timezone
 
 from accounts.models import Office
 from config.base_models import Tracked, non_negative, ordered, safe_upload_to
@@ -103,8 +104,16 @@ class Driver(Tracked):
         ordering = ['full_name']
         constraints = [ordered('license_issue_date', 'license_expiry_date')]
 
+    EXPIRING_DAYS = 60
+
     def __str__(self):
         return self.full_name
+
+    def license_status(self, today=None):
+        today = today or timezone.localdate()
+        if self.license_expiry_date < today:
+            return 'EXPIRED'
+        return 'EXPIRING' if (self.license_expiry_date - today).days <= self.EXPIRING_DAYS else 'VALID'
 
 
 class VehicleAssignment(Tracked):
@@ -113,6 +122,7 @@ class VehicleAssignment(Tracked):
     office = models.ForeignKey(Office, on_delete=models.PROTECT, related_name='assignments')
     accountable_person = models.CharField(max_length=150, help_text='Name as of assignment (historical snapshot).')
     driver = models.ForeignKey(Driver, null=True, blank=True, on_delete=models.PROTECT, related_name='assignments')
+    driver_name = models.CharField(max_length=150, blank=True, help_text='Driver name as of assignment (historical snapshot).')
     start_date = models.DateField()
     end_date = models.DateField(null=True, blank=True)
     remarks = models.TextField(blank=True)
@@ -123,7 +133,7 @@ class VehicleAssignment(Tracked):
         indexes = [models.Index(fields=['vehicle', 'end_date'])]
 
     def clean(self):
-        # ponytail: one open assignment per vehicle enforced here + in the assignment service (Phase 5, select_for_update).
+        # ponytail: MySQL has no partial unique index; the assign service also locks the vehicle row (select_for_update).
         if self.end_date is None and self.vehicle_id:
             if VehicleAssignment.objects.filter(vehicle_id=self.vehicle_id, end_date__isnull=True).exclude(pk=self.pk).exists():
                 raise ValidationError('This vehicle already has a current assignment. End it before reassigning.')

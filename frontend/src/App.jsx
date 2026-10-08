@@ -10,11 +10,12 @@ import { Forbidden, NotFound } from './pages/Errors'
 import VehicleList from './pages/vehicles/VehicleList'
 import VehicleForm from './pages/vehicles/VehicleForm'
 import VehicleProfile from './pages/vehicles/VehicleProfile'
+import DriverList from './pages/drivers/DriverList'
+import DriverProfile from './pages/drivers/DriverProfile'
 
 // Each route gets a real page as its phase is built; Pending marks what's not built yet.
 const pending = [
   ['dashboard', 'Dashboard', 12],
-  ['drivers', 'Drivers', 5],
   ['trips', 'Trips', 6],
   ['fuel', 'Fuel', 7],
   ['maintenance', 'Maintenance', 8],
@@ -40,6 +41,10 @@ export default function App() {
             <Route path="vehicles/new" element={<VehicleForm />} />
             <Route path="vehicles/:id" element={<VehicleProfile />} />
             <Route path="vehicles/:id/edit" element={<VehicleForm />} />
+          </Route>
+          <Route element={<RequirePerm perm="fleet.view_driver" />}>
+            <Route path="drivers" element={<DriverList />} />
+            <Route path="drivers/:id" element={<DriverProfile />} />
           </Route>
           <Route element={<RequirePerm perm="accounts.view_office" />}>
             <Route path="admin/offices" element={<Offices />} />

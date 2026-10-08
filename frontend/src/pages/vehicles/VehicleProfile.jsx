@@ -7,12 +7,13 @@ import { useCan } from '../../auth'
 import { Button, ConfirmDialog, formatDateTime } from '../../components/ui'
 import { useToast } from '../../components/toast'
 import { NotFound } from '../Errors'
+import AssignmentsTab from './AssignmentsTab'
 import { formatDate, formatKm, formatPeso, fuelLabel, StatusBadge, VehiclePhoto } from './common'
 
 // Tabs fill in as their phases land; `phase` marks ones not built yet.
 const TABS = [
   ['overview', 'Overview'],
-  ['assignments', 'Assignments', 5],
+  ['assignments', 'Assignments'],
   ['trips', 'Trips', 6],
   ['fuel', 'Fuel', 7],
   ['maintenance', 'Maintenance', 8],
@@ -95,7 +96,7 @@ export default function VehicleProfile() {
       </div>
 
       <div role="tabpanel">
-        {tab === 'overview' ? <Overview v={v} /> : (
+        {tab === 'overview' ? <Overview v={v} /> : tab === 'assignments' ? <AssignmentsTab v={v} /> : (
           <div className="rounded-lg border border-dashed border-slate-300 bg-white p-8 text-center text-slate-500">
             {TABS.find(([k]) => k === tab)?.[1] ?? 'This section'} history arrives in Phase {TABS.find(([k]) => k === tab)?.[2]}.
           </div>
@@ -147,7 +148,7 @@ function Overview({ v }) {
               <Item label="Driver" value={a.driver ?? '—'} />
               <Item label="Since" value={formatDate(a.start_date)} />
             </dl>
-          ) : <p className="text-sm text-slate-500">Not currently assigned. Assignments are managed in Phase 5.</p>}
+          ) : <p className="text-sm text-slate-500">Not currently assigned. Use the Assignments tab to assign this vehicle.</p>}
         </Card>
         <Card title="Details">
           <dl className="grid gap-3 text-sm sm:grid-cols-2">{rows.map(([l, val]) => <Item key={l} label={l} value={val} />)}</dl>

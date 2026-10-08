@@ -32,7 +32,7 @@ def fo2():
 
 
 def as_role(role, offices=()):
-    u = User.objects.create_user(role.replace(' ', '_'))
+    u, _ = User.objects.get_or_create(username=role.replace(' ', '_'))
     u.groups.add(Group.objects.get(name=role))
     u.offices.set(offices)
     c = APIClient()

@@ -46,6 +46,10 @@ export function applyFieldErrors(err, setError, fields) {
   return rest.join(' ')
 }
 
+// Refresh every cached query whose key starts with one of the given API paths (e.g. '/drivers/', '/vehicles/').
+export const invalidatePrefix = (qc, ...prefixes) =>
+  qc.invalidateQueries({ predicate: (q) => prefixes.some((p) => String(q.queryKey[0]).startsWith(p)) })
+
 // Paginated DRF list: { count, results }. `params` drives the cache key.
 export function useList(path, params = {}) {
   return useQuery({
