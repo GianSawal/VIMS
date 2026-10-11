@@ -11,8 +11,9 @@ import { fromLocalInput, km, toLocalInput } from './common'
 import { odometerField } from '../vehicles/common'
 
 const DISPATCHABLE = ['SERVICEABLE', 'IN_USE']
+const NOT_SCHEDULABLE = ['UNSERVICEABLE', 'DISPOSED'] // in repair now may be fine by the booked date
 
-const schema = z.object({
+const common = {
   ticket_number: z.string().max(40),
   vehicle: z.string().min(1, 'Select a vehicle'),
   driver: z.string().min(1, 'Select a driver'),
@@ -21,14 +22,34 @@ const schema = z.object({
   origin: z.string().trim().min(1, 'Origin is required').max(200),
   destination: z.string().trim().min(1, 'Destination is required').max(255),
   purpose: z.string().trim().min(1, 'Purpose is required'),
-  departed_at: z.string().min(1, 'Departure time is required'),
-  odometer_start: odometerField(),
   remarks: z.string(),
-})
-const FIELDS = Object.keys(schema.shape)
+}
+const schemas = {
+  dispatch: z.object({
+    ...common,
+    departed_at: z.string().min(1, 'Departure time is required'),
+    odometer_start: odometerField(),
+  }),
+  schedule: z.object({
+    ...common,
+    scheduled_departure: z.string().min(1, 'Choose the departure date and time'),
+    scheduled_return: z.string(),
+  }).refine((v) => !v.scheduled_return || v.scheduled_return >= v.scheduled_departure,
+    { path: ['scheduled_return'], message: 'Expected return cannot be before the departure' }),
+}
 
-/** Modal body. `vehicle` (optional) pre-selects and locks the vehicle, e.g. from a vehicle's Trips tab. */
-export default function DispatchForm({ vehicle, onClose, onSaved }) {
+// Tomorrow 8:00 AM, a sensible default for a booking.
+const tomorrowAt8 = () => { const d = new Date(); d.setDate(d.getDate() + 1); d.setHours(8, 0, 0, 0); return toLocalInput(d) }
+
+/**
+ * Modal body. mode="dispatch": the vehicle leaves now (odometer required).
+ * mode="schedule": book ahead; the odometer is entered on the day, when it is dispatched.
+ * `vehicle` (optional) pre-selects and locks the vehicle, e.g. from a vehicle's Trips tab.
+ */
+export default function DispatchForm({ vehicle, mode = 'dispatch', onClose, onSaved }) {
+  const scheduling = mode === 'schedule'
+  const schema = schemas[mode]
+  const FIELDS = Object.keys(schema.shape) // zod v4 keeps .shape after .refine()
   const qc = useQueryClient()
   const toast = useToast()
   const offices = useAllOffices()
@@ -40,17 +61,18 @@ export default function DispatchForm({ vehicle, onClose, onSaved }) {
     defaultValues: {
       ...Object.fromEntries(FIELDS.map((k) => [k, ''])),
       vehicle: vehicle ? String(vehicle.id) : '',
-      departed_at: toLocalInput(),
-      odometer_start: vehicle ? String(vehicle.current_odometer) : '',
+      ...(scheduling
+        ? { scheduled_departure: tomorrowAt8(), scheduled_return: '' }
+        : { departed_at: toLocalInput(), odometer_start: vehicle ? String(vehicle.current_odometer) : '' }),
     },
   })
   const chosen = vehicles.data?.results.find((v) => String(v.id) === watch('vehicle')) ?? vehicle
 
   const save = useMutation({
-    mutationFn: (body) => api.post('/trips/', body),
+    mutationFn: (body) => api.post(scheduling ? '/trips/schedule/' : '/trips/', body),
     onSuccess: ({ data }) => {
       invalidatePrefix(qc, '/trips/', '/vehicles/')
-      toast(`Trip ${data.ticket_number} dispatched.`)
+      toast(scheduling ? `Trip ${data.ticket_number} scheduled.` : `Trip ${data.ticket_number} dispatched.`)
       onSaved?.(data)
       onClose()
     },
@@ -62,9 +84,12 @@ export default function DispatchForm({ vehicle, onClose, onSaved }) {
     vehicle: Number(v.vehicle),
     driver: Number(v.driver),
     requesting_office: v.requesting_office ? Number(v.requesting_office) : null,
-    departed_at: fromLocalInput(v.departed_at),
-    odometer_start: Number(v.odometer_start),
+    ...(scheduling
+      ? { scheduled_departure: fromLocalInput(v.scheduled_departure),
+          scheduled_return: v.scheduled_return ? fromLocalInput(v.scheduled_return) : null }
+      : { departed_at: fromLocalInput(v.departed_at), odometer_start: Number(v.odometer_start) }),
   })
+  const usable = (v) => (scheduling ? !NOT_SCHEDULABLE.includes(v.status) : DISPATCHABLE.includes(v.status))
 
   const text = (name, label, { hint, ...props } = {}) => (
     <Field label={label} htmlFor={name} error={errors[name]?.message} hint={hint}>
@@ -96,8 +121,8 @@ export default function DispatchForm({ vehicle, onClose, onSaved }) {
               }}>
               <option value="">Select a vehicle…</option>
               {vehicles.data?.results.map((v) => (
-                <option key={v.id} value={v.id} disabled={!DISPATCHABLE.includes(v.status)}>
-                  {v.plate_number} · {v.make} {v.model}{DISPATCHABLE.includes(v.status) ? '' : ` (${v.status_display})`}
+                <option key={v.id} value={v.id} disabled={!usable(v)}>
+                  {v.plate_number} · {v.make} {v.model}{v.status === 'SERVICEABLE' ? '' : ` (${v.status_display})`}
                 </option>
               ))}
             </select>
@@ -123,6 +148,17 @@ export default function DispatchForm({ vehicle, onClose, onSaved }) {
         )}
       </Section>
 
+      {scheduling ? (
+        <Section step="2" title="Schedule">
+          {text('scheduled_departure', 'Departure date and time *', { type: 'datetime-local', min: toLocalInput() })}
+          {text('scheduled_return', 'Expected return', {
+            type: 'datetime-local', hint: 'Optional. Without it, the vehicle and driver are held for the rest of that day.',
+          })}
+          <p className="rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-900 sm:col-span-2">
+            No odometer yet. On the day of the trip, open it and press <strong>Dispatch</strong> to enter the current odometer.
+          </p>
+        </Section>
+      ) : (
       <Section step="2" title="Departure">
         {text('departed_at', 'Date and time out *', { type: 'datetime-local' })}
         {text('odometer_start', 'Starting odometer (km) *', {
@@ -130,6 +166,7 @@ export default function DispatchForm({ vehicle, onClose, onSaved }) {
           hint: chosen ? `Pre-filled from the vehicle (${km(chosen.current_odometer)}). Correct it if the dashboard shows more; it cannot be lower.` : 'Read it from the dashboard before leaving.',
         })}
       </Section>
+      )}
 
       <Section step="3" title="Route and purpose">
         {text('origin', 'Origin *', { placeholder: 'e.g. DOLE Regional Office' })}
@@ -162,7 +199,7 @@ export default function DispatchForm({ vehicle, onClose, onSaved }) {
 
       <div className="sticky bottom-0 -mx-5 -mb-5 flex justify-end gap-2 border-t border-slate-200 bg-white px-5 py-3">
         <Button variant="secondary" onClick={onClose}>Cancel</Button>
-        <Button type="submit" disabled={save.isPending}>{save.isPending ? 'Dispatching…' : 'Dispatch trip'}</Button>
+        <Button type="submit" disabled={save.isPending}>{save.isPending ? 'Saving…' : scheduling ? 'Schedule trip' : 'Dispatch trip'}</Button>
       </div>
     </form>
   )

@@ -272,30 +272,30 @@ correctly and preserves history.
 ## Requirements
 
 -   [ ] Confirm where the TV(s) will be (which office/s) and whose trips each screen shows
--   [ ] Confirm what is shown publicly (e.g. plate, driver, destination, time; passengers and purpose may be sensitive)
+-   [ ] Confirm what is shown publicly (e.g. plate, driver, destination, time; passengers and purpose may be sensitive) — built default: plate, vehicle, driver, destination, times, status; passengers/purpose/odometer never sent
 -   [ ] Confirm display hours, screen size/resolution and the device driving the TV (smart TV browser, mini PC, Chromecast)
 
 ## Trip scheduling
 
--   [ ] "Scheduled" trip status: book a vehicle and driver for a future date/time
--   [ ] Prevent double-booking a vehicle or driver in overlapping schedules
--   [ ] Dispatch a scheduled trip (scheduled → dispatched) and cancel/reschedule it
--   [ ] Schedule calendar/list view in the Trips page
--   [ ] Audit scheduling, rescheduling and cancellation
+-   [x] "Scheduled" trip status: book a vehicle and driver for a future date/time (no odometer at booking)
+-   [x] Prevent double-booking a vehicle or driver in overlapping schedules (no expected return = holds the rest of that day)
+-   [x] Dispatch a scheduled trip (scheduled → dispatched) and cancel/reschedule it (dispatch only on the scheduled day, entering the current odometer; missed bookings must be rescheduled)
+-   [x] Schedule calendar/list view in the Trips page (Scheduled status card, "Leaving today" board; calendar view not built)
+-   [x] Audit scheduling, rescheduling and cancellation
 
 ## Display
 
--   [ ] Read-only schedule API for the display (today's and upcoming trips, out now, returned today), office-filtered
--   [ ] Display access without a staff login: dedicated read-only display account or revocable display token
--   [ ] Full-screen TV route (e.g. `/display`) with DOLE branding, large high-contrast text, live date and clock
--   [ ] Columns: time, vehicle/plate, driver, destination, status
--   [ ] Status shown in words and color: Scheduled, Departed/On trip, Returned, Delayed, Cancelled
--   [ ] Highlight delayed departures and overdue returns
--   [ ] Auto-refresh (about every 60 seconds) with no interaction needed
--   [ ] Auto-page or scroll when the list is longer than the screen
--   [ ] "Connection lost / last updated" indicator if the network drops
--   [ ] Readable at a distance at 1920×1080 landscape; avoid static elements that cause screen burn-in
--   [ ] Tests (display API scoping, token/permission, no sensitive fields)
+-   [x] Read-only schedule API for the display (today's and upcoming trips, out now, returned today), office-filtered (`GET /api/display/trips/?token=`; next 7 days)
+-   [x] Display access without a staff login: dedicated read-only display account or revocable display token (`DisplayScreen` in Django admin; untick "is active" to revoke)
+-   [x] Full-screen TV route (e.g. `/display`) with DOLE branding, large high-contrast text, live date and clock
+-   [x] Columns: time, vehicle/plate, driver, destination, status
+-   [x] Status shown in words and color: Scheduled, Departed/On trip, Returned, Delayed, Cancelled
+-   [x] Highlight delayed departures and overdue returns (15-minute grace)
+-   [x] Auto-refresh (about every 60 seconds) with no interaction needed
+-   [x] Auto-page or scroll when the list is longer than the screen (8 rows per page, every 12 s)
+-   [x] "Connection lost / last updated" indicator if the network drops
+-   [ ] Readable at a distance at 1920×1080 landscape; avoid static elements that cause screen burn-in — built for 1080p with a dark theme; needs checking on the real TV
+-   [x] Tests (display API scoping, token/permission, no sensitive fields) (`operations/test_schedule.py`)
 -   [ ] UAT on the actual TV
 
 **Phase gate:** The TV shows the correct, current schedule for its

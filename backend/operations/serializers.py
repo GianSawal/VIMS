@@ -1,3 +1,6 @@
+from datetime import timedelta
+
+from django.utils import timezone
 from rest_framework import serializers
 
 from accounts.models import Office
@@ -18,17 +21,25 @@ class TripSerializer(serializers.ModelSerializer):
     requesting_office = serializers.PrimaryKeyRelatedField(queryset=Office.objects.all(), required=False, allow_null=True)
     requesting_office_name = serializers.CharField(source='requesting_office.name', read_only=True, default=None)
     status_display = serializers.CharField(source='get_status_display', read_only=True)
+    schedule_day = serializers.SerializerMethodField(help_text='For scheduled trips: TODAY, UPCOMING or MISSED.')
 
     class Meta:
         model = Trip
         fields = ['id', 'ticket_number', 'vehicle', 'plate_number', 'vehicle_label', 'office_code', 'driver',
                   'driver_name', 'requesting_office', 'requesting_office_name', 'passengers', 'origin', 'destination',
-                  'purpose', 'departed_at', 'returned_at', 'odometer_start', 'odometer_end', 'distance_km', 'status',
-                  'status_display', 'remarks', 'created_at', 'updated_at']
+                  'purpose', 'scheduled_departure', 'scheduled_return', 'schedule_day', 'departed_at', 'returned_at',
+                  'odometer_start', 'odometer_end', 'distance_km', 'status', 'status_display', 'remarks',
+                  'created_at', 'updated_at']
         read_only_fields = [f for f in fields if f not in DESCRIPTIVE]
 
     def get_vehicle_label(self, t):
         return f'{t.vehicle.make} {t.vehicle.model}'
+
+    def get_schedule_day(self, t):
+        if t.status != Trip.Status.SCHEDULED:
+            return None
+        day, today = timezone.localtime(t.scheduled_departure).date(), timezone.localdate()
+        return 'TODAY' if day == today else 'UPCOMING' if day > today else 'MISSED'
 
 
 class DispatchSerializer(serializers.Serializer):
@@ -55,3 +66,57 @@ class CompleteSerializer(serializers.Serializer):
 
 class CancelSerializer(serializers.Serializer):
     reason = serializers.CharField(max_length=500)
+
+
+class ScheduleSerializer(serializers.Serializer):
+    """Book a trip ahead: no odometer and no actual departure yet."""
+    ticket_number = serializers.CharField(max_length=40, required=False, allow_blank=True, default='')
+    vehicle = serializers.PrimaryKeyRelatedField(queryset=Vehicle.objects.all())
+    driver = serializers.PrimaryKeyRelatedField(queryset=Driver.objects.all())
+    scheduled_departure = serializers.DateTimeField()
+    scheduled_return = serializers.DateTimeField(required=False, allow_null=True)
+    requesting_office = serializers.PrimaryKeyRelatedField(queryset=Office.objects.filter(is_active=True),
+                                                           required=False, allow_null=True)
+    passengers = serializers.CharField(required=False, allow_blank=True, default='')
+    origin = serializers.CharField(max_length=200)
+    destination = serializers.CharField(max_length=255)
+    purpose = serializers.CharField()
+    remarks = serializers.CharField(required=False, allow_blank=True, default='')
+
+
+class RescheduleSerializer(serializers.Serializer):
+    vehicle = serializers.PrimaryKeyRelatedField(queryset=Vehicle.objects.all())
+    driver = serializers.PrimaryKeyRelatedField(queryset=Driver.objects.all())
+    scheduled_departure = serializers.DateTimeField()
+    scheduled_return = serializers.DateTimeField(required=False, allow_null=True)
+
+
+class DispatchScheduledSerializer(serializers.Serializer):
+    odometer_start = serializers.IntegerField(min_value=0)
+    departed_at = serializers.DateTimeField(required=False, help_text='Defaults to now.')
+
+
+class DisplayTripSerializer(serializers.ModelSerializer):
+    """Public TV fields only: no passengers, purpose, remarks, odometer or ids."""
+    plate_number = serializers.CharField(source='vehicle.plate_number')
+    vehicle_label = serializers.SerializerMethodField()
+    driver_name = serializers.CharField(source='driver.full_name')
+    office_code = serializers.CharField(source='vehicle.office.code')
+    flag = serializers.SerializerMethodField(help_text='DELAYED (late to leave) or OVERDUE (late to return).')
+
+    class Meta:
+        model = Trip
+        fields = ['ticket_number', 'plate_number', 'vehicle_label', 'driver_name', 'office_code', 'destination',
+                  'status', 'scheduled_departure', 'scheduled_return', 'departed_at', 'returned_at', 'flag']
+
+    def get_vehicle_label(self, t):
+        return f'{t.vehicle.make} {t.vehicle.model}'
+
+    def get_flag(self, t):
+        now = timezone.now()
+        grace = timedelta(minutes=15)
+        if t.status == Trip.Status.SCHEDULED and t.scheduled_departure + grace < now:
+            return 'DELAYED'
+        if t.status == Trip.Status.DISPATCHED and t.scheduled_return and t.scheduled_return + grace < now:
+            return 'OVERDUE'
+        return None

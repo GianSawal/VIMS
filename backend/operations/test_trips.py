@@ -191,7 +191,7 @@ def test_filters_and_summary(vehicle, driver, fo1):
     assert c.get(f'/api/trips/?date_from={since}').json()['results'][0]['plate_number'] == 'TRP 2'
     assert c.get('/api/trips/?search=juan').json()['count'] == 1
     assert c.get('/api/trips/summary/').json() == {
-        'total': 2, 'distance_km': 120, 'by_status': {'DISPATCHED': 1, 'COMPLETED': 1, 'CANCELLED': 0}}
+        'total': 2, 'distance_km': 120, 'by_status': {'SCHEDULED': 0, 'DISPATCHED': 1, 'COMPLETED': 1, 'CANCELLED': 0}}
 
 
 def test_trip_attachments(vehicle, driver):

@@ -14,6 +14,7 @@ import DriverList from './pages/drivers/DriverList'
 import DriverProfile from './pages/drivers/DriverProfile'
 import TripList from './pages/trips/TripList'
 import TripDetail from './pages/trips/TripDetail'
+import TripDisplay from './pages/display/TripDisplay'
 
 // Each route gets a real page as its phase is built; Pending marks what's not built yet.
 const pending = [
@@ -30,6 +31,7 @@ export default function App() {
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
+      <Route path="/display" element={<TripDisplay />} /> {/* TV board: token link, no staff login */}
       <Route element={<RequireAuth />}>
         <Route element={<Layout />}>
           <Route index element={<Navigate to="/dashboard" replace />} />

@@ -1,11 +1,11 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { Link, useParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowDown, CalendarClock, Check, CircleCheck, Clock, Gauge, MapPin, Pencil, UserRound, Users, X, XCircle } from 'lucide-react'
-import { api, applyFieldErrors, errorMessage, invalidatePrefix } from '../../api'
+import { ArrowDown, CalendarClock, CalendarX, Check, CircleCheck, Clock, Gauge, MapPin, Navigation, Pencil, Repeat, UserRound, Users, X, XCircle } from 'lucide-react'
+import { api, applyFieldErrors, errorMessage, invalidatePrefix, useList } from '../../api'
 import { useCan } from '../../auth'
 import Attachments from '../../components/Attachments'
 import { Button, Field, formatDateTime, inputClass, Modal } from '../../components/ui'
@@ -28,6 +28,8 @@ export default function TripDetail() {
 
   const canChange = can('operations.change_trip')
   const open = t.status === 'DISPATCHED'
+  const scheduled = t.status === 'SCHEDULED'
+  const leaves = t.scheduled_departure && formatDateTime(t.scheduled_departure)
 
   return (
     <div>
@@ -44,10 +46,25 @@ export default function TripDetail() {
           <p className="text-slate-600">{t.purpose}</p>
         </div>
         {canChange && <Button variant="secondary" onClick={() => setDialog('edit')}><Pencil size={16} /> Edit details</Button>}
-        {canChange && open && <Button variant="secondary" className="text-danger" onClick={() => setDialog('cancel')}><XCircle size={16} /> Cancel trip</Button>}
+        {canChange && scheduled && <Button variant="secondary" onClick={() => setDialog('reschedule')}><Repeat size={16} /> Reschedule</Button>}
+        {canChange && (open || scheduled) && <Button variant="secondary" className="text-danger" onClick={() => setDialog('cancel')}><XCircle size={16} /> Cancel trip</Button>}
       </div>
 
       <TripProgress trip={t} />
+
+      {scheduled && t.schedule_day === 'TODAY' && (
+        <Banner tone="amber" icon={Navigation} text={<><strong className="font-semibold">Leaves today ({leaves}).</strong> When the vehicle is about to leave, press Dispatch and enter the current odometer.</>}>
+          {canChange && <Button onClick={() => setDialog('dispatch')}><Navigation size={16} /> Dispatch: enter odometer</Button>}
+        </Banner>
+      )}
+      {scheduled && t.schedule_day === 'UPCOMING' && (
+        <Banner tone="slate" icon={CalendarClock} text={<><strong className="font-semibold">Scheduled for {leaves}.</strong> On that day, open this trip and press Dispatch to enter the odometer.</>} />
+      )}
+      {scheduled && t.schedule_day === 'MISSED' && (
+        <Banner tone="red" icon={CalendarX} text={<><strong className="font-semibold">Missed:</strong> this trip was scheduled for {leaves} and was not dispatched. Reschedule or cancel it.</>}>
+          {canChange && <Button onClick={() => setDialog('reschedule')}><Repeat size={16} /> Reschedule</Button>}
+        </Banner>
+      )}
 
       {open && (
         <div className="mb-4 flex flex-wrap items-center gap-3 rounded-xl border border-brand/20 bg-brand-light/60 px-4 py-3">
@@ -78,11 +95,16 @@ export default function TripDetail() {
 
           <Card title="Time and odometer">
             <div className="grid gap-4 sm:grid-cols-3">
-              <Metric icon={CalendarClock} label="Departed" value={formatDateTime(t.departed_at)} />
+              {t.scheduled_departure && <>
+                <Metric icon={CalendarClock} label="Scheduled departure" value={leaves} />
+                <Metric icon={CalendarClock} label="Expected return" value={t.scheduled_return ? formatDateTime(t.scheduled_return) : '—'} />
+                <div className="hidden sm:block" />
+              </>}
+              <Metric icon={CalendarClock} label="Departed" value={t.departed_at ? formatDateTime(t.departed_at) : scheduled ? 'Not yet' : '—'} />
               <Metric icon={CalendarClock} label="Returned" value={t.returned_at ? formatDateTime(t.returned_at) : open ? 'Not yet returned' : '—'} />
               <Metric icon={CalendarClock} label={open ? 'Out for' : 'Duration'}
-                value={t.status === 'CANCELLED' ? '—' : tripDuration(t.departed_at, t.returned_at)} />
-              <Metric icon={Gauge} label="Odometer out" value={km(t.odometer_start)} />
+                value={t.departed_at && t.status !== 'CANCELLED' ? tripDuration(t.departed_at, t.returned_at) : '—'} />
+              <Metric icon={Gauge} label="Odometer out" value={scheduled ? 'Entered at dispatch' : km(t.odometer_start)} />
               <Metric icon={Gauge} label="Odometer in" value={km(t.odometer_end)} />
               <Metric icon={Gauge} label="Distance" value={km(t.distance_km)} strong />
             </div>
@@ -107,6 +129,12 @@ export default function TripDetail() {
         </div>
       </div>
 
+      <Modal open={dialog === 'dispatch'} onClose={() => setDialog(null)} title={`Dispatch ${t.ticket_number}`}>
+        {dialog === 'dispatch' && <DispatchScheduledForm trip={t} onClose={() => setDialog(null)} />}
+      </Modal>
+      <Modal open={dialog === 'reschedule'} onClose={() => setDialog(null)} title={`Reschedule ${t.ticket_number}`} wide>
+        {dialog === 'reschedule' && <RescheduleForm trip={t} onClose={() => setDialog(null)} />}
+      </Modal>
       <Modal open={dialog === 'complete'} onClose={() => setDialog(null)} title={`Record return: ${t.ticket_number}`}>
         {dialog === 'complete' && <CompleteForm trip={t} onClose={() => setDialog(null)} />}
       </Modal>
@@ -124,14 +152,23 @@ export default function TripDetail() {
 function TripProgress({ trip: t }) {
   const cancelled = t.status === 'CANCELLED'
   const done = t.status === 'COMPLETED'
-  const steps = [
-    { label: 'Dispatched', detail: formatDateTime(t.departed_at), state: 'done' },
-    { label: 'Out on trip', detail: cancelled ? 'Did not complete' : done ? tripDuration(t.departed_at, t.returned_at) : `${tripDuration(t.departed_at)} so far`,
-      state: done ? 'done' : cancelled ? 'skipped' : 'current' },
-    cancelled
-      ? { label: 'Cancelled', detail: formatDateTime(t.updated_at), state: 'cancelled' }
-      : { label: 'Returned', detail: done ? formatDateTime(t.returned_at) : 'Pending', state: done ? 'done' : 'todo' },
-  ]
+  const ended = cancelled
+    ? { label: 'Cancelled', detail: formatDateTime(t.updated_at), state: 'cancelled' }
+    : { label: 'Returned', detail: done ? formatDateTime(t.returned_at) : 'Pending', state: done ? 'done' : 'todo' }
+  const steps = []
+  if (t.scheduled_departure) {
+    steps.push({ label: 'Scheduled', detail: formatDateTime(t.scheduled_departure), state: t.status === 'SCHEDULED' ? 'current' : 'done' })
+  }
+  if (!t.departed_at) {
+    steps.push({ label: 'Dispatched', detail: cancelled ? 'Not dispatched' : 'On the day, with odometer', state: cancelled ? 'skipped' : 'todo' }, ended)
+  } else {
+    steps.push(
+      { label: 'Dispatched', detail: formatDateTime(t.departed_at), state: 'done' },
+      { label: 'Out on trip', detail: cancelled ? 'Did not complete' : done ? tripDuration(t.departed_at, t.returned_at) : `${tripDuration(t.departed_at)} so far`,
+        state: done ? 'done' : cancelled ? 'skipped' : 'current' },
+      ended,
+    )
+  }
   const dot = {
     done: 'bg-brand text-white',
     current: 'bg-white text-brand ring-2 ring-brand',
@@ -140,7 +177,8 @@ function TripProgress({ trip: t }) {
     cancelled: 'bg-slate-500 text-white',
   }
   return (
-    <ol aria-label="Trip progress" className="mb-4 grid grid-cols-3 rounded-xl border border-slate-200 bg-white px-4 py-4 shadow-sm">
+    <ol aria-label="Trip progress" style={{ gridTemplateColumns: `repeat(${steps.length}, minmax(0, 1fr))` }}
+      className="mb-4 grid rounded-xl border border-slate-200 bg-white px-4 py-4 shadow-sm">
       {steps.map((st, i) => (
         <li key={st.label} className="relative flex flex-col items-center text-center" aria-current={st.state === 'current' ? 'step' : undefined}>
           {i > 0 && (
@@ -155,6 +193,21 @@ function TripProgress({ trip: t }) {
         </li>
       ))}
     </ol>
+  )
+}
+
+function Banner({ tone, icon: Icon, text, children }) {
+  const tones = {
+    amber: 'border-amber-200 bg-amber-50 text-amber-900',
+    slate: 'border-slate-200 bg-slate-50 text-ink',
+    red: 'border-red-200 bg-red-50 text-danger',
+  }
+  return (
+    <div className={`mb-4 flex flex-wrap items-center gap-3 rounded-xl border px-4 py-3 ${tones[tone]}`}>
+      <Icon size={18} aria-hidden="true" />
+      <p className="mr-auto text-sm">{text}</p>
+      {children}
+    </div>
   )
 }
 
@@ -313,5 +366,101 @@ function Item({ label, value, hint }) {
       <dd>{value}</dd>
       {hint && <dd className="text-xs text-slate-500">{hint}</dd>}
     </div>
+  )
+}
+
+const dispatchSchema = z.object({
+  departed_at: z.string().min(1, 'Departure time is required'),
+  odometer_start: odometerField(),
+})
+
+/** Scheduled trip leaves today: read the odometer now. */
+export function DispatchScheduledForm({ trip, onClose }) {
+  const vehicle = useQuery({
+    queryKey: ['/vehicles/', String(trip.vehicle)],
+    queryFn: () => api.get(`/vehicles/${trip.vehicle}/`).then((r) => r.data),
+  })
+  const { register, handleSubmit, setError, setValue, getValues, formState: { errors } } = useForm({
+    resolver: zodResolver(dispatchSchema), defaultValues: { departed_at: toLocalInput(), odometer_start: '' },
+  })
+  useEffect(() => {
+    if (vehicle.data && !getValues('odometer_start')) setValue('odometer_start', String(vehicle.data.current_odometer))
+  }, [vehicle.data, getValues, setValue])
+  const [save, error] = useTripMutation(trip, 'dispatch', 'Trip dispatched. Vehicle is now in use.', onClose, setError, ['departed_at', 'odometer_start'])
+
+  return (
+    <form noValidate className="space-y-4" onSubmit={handleSubmit((v) => save.mutate({
+      departed_at: fromLocalInput(v.departed_at), odometer_start: Number(v.odometer_start),
+    }))}>
+      {error && <div role="alert" className="rounded-md bg-red-50 px-3 py-2 text-sm text-danger">{error}</div>}
+      <p className="text-sm text-slate-600">{trip.plate_number} with {trip.driver_name} to {trip.destination}.</p>
+      <Field label="Current odometer (km) *" htmlFor="odometer_start" error={errors.odometer_start?.message}
+        hint={vehicle.data ? `Last recorded: ${km(vehicle.data.current_odometer)}. Read the dashboard now; it cannot be lower.` : 'Read it from the dashboard now.'}>
+        <input id="odometer_start" inputMode="numeric" autoFocus className={inputClass} {...register('odometer_start')} />
+      </Field>
+      <Field label="Departure time *" htmlFor="departed_at" error={errors.departed_at?.message} hint="Today only.">
+        <input id="departed_at" type="datetime-local" max={toLocalInput()} className={inputClass} {...register('departed_at')} />
+      </Field>
+      <div className="flex justify-end gap-2">
+        <Button variant="secondary" onClick={onClose}>Back</Button>
+        <Button type="submit" disabled={save.isPending}>{save.isPending ? 'Dispatching…' : 'Dispatch trip'}</Button>
+      </div>
+    </form>
+  )
+}
+
+const rescheduleSchema = z.object({
+  vehicle: z.string().min(1, 'Select a vehicle'),
+  driver: z.string().min(1, 'Select a driver'),
+  scheduled_departure: z.string().min(1, 'Choose the departure date and time'),
+  scheduled_return: z.string(),
+}).refine((v) => !v.scheduled_return || v.scheduled_return >= v.scheduled_departure,
+  { path: ['scheduled_return'], message: 'Expected return cannot be before the departure' })
+
+function RescheduleForm({ trip, onClose }) {
+  const vehicles = useList('/vehicles/', { page_size: 500 })
+  const drivers = useList('/drivers/', { page_size: 500, is_active: true })
+  const { register, handleSubmit, setError, formState: { errors } } = useForm({
+    resolver: zodResolver(rescheduleSchema),
+    defaultValues: {
+      vehicle: String(trip.vehicle), driver: String(trip.driver),
+      scheduled_departure: toLocalInput(trip.scheduled_departure),
+      scheduled_return: trip.scheduled_return ? toLocalInput(trip.scheduled_return) : '',
+    },
+  })
+  const [save, error] = useTripMutation(trip, 'reschedule', 'Trip rescheduled.', onClose, setError, Object.keys(rescheduleSchema.shape))
+  return (
+    <form noValidate className="grid gap-4 sm:grid-cols-2" onSubmit={handleSubmit((v) => save.mutate({
+      vehicle: Number(v.vehicle), driver: Number(v.driver), scheduled_departure: fromLocalInput(v.scheduled_departure),
+      scheduled_return: v.scheduled_return ? fromLocalInput(v.scheduled_return) : null,
+    }))}>
+      {error && <div role="alert" className="rounded-md bg-red-50 px-3 py-2 text-sm text-danger sm:col-span-2">{error}</div>}
+      <Field label="Vehicle *" htmlFor="vehicle" error={errors.vehicle?.message}>
+        <select id="vehicle" className={inputClass} {...register('vehicle')}>
+          {vehicles.data?.results.map((v) => (
+            <option key={v.id} value={v.id} disabled={['UNSERVICEABLE', 'DISPOSED'].includes(v.status)}>
+              {v.plate_number} · {v.make} {v.model}{v.status === 'SERVICEABLE' ? '' : ` (${v.status_display})`}
+            </option>
+          )) ?? <option value={trip.vehicle}>{trip.plate_number}</option>}
+        </select>
+      </Field>
+      <Field label="Driver *" htmlFor="driver" error={errors.driver?.message}>
+        <select id="driver" className={inputClass} {...register('driver')}>
+          {drivers.data?.results.map((d) => (
+            <option key={d.id} value={d.id} disabled={d.license_status === 'EXPIRED'}>{d.full_name} ({d.office_code})</option>
+          )) ?? <option value={trip.driver}>{trip.driver_name}</option>}
+        </select>
+      </Field>
+      <Field label="Departure date and time *" htmlFor="scheduled_departure" error={errors.scheduled_departure?.message}>
+        <input id="scheduled_departure" type="datetime-local" min={toLocalInput()} className={inputClass} {...register('scheduled_departure')} />
+      </Field>
+      <Field label="Expected return" htmlFor="scheduled_return" error={errors.scheduled_return?.message}>
+        <input id="scheduled_return" type="datetime-local" className={inputClass} {...register('scheduled_return')} />
+      </Field>
+      <div className="flex justify-end gap-2 sm:col-span-2">
+        <Button variant="secondary" onClick={onClose}>Back</Button>
+        <Button type="submit" disabled={save.isPending}>{save.isPending ? 'Saving…' : 'Reschedule'}</Button>
+      </div>
+    </form>
   )
 }

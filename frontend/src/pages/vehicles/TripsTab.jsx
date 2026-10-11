@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Plus } from 'lucide-react'
+import { CalendarPlus, Plus } from 'lucide-react'
 import { useList } from '../../api'
 import { useCan } from '../../auth'
 import DataTable from '../../components/DataTable'
@@ -13,12 +13,13 @@ export default function TripsTab({ v }) {
   const can = useCan()
   const navigate = useNavigate()
   const [page, setPage] = useState(1)
-  const [dispatching, setDispatching] = useState(false)
+  const [mode, setMode] = useState(null) // 'schedule' | 'dispatch'
   const query = useList('/trips/', { vehicle: v.id, page })
   const summary = useList('/trips/summary/', { vehicle: v.id })
   const s = summary.data
   const onTrip = (s?.by_status.DISPATCHED ?? 0) > 0
   const available = !v.is_archived && ['SERVICEABLE', 'IN_USE'].includes(v.status)
+  const bookable = !v.is_archived && !['UNSERVICEABLE', 'DISPOSED'].includes(v.status)
 
   return (
     <div>
@@ -30,7 +31,8 @@ export default function TripsTab({ v }) {
           <div className="ml-auto flex items-center gap-3">
             {!available && <span className="text-xs text-slate-500">{v.is_archived ? 'Archived' : v.status_display}: cannot be dispatched</span>}
             {available && onTrip && <span className="text-xs text-slate-500">Record the return of the current trip first</span>}
-            <Button onClick={() => setDispatching(true)} disabled={!available || onTrip}><Plus size={16} /> Dispatch trip</Button>
+            <Button variant="secondary" onClick={() => setMode('schedule')} disabled={!bookable}><CalendarPlus size={16} /> Schedule</Button>
+            <Button onClick={() => setMode('dispatch')} disabled={!available || onTrip}><Plus size={16} /> Dispatch now</Button>
           </div>
         )}
       </div>
@@ -38,8 +40,8 @@ export default function TripsTab({ v }) {
       <DataTable columns={tripColumns({ withVehicle: false })} query={query} page={page} onPage={setPage}
         onRowClick={(t) => navigate(`/trips/${t.id}`)} empty="No trips recorded for this vehicle yet." />
 
-      <Modal open={dispatching} onClose={() => setDispatching(false)} title={`Dispatch ${v.plate_number}`} wide>
-        {dispatching && <DispatchForm vehicle={v} onClose={() => setDispatching(false)} onSaved={(t) => navigate(`/trips/${t.id}`)} />}
+      <Modal open={!!mode} onClose={() => setMode(null)} title={`${mode === 'schedule' ? 'Schedule' : 'Dispatch'} ${v.plate_number}`} wide>
+        {mode && <DispatchForm mode={mode} vehicle={v} onClose={() => setMode(null)} onSaved={(t) => navigate(`/trips/${t.id}`)} />}
       </Modal>
     </div>
   )

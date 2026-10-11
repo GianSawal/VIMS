@@ -1,13 +1,21 @@
+import secrets
+
 from django.core.exceptions import ValidationError
 from django.db import models
+from django.db.models.functions import Coalesce
 
 from accounts.models import Office
 from config.base_models import Tracked, non_negative, ordered
 from fleet.models import Driver, Vehicle
 
 
+def new_display_token():
+    return secrets.token_urlsafe(32)
+
+
 class Trip(Tracked):
     class Status(models.TextChoices):
+        SCHEDULED = 'SCHEDULED', 'Scheduled'
         DISPATCHED = 'DISPATCHED', 'Dispatched'
         COMPLETED = 'COMPLETED', 'Completed'
         CANCELLED = 'CANCELLED', 'Cancelled'
@@ -20,9 +28,13 @@ class Trip(Tracked):
     origin = models.CharField(max_length=200)
     destination = models.CharField(max_length=255)
     purpose = models.TextField()
-    departed_at = models.DateTimeField(db_index=True)
+    # Planned times; set when a trip is booked ahead (status SCHEDULED). Shown on the TV display.
+    scheduled_departure = models.DateTimeField(null=True, blank=True, db_index=True)
+    scheduled_return = models.DateTimeField(null=True, blank=True, help_text='Expected return (planning only).')
+    # Actual times/readings; empty while scheduled, filled at dispatch (odometer read on the day itself).
+    departed_at = models.DateTimeField(null=True, blank=True, db_index=True)
     returned_at = models.DateTimeField(null=True, blank=True)
-    odometer_start = models.IntegerField()
+    odometer_start = models.IntegerField(null=True, blank=True)
     odometer_end = models.IntegerField(null=True, blank=True)
     distance_km = models.GeneratedField(
         expression=models.F('odometer_end') - models.F('odometer_start'),
@@ -32,11 +44,20 @@ class Trip(Tracked):
     remarks = models.TextField(blank=True)
 
     class Meta:
-        ordering = ['-departed_at']
+        ordering = [Coalesce('departed_at', 'scheduled_departure').desc(nulls_last=True), '-id']
         constraints = [
             *non_negative('odometer_start'),
             ordered('odometer_start', 'odometer_end'),
             ordered('departed_at', 'returned_at'),
+            ordered('scheduled_departure', 'scheduled_return'),
+            # Once a trip has actually left, its departure time and starting odometer are mandatory.
+            models.CheckConstraint(
+                condition=models.Q(status__in=['SCHEDULED', 'CANCELLED'])
+                | models.Q(departed_at__isnull=False, odometer_start__isnull=False),
+                name='trip_started_has_departure_and_odometer'),
+            models.CheckConstraint(
+                condition=~models.Q(status='SCHEDULED') | models.Q(scheduled_departure__isnull=False),
+                name='trip_scheduled_has_departure_time'),
         ]
 
     def __str__(self):
@@ -105,3 +126,19 @@ class TollTransaction(Tracked):
     class Meta:
         ordering = ['-transacted_at']
         constraints = non_negative('credit', 'debit')
+
+
+class DisplayScreen(models.Model):
+    """A TV/kiosk allowed to read the public trip schedule via a secret link. Revoke by deactivating."""
+    name = models.CharField(max_length=100, help_text='e.g. "Lobby TV, Regional Office"')
+    office = models.ForeignKey(Office, null=True, blank=True, on_delete=models.PROTECT, related_name='+',
+                               help_text='Show only this office\'s vehicles. Empty = all offices.')
+    # ponytail: stored as-is so admins can re-copy the link; it only unlocks the public schedule fields.
+    # Hash it if the display ever exposes more than plate/driver/destination/times.
+    token = models.CharField(max_length=64, unique=True, default=new_display_token, editable=False)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    last_seen_at = models.DateTimeField(null=True, blank=True)
+
+    def __str__(self):
+        return self.name

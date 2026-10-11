@@ -82,6 +82,10 @@ Django session in an HttpOnly cookie plus CSRF token. The SPA calls `GET /api/au
 | `/api/vehicles/{id}/assignments/` | GET history / POST assign or reassign | POST needs `add` + `change` on `vehicleassignment`; ends the current assignment on the start date |
 | `/api/vehicles/{id}/end-assignment/` | POST `{end_date}` | leaves the vehicle unassigned |
 | `/api/trips/` | GET list · POST dispatch · PATCH descriptive fields | `?status= &vehicle= &driver= &office= &date_from= &date_to= &search=`; `GET /api/trips/summary/` for counts and distance |
+| `/api/trips/schedule/` | POST | book ahead: `{vehicle, driver, scheduled_departure, scheduled_return?, origin, destination, purpose, …}`; no odometer |
+| `/api/trips/{id}/dispatch/` | POST `{odometer_start, departed_at?}` | scheduled trips only, **on the scheduled day**; odometer read then |
+| `/api/trips/{id}/reschedule/` | POST `{vehicle, driver, scheduled_departure, scheduled_return?}` | scheduled trips only; no double-booking |
+| `/api/display/trips/?token=` | GET (no login) | TV board data: today + next 7 days, display-safe fields only; rate-limited |
 | `/api/trips/{id}/complete/` | POST `{returned_at, odometer_end, remarks?}` | moves the vehicle odometer forward; vehicle back to Serviceable |
 | `/api/trips/{id}/cancel/` | POST `{reason}` | open trips only; odometer untouched |
 | `/api/trips/{id}/attachments/` | GET / POST / DELETE `…/{att_id}/` | same rules as driver attachments |
@@ -121,3 +125,15 @@ Tokens are in `frontend/src/index.css` (`@theme`), used as Tailwind classes such
 - `main`: production-ready. `develop`: integration.
 - Feature branches: `feature/<phase>-<short-name>` (e.g. `feature/p4-vehicle-crud`), `fix/<short-name>`.
 - Merge to `develop` via pull request with review.
+
+## Trip schedule TV display
+
+1. Django admin → **Operations › Display screens** → *Add*: give it a name (e.g. "Lobby TV, Regional Office") and,
+   optionally, an office to show only that office's vehicles.
+2. Save, then copy the **Display link** shown (`/display?token=…`) and open it full-screen on the TV's browser,
+   e.g. `https://<server>/display?token=…`. No staff login is needed.
+3. To revoke a screen, untick **is active**; the TV then shows "Display not set up".
+
+The board shows today's trips (scheduled, on trip, returned, cancelled) and the next 7 days of bookings, refreshes
+every minute, pages long lists, flags delayed departures and overdue returns, and never receives passengers,
+purpose, remarks or odometer readings.

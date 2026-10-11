@@ -1,6 +1,6 @@
 import { Badge } from '../../components/ui'
 
-export const TRIP_STATUSES = [['DISPATCHED', 'On trip', 'blue'], ['COMPLETED', 'Completed', 'green'], ['CANCELLED', 'Cancelled', 'gray']]
+export const TRIP_STATUSES = [['SCHEDULED', 'Scheduled', 'gold'], ['DISPATCHED', 'On trip', 'blue'], ['COMPLETED', 'Completed', 'green'], ['CANCELLED', 'Cancelled', 'gray']]
 const tone = Object.fromEntries(TRIP_STATUSES.map(([v, , t]) => [v, t]))
 export const tripStatusLabel = Object.fromEntries(TRIP_STATUSES.map(([v, l]) => [v, l]))
 

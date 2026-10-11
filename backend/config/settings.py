@@ -125,7 +125,7 @@ REST_FRAMEWORK = {
     ],
     'DEFAULT_PAGINATION_CLASS': 'config.pagination.Pagination',
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
-    'DEFAULT_THROTTLE_RATES': {'login': '10/min'},
+    'DEFAULT_THROTTLE_RATES': {'login': '10/min', 'display': '120/min'},
 }
 
 SPECTACULAR_SETTINGS = {

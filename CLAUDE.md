@@ -43,6 +43,7 @@ MySQL-specific behavior (CHECK constraints, generated columns) was verified manu
 - MySQL has no partial unique index. "Plate unique among non-archived" and "one open assignment per vehicle" are enforced in code; the assignment service locks the vehicle row (`select_for_update`).
 - Odometer, money and quantity fields have DB CHECK constraints; totals and trip distance are `GeneratedField`s.
 - Uploads: validate real content (Pillow or PDF magic bytes), not just the extension; files get random names via `safe_upload_to`; delete the old file in `transaction.on_commit`.
+- Trip lifecycle: SCHEDULED (no odometer) → DISPATCHED (odometer read on the scheduled day) → COMPLETED, or CANCELLED. Direct dispatch skips SCHEDULED. `/display?token=` is the public TV board (`DisplayScreen`, no login); keep sensitive fields out of `DisplayTripSerializer`.
 - Business workflows live in service modules (`fleet/assignments.py`, `operations/trips.py`) that lock the vehicle row; views only validate input, call the service and audit. Add new state transitions there, not in serializers.
 - Any record that needs files: add `fleet.attachments_api.AttachmentsMixin` to its viewset (uses the model's view/change permissions) and render `components/Attachments.jsx` with `basePath`.
 - `RFIDAccount` intentionally has no password field (spec: no plaintext third-party credentials).

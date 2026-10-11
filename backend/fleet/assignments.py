@@ -9,7 +9,7 @@ from .models import Driver, Vehicle, VehicleAssignment
 
 
 def _fail(field, msg):
-    raise serializers.ValidationError({field: msg})
+    raise serializers.ValidationError({field: [msg]})  # list, like DRF field errors
 
 
 def start_assignment(vehicle, *, user, office, accountable_person, start_date, driver=None, remarks=''):

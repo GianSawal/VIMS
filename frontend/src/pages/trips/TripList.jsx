@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
-import { CircleCheck, CircleSlash, Clock, Milestone, Navigation, Plus, Route as RouteIcon } from 'lucide-react'
+import { CalendarClock, CalendarPlus, CircleCheck, CircleSlash, Clock, Milestone, Navigation, Plus, Route as RouteIcon } from 'lucide-react'
 import { useList } from '../../api'
 import { useCan, useMe } from '../../auth'
 import DataTable from '../../components/DataTable'
@@ -8,11 +8,12 @@ import { CardGrid, SearchBox, selectClass, StatCard, Toolbar } from '../../compo
 import { Button, Modal, PageHeader } from '../../components/ui'
 import { useAllOffices } from '../admin/Offices'
 import DispatchForm from './DispatchForm'
-import { CompleteForm } from './TripDetail'
+import { CompleteForm, DispatchScheduledForm } from './TripDetail'
 import { km, shortDateTime, TRIP_STATUSES, tripDuration, tripStatusLabel, TripStatusBadge } from './common'
 
 const CARDS = {
   ALL: [RouteIcon, 'bg-slate-100 text-slate-700', 'All trips'],
+  SCHEDULED: [CalendarClock, 'bg-amber-50 text-amber-700', 'Scheduled'],
   DISPATCHED: [Navigation, 'bg-brand-light text-brand', 'On trip now'],
   COMPLETED: [CircleCheck, 'bg-green-50 text-green-700', 'Completed'],
   CANCELLED: [CircleSlash, 'bg-slate-100 text-slate-500', 'Cancelled'],
@@ -41,7 +42,14 @@ export function tripColumns({ withVehicle = true } = {}) {
         <div className="truncate text-slate-500" title={t.destination}>→ {t.destination}</div>
       </div>
     ) },
-    { key: 'time', label: 'Departed / returned', render: (t) => (
+    { key: 'time', label: 'Departure / return', render: (t) => t.status === 'SCHEDULED' ? (
+      <div className="text-sm whitespace-nowrap">
+        <div>{shortDateTime(t.scheduled_departure)}</div>
+        <div className={t.schedule_day === 'MISSED' ? 'font-medium text-danger' : t.schedule_day === 'TODAY' ? 'font-medium text-amber-700' : 'text-slate-500'}>
+          {t.schedule_day === 'MISSED' ? 'Missed: reschedule' : t.schedule_day === 'TODAY' ? 'Leaves today' : 'Booked'}
+        </div>
+      </div>
+    ) : (
       <div className="text-sm whitespace-nowrap">
         <div>{shortDateTime(t.departed_at)}</div>
         <div className="text-slate-500">{t.returned_at ? shortDateTime(t.returned_at) : t.status === 'DISPATCHED' ? `Out ${tripDuration(t.departed_at)}` : '—'}</div>
@@ -65,6 +73,46 @@ function datePresets() {
 const LONG_TRIP_HOURS = 12 // flag trips out longer than this (still shown in text, not by color alone)
 
 /** Live board of vehicles currently out, so returns can be recorded without hunting through the table. */
+/** Today's bookings that haven't left yet: dispatch them here by entering the odometer. */
+function LeavingToday({ canChange }) {
+  const [today] = useState(() => new Date().toLocaleDateString('en-CA'))
+  const q = useList('/trips/', { status: 'SCHEDULED', date_from: today, date_to: today, ordering: 'scheduled_departure', page_size: 12 })
+  const [leaving, setLeaving] = useState(null)
+  const rows = q.data?.results ?? []
+  if (!rows.length) return null
+
+  return (
+    <section aria-labelledby="leaving-today" className="mb-4">
+      <h2 id="leaving-today" className="mb-2 flex items-center gap-2 text-sm font-semibold text-ink">
+        <CalendarClock size={16} className="text-amber-600" aria-hidden="true" />
+        Leaving today <span className="font-normal text-slate-500">· {rows.length} scheduled</span>
+      </h2>
+      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+        {rows.map((t) => (
+          <article key={t.id} className="flex flex-col rounded-xl border border-l-4 border-slate-200 border-l-amber-500 bg-white p-4 shadow-sm">
+            <div className="flex items-start justify-between gap-2">
+              <div>
+                <div className="text-lg font-semibold tabular-nums">{new Date(t.scheduled_departure).toLocaleTimeString('en-PH', { hour: 'numeric', minute: '2-digit' })}</div>
+                <div className="font-medium">{t.plate_number} <span className="font-normal text-slate-500">· {t.driver_name}</span></div>
+              </div>
+              <Link to={`/trips/${t.id}`} className="font-mono text-xs font-semibold text-brand hover:underline">{t.ticket_number}</Link>
+            </div>
+            <p className="mt-2 truncate text-sm" title={t.destination}><span className="text-slate-500">To</span> {t.destination}</p>
+            {canChange && (
+              <div className="mt-3 border-t border-slate-100 pt-3">
+                <Button className="w-full" onClick={() => setLeaving(t)}><Navigation size={16} /> Dispatch: enter odometer</Button>
+              </div>
+            )}
+          </article>
+        ))}
+      </div>
+      <Modal open={!!leaving} onClose={() => setLeaving(null)} title={`Dispatch ${leaving?.ticket_number}`}>
+        {leaving && <DispatchScheduledForm trip={leaving} onClose={() => setLeaving(null)} />}
+      </Modal>
+    </section>
+  )
+}
+
 function OpenTrips({ canChange, onViewAll }) {
   const q = useList('/trips/', { status: 'DISPATCHED', page_size: 6, ordering: 'departed_at' })
   const [returning, setReturning] = useState(null)
@@ -124,7 +172,7 @@ export default function TripList() {
   const { data: me } = useMe()
   const navigate = useNavigate()
   const offices = useAllOffices()
-  const [dispatching, setDispatching] = useState(false)
+  const [newTrip, setNewTrip] = useState(null) // 'schedule' | 'dispatch'
   const [params, setParams] = useSearchParams()
   const [search, setSearch] = useState(params.get('search') ?? '')
   const f = Object.fromEntries(params)
@@ -202,8 +250,11 @@ export default function TripList() {
   return (
     <div>
       <PageHeader title="Trips" actions={can('operations.add_trip') && (
-        <Button onClick={() => setDispatching(true)}><Plus size={16} /> Dispatch trip</Button>
-      )}>Trip tickets, dispatches and returns.</PageHeader>
+        <div className="flex gap-2">
+          <Button variant="secondary" onClick={() => setNewTrip('schedule')}><CalendarPlus size={16} /> Schedule trip</Button>
+          <Button onClick={() => setNewTrip('dispatch')}><Plus size={16} /> Dispatch now</Button>
+        </div>
+      )}>Book trips ahead, dispatch on the day and record returns.</PageHeader>
 
       <CardGrid label="Filter by trip status">
         <StatCard {...card('ALL')} count={summary.data?.total} loading={summary.isLoading} selected={!f.status} onClick={() => set('status', '')} />
@@ -220,14 +271,15 @@ export default function TripList() {
         </div>
       </CardGrid>
 
+      <LeavingToday canChange={can('operations.change_trip')} />
       <OpenTrips canChange={can('operations.change_trip')} onViewAll={() => set('status', 'DISPATCHED')} />
 
       <DataTable columns={tripColumns()} query={query} page={page} onPage={(p) => set('page', String(p))} toolbar={toolbar}
         onRowClick={(t) => navigate(`/trips/${t.id}`)}
         empty={chips.length ? 'No trips match these filters.' : 'No trips yet.'} />
 
-      <Modal open={dispatching} onClose={() => setDispatching(false)} title="Dispatch trip" wide>
-        {dispatching && <DispatchForm onClose={() => setDispatching(false)} onSaved={(t) => navigate(`/trips/${t.id}`)} />}
+      <Modal open={!!newTrip} onClose={() => setNewTrip(null)} title={newTrip === 'schedule' ? 'Schedule a trip' : 'Dispatch a trip now'} wide>
+        {newTrip && <DispatchForm mode={newTrip} onClose={() => setNewTrip(null)} onSaved={(t) => navigate(`/trips/${t.id}`)} />}
       </Modal>
     </div>
   )
