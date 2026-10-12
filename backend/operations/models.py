@@ -38,6 +38,9 @@ class Trip(Tracked):
     returned_at = models.DateTimeField(null=True, blank=True)
     odometer_start = models.IntegerField(null=True, blank=True)
     odometer_end = models.IntegerField(null=True, blank=True)
+    # Google Maps driving estimate, ONE WAY, captured when the trip was planned (compare with the odometer).
+    estimated_distance_km = models.DecimalField(max_digits=7, decimal_places=1, null=True, blank=True)
+    estimated_duration_min = models.PositiveIntegerField(null=True, blank=True)
     distance_km = models.GeneratedField(
         expression=models.F('odometer_end') - models.F('odometer_start'),
         output_field=models.IntegerField(null=True), db_persist=True,

@@ -6,6 +6,7 @@ from django.db.models.functions import Coalesce, TruncMonth
 from django.utils import timezone
 from django_filters import rest_framework as filters
 from rest_framework import mixins, status, viewsets
+from rest_framework import serializers as drf_serializers
 from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.permissions import AllowAny
@@ -18,6 +19,7 @@ from audit.services import diff, log
 from fleet.attachments_api import AttachmentsMixin
 
 from . import fuel as fuel_service
+from . import maps
 from . import trips as trip_service
 from .models import DisplayScreen, FuelRecord, Trip
 from .serializers import (DESCRIPTIVE, CancelSerializer, CompleteSerializer, DispatchScheduledSerializer,
@@ -318,3 +320,53 @@ class FuelRecordViewSet(AttachmentsMixin, OfficeScopedMixin, mixins.ListModelMix
         return Response({'count': agg['count'], 'liters': dec(liters, '0.001'), 'amount': dec(amount, '0.01'),
                          'average_price': dec(amount / liters, '0.01') if liters else None,
                          'full_tank_count': agg['full'], 'with_po_count': agg['with_po']})
+
+
+# ---------------------------------------------------------------- Google Maps (server-side proxy)
+
+class MapsRouteInput(drf_serializers.Serializer):
+    class Point(drf_serializers.Serializer):
+        place_id = drf_serializers.CharField(required=False, allow_blank=True, max_length=300)
+        address = drf_serializers.CharField(required=False, allow_blank=True, max_length=300)
+
+        def validate(self, attrs):
+            if not attrs.get('place_id') and not attrs.get('address', '').strip():
+                raise drf_serializers.ValidationError('Give a place or an address.')
+            return attrs
+
+    origin = Point()
+    destination = Point()
+
+
+class MapsView(APIView):
+    """Place search and driving distance for trip forms. Needs operations.add_trip; the key never leaves the server."""
+    permission_classes = [require('operations.add_trip'), PasswordChangeNotRequired]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = 'maps'
+
+    def get(self, request, op):
+        if op == 'status':
+            return Response({'enabled': maps.enabled()})
+        if op != 'autocomplete':
+            return Response(status=status.HTTP_404_NOT_FOUND)
+        if not maps.enabled():
+            return Response({'detail': 'Google Maps is not set up.'}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+        q = request.query_params.get('q', '').strip()
+        if len(q) < 3:
+            return Response({'results': []})
+        try:
+            return Response({'results': maps.autocomplete(q[:200], request.query_params.get('session', '')[:64])})
+        except maps.MapsError as e:
+            return Response({'detail': str(e)}, status=status.HTTP_502_BAD_GATEWAY)
+
+    def post(self, request, op):
+        if op != 'route':
+            return Response(status=status.HTTP_404_NOT_FOUND)
+        if not maps.enabled():
+            return Response({'detail': 'Google Maps is not set up.'}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+        s = MapsRouteInput(data=request.data)
+        s.is_valid(raise_exception=True)
+        try:
+            return Response(maps.route(s.validated_data['origin'], s.validated_data['destination']))
+        except maps.MapsError as e:
+            return Response({'detail': str(e)}, status=status.HTTP_502_BAD_GATEWAY)

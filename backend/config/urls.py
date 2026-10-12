@@ -9,7 +9,7 @@ from accounts.views import OfficeViewSet, UserViewSet
 from fleet.driver_views import DriverViewSet
 from fleet.views import VehicleViewSet
 from maintenance.views import CategoryViewSet, MaintenanceRecordViewSet, ScheduleViewSet
-from operations.views import DisplayTripsView, FuelRecordViewSet, TripViewSet
+from operations.views import DisplayTripsView, FuelRecordViewSet, MapsView, TripViewSet
 
 router = DefaultRouter()
 router.register('offices', OfficeViewSet)
@@ -26,6 +26,7 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/auth/', include('accounts.urls')),
     path('api/display/trips/', DisplayTripsView.as_view(), name='display-trips'),
+    path('api/maps/<str:op>/', MapsView.as_view(), name='maps'),  # status | autocomplete | route
     path('api/', include(router.urls)),
     path('api/schema/', SpectacularAPIView.as_view(), name='schema'),
     path('api/docs/', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger'),

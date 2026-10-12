@@ -242,7 +242,7 @@ instead of overwriting it.
 -   [x] Vehicle selection
 -   [x] Driver selection
 -   [x] Passenger/requesting office
--   [x] Origin/destination
+-   [x] Origin/destination (Google place search + driving-distance estimate, added 2026-10-12; needs GOOGLE_MAPS_API_KEY, see README)
 -   [x] Purpose
 -   [x] Date/time out
 -   [x] Date/time returned

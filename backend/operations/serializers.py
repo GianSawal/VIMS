@@ -9,7 +9,8 @@ from fleet.models import Driver, Vehicle
 from . import fuel
 from .models import FuelRecord, Trip
 
-DESCRIPTIVE = ['requesting_office', 'passengers', 'origin', 'destination', 'purpose', 'remarks']
+DESCRIPTIVE = ['requesting_office', 'passengers', 'origin', 'destination', 'purpose', 'remarks',
+               'estimated_distance_km', 'estimated_duration_min']
 
 
 class TripSerializer(serializers.ModelSerializer):
@@ -31,7 +32,7 @@ class TripSerializer(serializers.ModelSerializer):
         fields = ['id', 'ticket_number', 'vehicle', 'plate_number', 'vehicle_label', 'office_code', 'vehicle_photo_url', 'driver_photo_url', 'driver',
                   'driver_name', 'requesting_office', 'requesting_office_name', 'passengers', 'origin', 'destination',
                   'purpose', 'scheduled_departure', 'scheduled_return', 'schedule_day', 'departed_at', 'returned_at',
-                  'odometer_start', 'odometer_end', 'distance_km', 'status', 'status_display', 'remarks',
+                  'odometer_start', 'odometer_end', 'distance_km', 'estimated_distance_km', 'estimated_duration_min', 'status', 'status_display', 'remarks',
                   'created_at', 'updated_at']
         read_only_fields = [f for f in fields if f not in DESCRIPTIVE]
 
@@ -65,6 +66,8 @@ class DispatchSerializer(serializers.Serializer):
     departed_at = serializers.DateTimeField()
     odometer_start = serializers.IntegerField(min_value=0)
     remarks = serializers.CharField(required=False, allow_blank=True, default='')
+    estimated_distance_km = serializers.DecimalField(max_digits=7, decimal_places=1, min_value=0, required=False, allow_null=True)
+    estimated_duration_min = serializers.IntegerField(min_value=0, required=False, allow_null=True)
 
 
 class CompleteSerializer(serializers.Serializer):
@@ -91,6 +94,8 @@ class ScheduleSerializer(serializers.Serializer):
     destination = serializers.CharField(max_length=255)
     purpose = serializers.CharField()
     remarks = serializers.CharField(required=False, allow_blank=True, default='')
+    estimated_distance_km = serializers.DecimalField(max_digits=7, decimal_places=1, min_value=0, required=False, allow_null=True)
+    estimated_duration_min = serializers.IntegerField(min_value=0, required=False, allow_null=True)
 
 
 class RescheduleSerializer(serializers.Serializer):

@@ -6,6 +6,8 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { api, applyFieldErrors, invalidatePrefix, useList } from '../../api'
 import { Button, Field, inputClass } from '../../components/ui'
 import { useToast } from '../../components/toast'
+import PlaceSearch, { useMapsEnabled } from '../../components/PlaceSearch'
+import RouteEstimate from '../../components/RouteEstimate'
 import { useAllOffices } from '../admin/Offices'
 import { bookingLabel, bookingWindow, endOfDay, fromLocalInput, km, toLocalInput } from './common'
 import { odometerField } from '../vehicles/common'
@@ -95,6 +97,11 @@ export default function DispatchForm({ vehicle, mode = 'dispatch', onClose, onSa
     },
   })
   const chosen = vehicles.data?.results.find((v) => String(v.id) === watch('vehicle')) ?? vehicle
+  // Origin/destination: the text is what gets saved; place_id only helps Google find the exact spot.
+  const mapsOn = useMapsEnabled()
+  const [origin, setOrigin] = useState({ text: '', place_id: null })
+  const [dest, setDest] = useState({ text: '', place_id: null })
+  const [estimate, setEstimate] = useState(null)
 
   const save = useMutation({
     mutationFn: (body) => api.post(scheduling ? '/trips/schedule/' : '/trips/', body),
@@ -109,6 +116,8 @@ export default function DispatchForm({ vehicle, mode = 'dispatch', onClose, onSa
 
   const submit = (v) => save.mutate({
     ...v,
+    estimated_distance_km: estimate ? String(estimate.distance_km) : null,
+    estimated_duration_min: estimate ? estimate.duration_min : null,
     vehicle: Number(v.vehicle),
     driver: Number(v.driver),
     requesting_office: v.requesting_office ? Number(v.requesting_office) : null,
@@ -217,8 +226,19 @@ export default function DispatchForm({ vehicle, mode = 'dispatch', onClose, onSa
       )}
 
       <Section step="3" title="Route and purpose">
-        {text('origin', 'Origin *', { placeholder: 'e.g. DOLE Regional Office' })}
-        {text('destination', 'Destination / places visited *', { placeholder: 'e.g. Provincial Office, Tarlac' })}
+        <input type="hidden" {...register('origin')} />
+        <input type="hidden" {...register('destination')} />
+        <Field label="Origin *" htmlFor="origin-search" error={errors.origin?.message}>
+          <PlaceSearch id="origin-search" value={origin} enabled={mapsOn} invalid={!!errors.origin}
+            placeholder={mapsOn ? 'Search a place, e.g. DOLE Regional Office III' : 'e.g. DOLE Regional Office'}
+            onChange={(p) => { setOrigin(p); setEstimate(null); setValue('origin', p.text, { shouldValidate: !!errors.origin }) }} />
+        </Field>
+        <Field label="Destination *" htmlFor="destination-search" error={errors.destination?.message}>
+          <PlaceSearch id="destination-search" value={dest} enabled={mapsOn} invalid={!!errors.destination}
+            placeholder={mapsOn ? 'Search where the trip goes' : 'e.g. Provincial Office, Tarlac'}
+            onChange={(p) => { setDest(p); setEstimate(null); setValue('destination', p.text, { shouldValidate: !!errors.destination }) }} />
+        </Field>
+        <RouteEstimate origin={origin} destination={dest} enabled={mapsOn} onEstimate={setEstimate} />
         <div className="sm:col-span-2">
           <Field label="Purpose *" htmlFor="purpose" error={errors.purpose?.message}>
             <textarea id="purpose" rows={2} className={inputClass} placeholder="e.g. Labor inspection, document delivery" {...register('purpose')} />

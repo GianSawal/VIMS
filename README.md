@@ -146,3 +146,19 @@ Tokens are in `frontend/src/index.css` (`@theme`), used as Tailwind classes such
 The board shows today's trips (scheduled, on trip, returned, cancelled) and the next 7 days of bookings, refreshes
 every minute, pages long lists, flags delayed departures and overdue returns, and never receives passengers,
 purpose, remarks or odometer readings.
+
+## Google Maps place search and distance (trip forms)
+
+Optional. Without a key the trip forms use plain text boxes and still offer a free "Open in Google Maps" link.
+
+1. In Google Cloud Console create (or pick) a project with **billing enabled**.
+2. Enable **Places API (New)** and **Routes API**.
+3. Create an API key, restrict it to those two APIs, and under *Application restrictions* choose **IP addresses**
+   with the server's public IP (the key is only used by Django, never by the browser).
+4. Put it in `backend/.env` as `GOOGLE_MAPS_API_KEY=...` and restart Django.
+
+Endpoints (need `operations.add_trip`, rate-limited 120/min per user): `GET /api/maps/status/`,
+`GET /api/maps/autocomplete/?q=&session=` (Philippines only), `POST /api/maps/route/`
+`{origin: {place_id | address}, destination: {...}}` returning one-way `distance_km` and `duration_min`.
+The estimate is saved on the trip (`estimated_distance_km`, `estimated_duration_min`) and shown next to the
+odometer distance. Google bills per request; check current pricing and set a budget alert in Cloud Console.

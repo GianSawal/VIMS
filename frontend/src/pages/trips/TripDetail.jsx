@@ -4,10 +4,12 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { Link, useParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowDown, CalendarClock, CalendarX, Check, CircleCheck, Clock, Gauge, MapPin, Navigation, Pencil, Repeat, Users, X, XCircle } from 'lucide-react'
+import { ArrowDown, ExternalLink, CalendarClock, CalendarX, Check, CircleCheck, Clock, Gauge, MapPin, Navigation, Pencil, Repeat, Users, X, XCircle } from 'lucide-react'
 import { api, applyFieldErrors, errorMessage, invalidatePrefix, useList } from '../../api'
 import { useCan } from '../../auth'
 import Attachments from '../../components/Attachments'
+import { mapsLink } from '../../components/PlaceSearch'
+import { durationText } from '../../components/RouteEstimate'
 import { Button, Field, formatDateTime, inputClass, Modal } from '../../components/ui'
 import { useToast } from '../../components/toast'
 import { NotFound } from '../Errors'
@@ -93,6 +95,18 @@ export default function TripDetail() {
                 <div><div className="text-xs text-slate-500">Destination / places visited</div><div className="font-medium whitespace-pre-line">{t.destination}</div></div>
               </li>
             </ol>
+            <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-slate-100 pt-3 text-sm">
+              {t.estimated_distance_km != null ? (
+                <span>
+                  Google Maps estimate: <strong>≈ {Number(t.estimated_distance_km).toLocaleString('en-PH')} km</strong> one way
+                  {' '}(≈ {(Number(t.estimated_distance_km) * 2).toLocaleString('en-PH', { maximumFractionDigits: 1 })} km round trip)
+                  {t.estimated_duration_min != null && `, about ${durationText(t.estimated_duration_min)} each way`}
+                  {t.distance_km != null && <span className="text-slate-500"> · actual {t.distance_km.toLocaleString('en-PH')} km by odometer</span>}
+                </span>
+              ) : <span className="text-slate-500">No distance estimate was recorded.</span>}
+              <a href={mapsLink({ text: t.origin }, { text: t.destination })} target="_blank" rel="noopener noreferrer"
+                className="ml-auto inline-flex items-center gap-1 font-medium text-brand hover:underline">Open in Google Maps <ExternalLink size={14} aria-hidden="true" /></a>
+            </div>
           </Card>
 
           <Card title="Time and odometer">
