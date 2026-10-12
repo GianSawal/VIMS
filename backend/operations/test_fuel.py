@@ -159,3 +159,18 @@ def test_db_rejects_negative_amounts_even_without_api(vehicle):
     with pytest.raises(IntegrityError), transaction.atomic():
         FuelRecord.objects.create(date=TODAY, vehicle=vehicle, fuel_type='DIESEL', liters=Decimal('-1'),
                                   unit_price=60, total_amount=60, odometer=1)
+
+
+def test_insights_months_and_top_vehicles(vehicle, fo1):
+    c = as_role('Fleet Administrator')
+    other = make_vehicle(fo1, 'FUEL 2')  # gasoline by default
+    add(c, vehicle, 10100, days_ago=0, liters='10', price='60')
+    add(c, vehicle, 10200, days_ago=0, liters='10', price='60')
+    add(c, other, 500, days_ago=0, liters='5', price='70', fuel_type='GASOLINE')
+    body = c.get('/api/fuel-records/insights/').json()
+    assert len(body['months']) in (12, 13) and body['months'][-1]['month'] == TODAY.strftime('%Y-%m')
+    assert body['months'][-1]['amount'] == '1550.00'
+    assert all(m['amount'] == '0.00' for m in body['months'][:-1])  # empty months are zero, not missing
+    assert [t['plate_number'] for t in body['top_vehicles']] == ['FUEL 1', 'FUEL 2']
+    assert body['top_vehicles'][0]['amount'] == '1200.00' and body['top_vehicles'][0]['fills'] == 2
+    assert c.get(f'/api/fuel-records/insights/?vehicle={other.pk}').json()['top_vehicles'][0]['plate_number'] == 'FUEL 2'

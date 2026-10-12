@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
-import { Banknote, Droplet, FileCheck2, Fuel, Paperclip, Plus, Receipt } from 'lucide-react'
+import { Banknote, Droplet, FileCheck2, Fuel, Minus, Paperclip, Plus, Receipt, TrendingDown, TrendingUp } from 'lucide-react'
 import { useList } from '../../api'
 import { useCan, useMe } from '../../auth'
+import { RankBars, TimeBars } from '../../components/charts'
 import DataTable from '../../components/DataTable'
 import { SearchBox, selectClass, Toolbar } from '../../components/filters'
 import { Badge, Button, Modal, PageHeader } from '../../components/ui'
@@ -94,7 +95,18 @@ export default function FuelList() {
   const filters = { search: f.search, office: f.office, fuel_type: f.fuel_type, date_from: f.date_from, date_to: f.date_to, ...(poLog ? { has_po: true } : {}) }
   const query = useList('/fuel-records/', { page, ...filters })
   const summary = useList('/fuel-records/summary/', filters)
+  const insights = useList('/fuel-records/insights/', filters)
   const s = summary.data
+  const months = insights.data?.months ?? []
+  const trend = months.map((m) => {
+    const d = new Date(`${m.month}-01T00:00:00`)
+    return {
+      key: m.month, value: Number(m.amount), short: monthShort.format(d), label: monthLong.format(d),
+      tooltip: [`Cost: ${formatPeso(m.amount)}`, `Fuel: ${liters(m.liters)}`],
+    }
+  })
+  // Month-over-month change only makes sense on the default "last 12 months" view.
+  const delta = !f.date_from && !f.date_to && trend.length >= 2 ? change(trend.at(-1).value, trend.at(-2).value) : null
 
   const showOffice = me?.view_all_offices || (me?.offices.length ?? 0) > 1
   const chips = [
@@ -131,7 +143,7 @@ export default function FuelList() {
         <Button onClick={() => setAdding(true)}><Plus size={16} /> Add fuel record</Button>
       )}>Fill-ups, costs, estimated efficiency and the Fuel PO log.</PageHeader>
 
-      <div role="tablist" aria-label="Fuel views" className="mb-4 inline-flex rounded-lg border border-slate-300 bg-white p-1 text-sm">
+      <div role="tablist" aria-label="Fuel views" className="mb-4 inline-flex rounded-xl border border-slate-200 bg-white p-1 text-sm shadow-sm">
         {[['', 'All fuel records', Fuel], ['po', 'Fuel PO log', FileCheck2]].map(([v, label, Icon]) => (
           <button key={label} role="tab" aria-selected={(f.view ?? '') === v} onClick={() => set('view', v)}
             className={`flex items-center gap-2 rounded-md px-4 py-1.5 font-medium ${(f.view ?? '') === v ? 'bg-brand text-white' : 'text-slate-600 hover:bg-slate-100'}`}>
@@ -141,10 +153,41 @@ export default function FuelList() {
       </div>
 
       <div className="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <Tile icon={Receipt} tint="bg-slate-100 text-slate-700" label={poLog ? 'PO records' : 'Fill-ups'} value={s ? s.count.toLocaleString('en-PH') : '…'} />
-        <Tile icon={Droplet} tint="bg-brand-light text-brand" label="Liters" value={s ? liters(s.liters) : '…'} />
-        <Tile icon={Banknote} tint="bg-green-50 text-green-700" label="Total cost" value={s ? formatPeso(s.amount) : '…'} />
-        <Tile icon={Fuel} tint="bg-amber-50 text-amber-700" label="Average price / L" value={s ? (s.average_price ? formatPeso(s.average_price) : '—') : '…'} />
+        <Kpi icon={Banknote} tint="bg-green-50 text-green-700" label="Total fuel cost" value={s ? formatPeso(s.amount) : null}
+          sub={delta && <Delta d={delta} prevLabel={trend.at(-2).short} />} />
+        <Kpi icon={Droplet} tint="bg-brand-light text-brand" label="Liters purchased" value={s ? liters(s.liters) : null}
+          sub={s && s.count ? `${s.count.toLocaleString('en-PH')} ${poLog ? 'PO records' : 'fill-ups'}` : null} />
+        <Kpi icon={Fuel} tint="bg-amber-50 text-amber-700" label="Average price per liter" value={s ? (s.average_price ? formatPeso(s.average_price) : '—') : null}
+          sub="Weighted by liters" />
+        <Kpi icon={Receipt} tint="bg-slate-100 text-slate-700" label={poLog ? 'With PO number' : 'Full-tank fill-ups'}
+          value={s ? (poLog ? s.with_po_count : s.full_tank_count).toLocaleString('en-PH') : null}
+          sub={poLog ? 'Same records as the fuel list' : 'Used for km/L estimates'} />
+      </div>
+
+      <div className="mb-4 grid gap-4 lg:grid-cols-3">
+        <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm lg:col-span-2" aria-labelledby="trend-title">
+          <div className="mb-1 flex items-baseline justify-between gap-2">
+            <h2 id="trend-title" className="font-semibold text-ink">Monthly fuel cost</h2>
+            {trend.length > 0 && <span className="text-xs text-slate-500">{trend[0].label} – {trend.at(-1).label}</span>}
+          </div>
+          <p className="mb-3 text-xs text-slate-500">Hover or tab to a month for cost and liters.</p>
+          {insights.isLoading ? <div className="h-56 animate-pulse rounded-lg bg-slate-100" />
+            : trend.some((m) => m.value > 0) ? <TimeBars data={trend} format={formatPeso} valueLabel="Fuel cost" />
+            : <EmptyChart text="No fuel purchases in this period." />}
+        </section>
+
+        <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm" aria-labelledby="top-title">
+          <h2 id="top-title" className="font-semibold text-ink">Top vehicles by fuel cost</h2>
+          <p className="mb-4 text-xs text-slate-500">Same filters and period as the chart.</p>
+          {insights.isLoading ? <div className="h-56 animate-pulse rounded-lg bg-slate-100" />
+            : insights.data?.top_vehicles.length ? (
+              <RankBars items={insights.data.top_vehicles.map((t) => ({
+                key: t.vehicle, to: `/vehicles/${t.vehicle}`, title: t.plate_number, subtitle: t.label,
+                value: Number(t.amount), valueText: formatPeso(t.amount),
+                detail: `${liters(t.liters)} · ${t.fills} fill${t.fills === 1 ? '' : 's'}`,
+              }))} />
+            ) : <EmptyChart text="No vehicles to rank yet." />}
+        </section>
       </div>
 
       <DataTable columns={poLog ? poColumns : fuelColumns()} query={query} page={page} onPage={(p) => set('page', String(p))} toolbar={toolbar}
@@ -158,14 +201,37 @@ export default function FuelList() {
   )
 }
 
-function Tile({ icon: Icon, tint, label, value }) {
+const monthShort = new Intl.DateTimeFormat('en-PH', { month: 'short' })
+const monthLong = new Intl.DateTimeFormat('en-PH', { month: 'short', year: 'numeric' })
+
+function change(cur, prev) {
+  if (!prev) return cur ? { dir: 'up', pct: null } : null
+  const pct = Math.round(((cur - prev) / prev) * 100)
+  return { dir: pct > 0 ? 'up' : pct < 0 ? 'down' : 'flat', pct: Math.abs(pct) }
+}
+
+// Neutral ink: more fuel spend isn't automatically bad, so no red/green judgement here.
+function Delta({ d, prevLabel }) {
+  const Icon = { up: TrendingUp, down: TrendingDown, flat: Minus }[d.dir]
+  const text = d.pct == null ? `New this month (none in ${prevLabel})` : d.dir === 'flat' ? `Same as ${prevLabel}` : `${d.pct}% ${d.dir === 'up' ? 'more' : 'less'} than ${prevLabel}`
+  return <span className="inline-flex items-center gap-1"><Icon size={13} aria-hidden="true" /> This month: {text}</span>
+}
+
+function Kpi({ icon: Icon, tint, label, value, sub }) {
   return (
-    <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white px-3 py-3 shadow-sm">
-      <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${tint}`}><Icon size={18} aria-hidden="true" /></span>
-      <span className="min-w-0">
-        <span className="block truncate text-xl leading-none font-semibold tabular-nums">{value}</span>
-        <span className="mt-1 block text-xs text-slate-500">{label}</span>
-      </span>
+    <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+      <div className="flex items-center gap-2 text-sm text-slate-500">
+        <span className={`flex h-7 w-7 items-center justify-center rounded-md ${tint}`}><Icon size={15} aria-hidden="true" /></span>
+        {label}
+      </div>
+      {value == null
+        ? <div className="mt-3 h-7 w-28 animate-pulse rounded bg-slate-200" />
+        : <div className="mt-2 truncate text-2xl font-semibold tracking-tight text-ink tabular-nums">{value}</div>}
+      <div className="mt-1 min-h-4 text-xs text-slate-500">{sub}</div>
     </div>
   )
+}
+
+function EmptyChart({ text }) {
+  return <div className="flex h-56 items-center justify-center rounded-lg border border-dashed border-slate-200 text-sm text-slate-500">{text}</div>
 }

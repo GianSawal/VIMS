@@ -2,7 +2,7 @@ from datetime import datetime, time, timedelta
 from decimal import Decimal
 
 from django.db.models import Count, Q, Sum
-from django.db.models.functions import Coalesce
+from django.db.models.functions import Coalesce, TruncMonth
 from django.utils import timezone
 from django_filters import rest_framework as filters
 from rest_framework import mixins, status, viewsets
@@ -272,6 +272,40 @@ class FuelRecordViewSet(AttachmentsMixin, OfficeScopedMixin, mixins.ListModelMix
             log(request, 'update', record, f'Updated fuel record of {record.vehicle.plate_number} on {record.date}', changes)
         self._log_odometer(record, before, after)
         return self._respond(record, status.HTTP_200_OK)
+
+    @action(detail=False, methods=['get'])
+    def insights(self, request):
+        """
+        Chart data for the same filters as the list: cost/liters per month (last 12 months unless a date range
+        is given; empty months are zero) and the top 5 vehicles by fuel cost.
+        """
+        qs = self.filter_queryset(super().get_queryset()).order_by()
+        today = timezone.localdate()
+        p = request.query_params
+        if p.get('date_from') or p.get('date_to'):
+            first = qs.order_by('date').values_list('date', flat=True).first()
+            last = qs.order_by('-date').values_list('date', flat=True).first()
+            start, end = (first or today).replace(day=1), (last or today).replace(day=1)
+        else:
+            end = today.replace(day=1)
+            start = (end - timedelta(days=330)).replace(day=1)
+            qs = qs.filter(date__gte=start)
+        by_month = {r['month'].strftime('%Y-%m'): r for r in qs.annotate(month=TruncMonth('date'))
+                    .values('month').annotate(amount=Sum('total_amount'), liters=Sum('liters')).order_by('month')}
+        money = lambda v: str(Decimal(str(v or 0)).quantize(Decimal('0.01')))   # same shape on MySQL and SQLite
+        qty = lambda v: str(Decimal(str(v or 0)).quantize(Decimal('0.001')))
+        months, cur = [], start
+        while cur <= end and len(months) < 36:
+            key = cur.strftime('%Y-%m')
+            r = by_month.get(key, {})
+            months.append({'month': key, 'amount': money(r.get('amount')), 'liters': qty(r.get('liters'))})
+            cur = (cur + timedelta(days=32)).replace(day=1)
+        top = (qs.values('vehicle_id', 'vehicle__plate_number', 'vehicle__make', 'vehicle__model')
+               .annotate(amount=Sum('total_amount'), liters=Sum('liters'), fills=Count('id')).order_by('-amount')[:5])
+        return Response({'months': months, 'top_vehicles': [
+            {'vehicle': t['vehicle_id'], 'plate_number': t['vehicle__plate_number'],
+             'label': f"{t['vehicle__make']} {t['vehicle__model']}", 'amount': money(t['amount']),
+             'liters': qty(t['liters']), 'fills': t['fills']} for t in top]})
 
     @action(detail=False, methods=['get'])
     def summary(self, request):
