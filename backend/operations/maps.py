@@ -5,6 +5,8 @@ reach the browser.
 Providers (MAPS_PROVIDER in .env):
 - locationiq (default when LOCATIONIQ_API_KEY is set): finds more Philippine government offices.
 - geoapify:   GEOAPIFY_API_KEY.
+If both keys are set, the other provider is the fallback: when the main one fails (daily limit, rate limit,
+outage, nothing found) the same request is retried there.
 
 Both expose the same two functions:
 - autocomplete(text) -> [{place_id, main, secondary, lat, lon}]   (Philippines only)
@@ -38,12 +40,33 @@ def provider():
     return 'locationiq' if settings.LOCATIONIQ_API_KEY else 'geoapify'
 
 
-def _key():
-    return settings.LOCATIONIQ_API_KEY if provider() == 'locationiq' else settings.GEOAPIFY_API_KEY
+KEYS = {'locationiq': 'LOCATIONIQ_API_KEY', 'geoapify': 'GEOAPIFY_API_KEY'}
+
+
+def _key(p):
+    return getattr(settings, KEYS[p])
+
+
+def providers():
+    """Configured providers, main one first, then the fallback."""
+    main = provider()
+    return [p for p in (main, *(set(KEYS) - {main})) if _key(p)]
 
 
 def enabled():
-    return bool(_key())
+    return bool(providers())
+
+
+def _try_each(op):
+    """Run op(provider) on the main provider; on a MapsError retry on the fallback."""
+    if not providers():
+        raise MapsError('The map service is not set up.')
+    for p in providers():
+        try:
+            return op(p)
+        except MapsError as e:
+            error = e
+    raise error
 
 
 def _get(url, **params):
@@ -88,7 +111,7 @@ LIQ_ROUTE = 'https://us1.locationiq.com/v1/directions/driving'
 
 def _liq_autocomplete(text):
     try:
-        rows = _get(f'{LIQ}/autocomplete', key=_key(), q=text, countrycodes='ph', limit=6, dedupe=1, **{'accept-language': 'en'})
+        rows = _get(f'{LIQ}/autocomplete', key=_key('locationiq'), q=text, countrycodes='ph', limit=6, dedupe=1, **{'accept-language': 'en'})
     except NotFound:
         return []
     return [{'place_id': str(r.get('place_id', '')), 'main': r.get('display_place') or r.get('display_name', ''),
@@ -98,7 +121,7 @@ def _liq_autocomplete(text):
 
 def _liq_geocode(address):
     try:
-        rows = _get(f'{LIQ}/search', key=_key(), q=address, countrycodes='ph', format='json', limit=1)
+        rows = _get(f'{LIQ}/search', key=_key('locationiq'), q=address, countrycodes='ph', format='json', limit=1)
     except NotFound:
         rows = []
     if not rows:
@@ -108,7 +131,7 @@ def _liq_geocode(address):
 
 def _liq_route(a, b):
     try:
-        data = _get(f'{LIQ_ROUTE}/{a[1]},{a[0]};{b[1]},{b[0]}', key=_key(), overview='full', geometries='geojson', steps='false')
+        data = _get(f'{LIQ_ROUTE}/{a[1]},{a[0]};{b[1]},{b[0]}', key=_key('locationiq'), overview='full', geometries='geojson', steps='false')
     except NotFound:
         data = {}
     routes = data.get('routes') or []
@@ -124,21 +147,21 @@ GEO = 'https://api.geoapify.com/v1'
 
 
 def _geo_autocomplete(text):
-    data = _get(f'{GEO}/geocode/autocomplete', apiKey=_key(), text=text, filter='countrycode:ph', format='json', limit=6, lang='en')
+    data = _get(f'{GEO}/geocode/autocomplete', apiKey=_key('geoapify'), text=text, filter='countrycode:ph', format='json', limit=6, lang='en')
     return [{'place_id': r.get('place_id', ''), 'main': r.get('address_line1') or r.get('name') or r.get('formatted', ''),
              'secondary': r.get('address_line2', ''), 'lat': r['lat'], 'lon': r['lon']}
             for r in data.get('results', []) if 'lat' in r and 'lon' in r]
 
 
 def _geo_geocode(address):
-    results = _get(f'{GEO}/geocode/search', apiKey=_key(), text=address, filter='countrycode:ph', format='json', limit=1).get('results') or []
+    results = _get(f'{GEO}/geocode/search', apiKey=_key('geoapify'), text=address, filter='countrycode:ph', format='json', limit=1).get('results') or []
     if not results:
         raise MapsError(f'Could not find "{address}" on the map. Pick a suggestion instead.')
     return results[0]['lat'], results[0]['lon']
 
 
 def _geo_route(a, b):
-    features = _get(f'{GEO}/routing', apiKey=_key(), waypoints=f'{a[0]},{a[1]}|{b[0]},{b[1]}', mode='drive').get('features') or []
+    features = _get(f'{GEO}/routing', apiKey=_key('geoapify'), waypoints=f'{a[0]},{a[1]}|{b[0]},{b[1]}', mode='drive').get('features') or []
     if not features:
         raise MapsError('No driving route was found between these places.')
     props, geom = features[0]['properties'], features[0]['geometry']
@@ -148,16 +171,20 @@ def _geo_route(a, b):
 
 # ---------------------------------------------------------------- public API
 
+AUTOCOMPLETE = {'locationiq': _liq_autocomplete, 'geoapify': _geo_autocomplete}
+GEOCODE = {'locationiq': _liq_geocode, 'geoapify': _geo_geocode}
+ROUTE = {'locationiq': _liq_route, 'geoapify': _geo_route}
+
+
 def autocomplete(text):
-    return _liq_autocomplete(text) if provider() == 'locationiq' else _geo_autocomplete(text)
+    return _try_each(lambda p: AUTOCOMPLETE[p](text))
 
 
-def _locate(point):
+def _locate(p, point):
     if point.get('lat') is not None and point.get('lon') is not None:
         return float(point['lat']), float(point['lon'])
-    return _liq_geocode(point['address']) if provider() == 'locationiq' else _geo_geocode(point['address'])
+    return GEOCODE[p](point['address'])
 
 
 def route(origin, destination):
-    a, b = _locate(origin), _locate(destination)
-    return _liq_route(a, b) if provider() == 'locationiq' else _geo_route(a, b)
+    return _try_each(lambda p: ROUTE[p](_locate(p, origin), _locate(p, destination)))

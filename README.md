@@ -159,7 +159,9 @@ name; abbreviations like "DOLE RO III" are often not in the map data.
 2. In `backend/.env` set `MAPS_PROVIDER=locationiq` and `LOCATIONIQ_API_KEY=...`
    (or `MAPS_PROVIDER=geoapify` and `GEOAPIFY_API_KEY=...`), then restart Django. Keys are used only by Django and
    never sent to the browser. Restrict them to the server's IP / referrer in the provider's dashboard.
-3. LocationIQ's free plan allows about 2 requests per second; the form debounces typing and shows a friendly
+3. Set **both** keys to get automatic fallback: when the main provider fails (daily or per-second limit used up,
+   outage, place not found) the request is retried on the other one. The map credit names both.
+4. LocationIQ's free plan allows about 2 requests per second; the form debounces typing and shows a friendly
    "busy" message if the limit is hit.
 
 How it works: the schedule/dispatch form searches places through `GET /api/maps/autocomplete/?q=` (Philippines only)

@@ -47,7 +47,7 @@ MySQL-specific behavior (CHECK constraints, generated columns) was verified manu
 - Maintenance: `maintenance/service.py` owns the status flow (forward only), the vehicle's Under Maintenance status, schedule reset on completion, and `schedule_state()` (due = either the day or the km interval; due soon within `MAINTENANCE_DUE_SOON_DAYS/_KM`).
 - Business workflows live in service modules (`fleet/assignments.py`, `operations/trips.py`, `operations/fuel.py`) that lock the vehicle row; views only validate input, call the service and audit. Add new state transitions there, not in serializers.
 - Any record that needs files: add `fleet.attachments_api.AttachmentsMixin` to its viewset (uses the model's view/change permissions) and render `components/Attachments.jsx` with `basePath`.
-- Maps: LocationIQ (default) or Geoapify, picked by `MAPS_PROVIDER`, run server-side only (`operations/maps.py`, `/api/maps/*`, keys `LOCATIONIQ_API_KEY` / `GEOAPIFY_API_KEY`); never put the key in the frontend. The browser draws OpenStreetMap tiles with React Leaflet (`components/TripMap.jsx`, lazy-loaded). Without the key the trip forms fall back to plain text.
+- Maps: LocationIQ (default) or Geoapify, picked by `MAPS_PROVIDER` (the other one is the automatic fallback when both keys are set), run server-side only (`operations/maps.py`, `/api/maps/*`, keys `LOCATIONIQ_API_KEY` / `GEOAPIFY_API_KEY`); never put the key in the frontend. The browser draws OpenStreetMap tiles with React Leaflet (`components/TripMap.jsx`, lazy-loaded). Without the key the trip forms fall back to plain text.
 - `RFIDAccount` intentionally has no password field (spec: no plaintext third-party credentials).
 
 ## Frontend conventions

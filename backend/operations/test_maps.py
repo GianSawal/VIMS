@@ -112,10 +112,10 @@ def test_service_failures_become_friendly_errors(monkeypatch):
 
 def test_disabled_without_key_and_needs_trip_permission(settings, geo):
     assert as_role('Viewer').get('/api/maps/status/').status_code == 403
-    assert as_role('Fleet Administrator').get('/api/maps/status/').json() == {'enabled': True, 'provider': 'geoapify'}
+    assert as_role('Fleet Administrator').get('/api/maps/status/').json() == {'enabled': True, 'provider': 'geoapify', 'providers': ['geoapify']}
     settings.GEOAPIFY_API_KEY = ''
     c = as_role('Fleet Administrator')
-    assert c.get('/api/maps/status/').json() == {'enabled': False, 'provider': 'geoapify'}
+    assert c.get('/api/maps/status/').json() == {'enabled': False, 'provider': 'geoapify', 'providers': []}
     assert c.get('/api/maps/autocomplete/', {'q': 'royce'}).status_code == 503
     assert geo == []
 
@@ -185,7 +185,7 @@ def test_locationiq_autocomplete(liq):
                                     'lat': 15.0646288, 'lon': 120.6573293}]
     assert liq[0]['q']['countrycodes'] == 'ph' and liq[0]['q']['key'] == 'pk.test'
     assert c.get('/api/maps/autocomplete/', {'q': 'zzz nowhere'}).json() == {'results': []}  # 404 = empty, not an error
-    assert c.get('/api/maps/status/').json() == {'enabled': True, 'provider': 'locationiq'}
+    assert c.get('/api/maps/status/').json() == {'enabled': True, 'provider': 'locationiq', 'providers': ['locationiq', 'geoapify']}
 
 
 def test_locationiq_route_uses_lon_lat_order_and_geocodes_typed_text(liq):
@@ -212,4 +212,25 @@ def test_rate_limit_message(liq, monkeypatch):
         raise urllib.error.HTTPError(req.full_url, 429, 'Too Many Requests', {}, io.BytesIO(b''))
     monkeypatch.setattr(maps.urllib.request, 'urlopen', busy)
     r = as_role('Fleet Administrator').get('/api/maps/autocomplete/', {'q': 'royce'})
+    assert r.status_code == 502 and 'busy' in r.json()['detail']
+
+
+def test_falls_back_to_geoapify_when_locationiq_limit_is_used_up(liq, geo, settings, monkeypatch):
+    settings.GEOAPIFY_API_KEY = 'test-key'  # both keys set; LocationIQ is the main one
+    geoapify = maps.urllib.request.urlopen  # the geo fixture's fake (applied last)
+
+    def liq_over_limit(req, timeout):
+        if 'locationiq.com' in req.full_url:
+            raise urllib.error.HTTPError(req.full_url, 429, 'Rate Limited Day', {}, io.BytesIO(b''))
+        return geoapify(req, timeout)
+    monkeypatch.setattr(maps.urllib.request, 'urlopen', liq_over_limit)
+    c = as_role('Fleet Administrator')
+    assert c.get('/api/maps/status/').json()['providers'] == ['locationiq', 'geoapify']
+    r = c.get('/api/maps/autocomplete/', {'q': 'royce hotel'})
+    assert r.status_code == 200 and r.json()['results'][0]['place_id'] == 'P1'  # answered by Geoapify
+    r = c.post('/api/maps/route/', {'origin': {'lat': 15.03, 'lon': 120.69}, 'destination': {'address': 'Royce'}}, format='json')
+    assert r.status_code == 200 and r.json()['distance_km'] == 36.7
+    # only LocationIQ configured: its error is shown
+    settings.GEOAPIFY_API_KEY = ''
+    r = c.get('/api/maps/autocomplete/', {'q': 'royce hotel'})
     assert r.status_code == 502 and 'busy' in r.json()['detail']

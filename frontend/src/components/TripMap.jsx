@@ -30,9 +30,10 @@ function FitBounds({ points }) {
  * origin/destination: [lat, lng] or null; route: [[lat, lng], ...] or null; labels for the pin tooltips.
  */
 export default function TripMap({ origin, destination, route, originLabel, destinationLabel, className = 'h-64 sm:h-80' }) {
-  const { provider } = useMapsStatus()
+  // Name every configured provider: a route may come from the fallback one.
+  const { providers = [] } = useMapsStatus()
   const links = { locationiq: 'https://locationiq.com/', geoapify: 'https://www.geoapify.com/' }
-  const credit = provider ? ` | Routing <a href="${links[provider]}">${PROVIDER_NAME[provider]}</a>` : ''
+  const credit = providers.length ? ` | Routing ${providers.map((p) => `<a href="${links[p]}">${PROVIDER_NAME[p]}</a>`).join(' / ')}` : ''
   const points = route?.length ? route : [origin, destination].filter(Boolean)
   const center = points[0] ?? [15.03, 120.69] // Region III fallback
   return (

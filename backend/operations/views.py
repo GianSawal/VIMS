@@ -348,7 +348,7 @@ class MapsView(APIView):
 
     def get(self, request, op):
         if op == 'status':
-            return Response({'enabled': maps.enabled(), 'provider': maps.provider()})
+            return Response({'enabled': maps.enabled(), 'provider': maps.provider(), 'providers': maps.providers()})
         if op != 'autocomplete':
             return Response(status=status.HTTP_404_NOT_FOUND)
         if not maps.enabled():

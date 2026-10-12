@@ -4,7 +4,7 @@ import { Loader2, MapPin } from 'lucide-react'
 import { api, errorMessage } from '../api'
 import { inputClass } from './ui'
 
-/** Map service status from the server: { enabled, provider } (keys live in backend/.env). */
+/** Map service status from the server: { enabled, provider, providers } (keys live in backend/.env). */
 export function useMapsStatus() {
   return useQuery({
     queryKey: ['/maps/status/'],
