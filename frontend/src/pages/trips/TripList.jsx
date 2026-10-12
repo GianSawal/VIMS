@@ -1,12 +1,14 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
-import { CalendarClock, CalendarPlus, CircleCheck, CircleSlash, Clock, Milestone, Navigation, Plus, Route as RouteIcon } from 'lucide-react'
+import { CalendarClock, CalendarPlus, CircleCheck, CircleSlash, Clock, MapPin, Milestone, Navigation, Plus, Route as RouteIcon, UserRound } from 'lucide-react'
 import { useList } from '../../api'
 import { useCan, useMe } from '../../auth'
 import DataTable from '../../components/DataTable'
+import DateChip from '../../components/DateChip'
 import { CardGrid, SearchBox, selectClass, StatCard, Toolbar } from '../../components/filters'
 import { Button, Modal, PageHeader } from '../../components/ui'
 import { useAllOffices } from '../admin/Offices'
+import { VehiclePhoto } from '../vehicles/common'
 import DispatchForm from './DispatchForm'
 import { CompleteForm, DispatchScheduledForm } from './TripDetail'
 import { km, shortDateTime, TRIP_STATUSES, tripDuration, tripStatusLabel, TripStatusBadge } from './common'
@@ -20,42 +22,68 @@ const CARDS = {
 }
 const card = (t) => ({ icon: CARDS[t][0], tint: CARDS[t][1], label: CARDS[t][2] })
 
+const clock = new Intl.DateTimeFormat('en-PH', { hour: 'numeric', minute: '2-digit' })
+
+/** What happened / happens at what time, in words, for the "When" column. */
+function whenText(t) {
+  if (t.status === 'SCHEDULED') {
+    const extra = t.schedule_day === 'MISSED' ? ['Missed: reschedule', 'text-danger font-medium']
+      : t.schedule_day === 'TODAY' ? ['Leaves today', 'text-amber-700 font-medium'] : ['Booked', 'text-slate-500']
+    return [`Leaves ${clock.format(new Date(t.scheduled_departure))}`, ...extra]
+  }
+  if (t.status === 'DISPATCHED') return [`Left ${clock.format(new Date(t.departed_at))}`, `Out ${tripDuration(t.departed_at)}`, 'text-brand font-medium']
+  if (t.status === 'COMPLETED') return [`Left ${clock.format(new Date(t.departed_at))}`, `Back ${shortDateTime(t.returned_at)} · ${tripDuration(t.departed_at, t.returned_at)}`, 'text-slate-500']
+  return [t.departed_at ? `Left ${clock.format(new Date(t.departed_at))}` : `Was ${clock.format(new Date(t.scheduled_departure))}`, 'Cancelled', 'text-slate-500']
+}
+
 /** Trip table columns, shared with the vehicle Trips tab (`withVehicle` = false there). */
 export function tripColumns({ withVehicle = true } = {}) {
   return [
+    { key: 'when', label: 'When', render: (t) => {
+      const [main, sub, subCls] = whenText(t)
+      return (
+        <div className="flex items-center gap-3">
+          <DateChip value={t.departed_at ?? t.scheduled_departure} to={`/trips/${t.id}`} muted={t.status === 'CANCELLED'} />
+          <div className="whitespace-nowrap">
+            <div className="font-medium tabular-nums">{main}</div>
+            <div className={`text-xs ${subCls}`}>{sub}</div>
+          </div>
+        </div>
+      )
+    } },
     { key: 'ticket', label: 'Trip ticket', render: (t) => (
       <div className="min-w-0">
-        <Link to={`/trips/${t.id}`} onClick={(e) => e.stopPropagation()} className="font-mono text-[13px] font-semibold text-brand hover:underline">{t.ticket_number}</Link>
-        <div className="max-w-56 truncate text-xs text-slate-500" title={t.purpose}>{t.purpose}</div>
+        <Link to={`/trips/${t.id}`} onClick={(e) => e.stopPropagation()}
+          className="inline-block rounded-md border border-slate-300 bg-white px-2 py-0.5 font-mono text-xs font-semibold text-brand hover:border-brand">{t.ticket_number}</Link>
+        <div className="mt-1 max-w-52 truncate text-xs text-slate-500" title={t.purpose}>{t.purpose}</div>
       </div>
     ) },
-    ...(withVehicle ? [{ key: 'vehicle', label: 'Vehicle', render: (t) => (
-      <div>
-        <div className="font-medium">{t.plate_number}</div>
-        <div className="text-xs text-slate-500">{t.vehicle_label}</div>
-      </div>
-    ) }] : []),
-    { key: 'driver', label: 'Driver', render: (t) => t.driver_name },
-    { key: 'route', label: 'Route', render: (t) => (
-      <div className="max-w-64 text-sm">
-        <div className="truncate" title={t.origin}>{t.origin}</div>
-        <div className="truncate text-slate-500" title={t.destination}>→ {t.destination}</div>
-      </div>
-    ) },
-    { key: 'time', label: 'Departure / return', render: (t) => t.status === 'SCHEDULED' ? (
-      <div className="text-sm whitespace-nowrap">
-        <div>{shortDateTime(t.scheduled_departure)}</div>
-        <div className={t.schedule_day === 'MISSED' ? 'font-medium text-danger' : t.schedule_day === 'TODAY' ? 'font-medium text-amber-700' : 'text-slate-500'}>
-          {t.schedule_day === 'MISSED' ? 'Missed: reschedule' : t.schedule_day === 'TODAY' ? 'Leaves today' : 'Booked'}
+    ...(withVehicle ? [{ key: 'vehicle', label: 'Vehicle and driver', render: (t) => (
+      <div className="flex items-center gap-3">
+        <VehiclePhoto vehicle={{ photo_url: t.vehicle_photo_url, plate_number: t.plate_number, make: '', model: t.vehicle_label }} className="w-16 shrink-0 border border-slate-200" />
+        <div className="min-w-0">
+          <div className="font-semibold tracking-wide">{t.plate_number}</div>
+          <div className="truncate text-xs text-slate-500">{t.vehicle_label}</div>
+          <div className="flex items-center gap-1 truncate text-xs text-slate-600"><UserRound size={12} aria-hidden="true" />{t.driver_name}</div>
         </div>
       </div>
-    ) : (
-      <div className="text-sm whitespace-nowrap">
-        <div>{shortDateTime(t.departed_at)}</div>
-        <div className="text-slate-500">{t.returned_at ? shortDateTime(t.returned_at) : t.status === 'DISPATCHED' ? `Out ${tripDuration(t.departed_at)}` : '—'}</div>
-      </div>
+    ) }] : [{ key: 'driver', label: 'Driver', render: (t) => (
+      <span className="flex items-center gap-1.5"><UserRound size={14} className="text-slate-400" aria-hidden="true" />{t.driver_name}</span>
+    ) }]),
+    { key: 'route', label: 'Route', render: (t) => (
+      <ol className="relative max-w-64 space-y-1 pl-4 text-sm" aria-label={`From ${t.origin} to ${t.destination}`}>
+        <span aria-hidden="true" className="absolute top-2 bottom-2 left-[3px] w-px bg-slate-300" />
+        <li className="relative truncate" title={t.origin}>
+          <span aria-hidden="true" className="absolute top-1.5 -left-4 h-2 w-2 rounded-full bg-brand ring-2 ring-white" />{t.origin}
+        </li>
+        <li className="relative truncate font-medium" title={t.destination}>
+          <MapPin size={12} aria-hidden="true" className="absolute top-1 -left-[18px] text-accent" />{t.destination}
+        </li>
+      </ol>
     ) },
-    { key: 'distance', label: 'Distance', className: 'text-right tabular-nums whitespace-nowrap', render: (t) => km(t.distance_km) },
+    { key: 'distance', label: 'Distance', className: 'text-right', render: (t) => t.distance_km != null
+      ? <span className="inline-flex items-baseline gap-1 rounded-full bg-brand-light px-2.5 py-0.5 text-brand"><span className="font-semibold tabular-nums">{t.distance_km.toLocaleString('en-PH')}</span><span className="text-[11px]">km</span></span>
+      : <span className="text-xs text-slate-400">{t.status === 'DISPATCHED' ? 'On the road' : t.status === 'SCHEDULED' ? 'Not yet' : '—'}</span> },
     { key: 'status', label: 'Status', render: (t) => <TripStatusBadge status={t.status} /> },
   ]
 }

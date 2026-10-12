@@ -5,6 +5,7 @@ import { useList } from '../../api'
 import { useCan, useMe } from '../../auth'
 import { RankBars, TimeBars } from '../../components/charts'
 import DataTable from '../../components/DataTable'
+import DateChip from '../../components/DateChip'
 import { SearchBox, selectClass, Toolbar } from '../../components/filters'
 import { Button, Modal, PageHeader } from '../../components/ui'
 import { useAllOffices } from '../admin/Offices'
@@ -40,26 +41,10 @@ const FUEL_CHIP = {
   OTHER: 'bg-slate-100 text-slate-700 ring-slate-200',
 }
 
-const dayNum = new Intl.DateTimeFormat('en-PH', { day: 'numeric' })
-const monShort = new Intl.DateTimeFormat('en-PH', { month: 'short' })
-const yearNum = new Intl.DateTimeFormat('en-PH', { year: 'numeric' })
-
-function DateChip({ r }) {
-  const d = new Date(`${r.date}T00:00:00`)
-  return (
-    <Link to={`/fuel/${r.id}`} onClick={(e) => e.stopPropagation()} aria-label={`Open fuel record of ${formatDate(r.date)}`}
-      className="flex w-14 flex-col items-center overflow-hidden rounded-lg border border-slate-200 bg-white text-center shadow-sm hover:border-brand">
-      <span className="w-full bg-brand py-0.5 text-[10px] font-semibold tracking-wider text-white uppercase">{monShort.format(d)}</span>
-      <span className="text-lg leading-tight font-bold text-ink tabular-nums">{dayNum.format(d)}</span>
-      <span className="pb-0.5 text-[10px] text-slate-500">{yearNum.format(d)}</span>
-    </Link>
-  )
-}
-
 /** Columns shared with the vehicle Fuel tab (`withVehicle` = false there). */
 export function fuelColumns({ withVehicle = true } = {}) {
   return [
-    { key: 'date', label: 'Date', render: (r) => <DateChip r={r} /> },
+    { key: 'date', label: 'Date', render: (r) => <DateChip value={r.date} to={`/fuel/${r.id}`} /> },
     ...(withVehicle ? [{ key: 'vehicle', label: 'Vehicle', render: (r) => (
       <div className="flex items-center gap-3">
         <VehiclePhoto vehicle={{ photo_url: r.vehicle_photo_url, plate_number: r.plate_number, make: '', model: r.vehicle_label }} className="w-16 shrink-0 border border-slate-200" />
