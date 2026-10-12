@@ -242,7 +242,7 @@ instead of overwriting it.
 -   [x] Vehicle selection
 -   [x] Driver selection
 -   [x] Passenger/requesting office
--   [x] Origin/destination (place search, route map, driving distance and time via LocationIQ (default, falls back to Geoapify when its limit is used up) or Geoapify + OpenStreetMap + React Leaflet; locations, coordinates, route and estimate saved on the trip; added 2026-10-12, needs GEOAPIFY_API_KEY, see README)
+-   [x] Origin/destination (place search, route map, driving distance and time via LocationIQ (default, falls back to Geoapify when its limit is used up) or Geoapify; a "Use map" switch on the schedule/dispatch form turns it off for plain-text places + OpenStreetMap + React Leaflet; locations, coordinates, route and estimate saved on the trip; added 2026-10-12, needs GEOAPIFY_API_KEY, see README)
 -   [x] Purpose
 -   [x] Date/time out
 -   [x] Date/time returned

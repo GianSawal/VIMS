@@ -98,7 +98,15 @@ export default function DispatchForm({ vehicle, mode = 'dispatch', onClose, onSa
   })
   const chosen = vehicles.data?.results.find((v) => String(v.id) === watch('vehicle')) ?? vehicle
   // Origin/destination: the text is the record; coordinates and the route line come from the map when available.
-  const mapsOn = useMapsEnabled()
+  const mapsAvailable = useMapsEnabled()
+  const [useMap, setUseMap] = useState(true) // the user can skip the map and type places as plain text
+  const mapsOn = mapsAvailable && useMap
+  const toggleMap = (on) => {
+    setUseMap(on)
+    setEstimate(null) // nothing from the map is saved when it is off
+    setOrigin((p) => ({ ...EMPTY_PLACE, text: p.text }))
+    setDest((p) => ({ ...EMPTY_PLACE, text: p.text }))
+  }
   const [origin, setOrigin] = useState(EMPTY_PLACE)
   const [dest, setDest] = useState(EMPTY_PLACE)
   const [estimate, setEstimate] = useState(null)
@@ -233,6 +241,20 @@ export default function DispatchForm({ vehicle, mode = 'dispatch', onClose, onSa
       <Section step="3" title="Route and purpose">
         <input type="hidden" {...register('origin')} />
         <input type="hidden" {...register('destination')} />
+        {mapsAvailable && (
+          <label className="flex cursor-pointer items-center justify-between gap-3 rounded-lg border border-slate-200 px-3 py-2 text-sm sm:col-span-2">
+            <span>
+              <span className="block font-medium text-ink">Use map</span>
+              <span className="block text-xs text-slate-500">
+                {useMap ? 'Search places and see the route, distance and travel time.' : 'Off: type the origin and destination as plain text.'}
+              </span>
+            </span>
+            <input type="checkbox" role="switch" checked={useMap} onChange={(e) => toggleMap(e.target.checked)}
+              className="peer sr-only" />
+            <span aria-hidden="true"
+              className="relative h-6 w-11 shrink-0 rounded-full bg-slate-300 transition-colors peer-checked:bg-brand peer-focus-visible:ring-2 peer-focus-visible:ring-brand peer-focus-visible:ring-offset-2 after:absolute after:top-0.5 after:left-0.5 after:h-5 after:w-5 after:rounded-full after:bg-white after:shadow after:transition-transform peer-checked:after:translate-x-5" />
+          </label>
+        )}
         <Field label="Origin *" htmlFor="origin-search" error={errors.origin?.message}>
           <PlaceSearch id="origin-search" value={origin} enabled={mapsOn} invalid={!!errors.origin}
             placeholder={mapsOn ? 'Search a place, e.g. DOLE Regional Office III, San Fernando' : 'e.g. DOLE Regional Office'}
@@ -243,7 +265,7 @@ export default function DispatchForm({ vehicle, mode = 'dispatch', onClose, onSa
             placeholder={mapsOn ? 'Search where the trip goes, e.g. Royce Hotel, Clark' : 'e.g. Provincial Office, Tarlac'}
             onChange={(p) => { setDest(p); setEstimate(null); setValue('destination', p.text, { shouldValidate: !!errors.destination }) }} />
         </Field>
-        <RouteEstimate origin={origin} destination={dest} enabled={mapsOn} onEstimate={setEstimate} />
+        {(mapsOn || !mapsAvailable) && <RouteEstimate origin={origin} destination={dest} enabled={mapsOn} onEstimate={setEstimate} />}
         <div className="sm:col-span-2">
           <Field label="Purpose *" htmlFor="purpose" error={errors.purpose?.message}>
             <textarea id="purpose" rows={2} className={inputClass} placeholder="e.g. Labor inspection, document delivery" {...register('purpose')} />
