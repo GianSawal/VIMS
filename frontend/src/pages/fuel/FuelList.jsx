@@ -6,47 +6,101 @@ import { useCan, useMe } from '../../auth'
 import { RankBars, TimeBars } from '../../components/charts'
 import DataTable from '../../components/DataTable'
 import { SearchBox, selectClass, Toolbar } from '../../components/filters'
-import { Badge, Button, Modal, PageHeader } from '../../components/ui'
+import { Button, Modal, PageHeader } from '../../components/ui'
 import { useAllOffices } from '../admin/Offices'
-import { formatDate, formatKm, formatPeso, FUELS, fuelLabel } from '../vehicles/common'
+import { formatDate, formatKm, formatPeso, FUELS, fuelLabel, VehiclePhoto } from '../vehicles/common'
 import FuelForm from './FuelForm'
 
 const liters = (v) => `${Number(v).toLocaleString('en-PH', { maximumFractionDigits: 3 })} L`
 
-/** Estimated km/L cell: always labelled as an estimate; unusual consumption is said in words. */
+/** Estimated km/L cell: always labelled as an estimate; when there is none, say why instead of a bare dash. */
 export function KmPerLiter({ r }) {
-  if (!r.km_per_liter) return <span className="text-slate-400" title="Only estimated between two full-tank fill-ups">—</span>
+  if (!r.km_per_liter) {
+    const why = !r.is_full_tank ? 'Partial fill' : 'First full tank'
+    const tip = !r.is_full_tank ? 'Partial fills are not estimated' : 'Baseline: the next full tank gives an estimate'
+    return <span className="inline-flex rounded-full bg-slate-100 px-2.5 py-0.5 text-xs text-slate-500" title={tip}>{why}</span>
+  }
   return (
     <div className="whitespace-nowrap">
-      <span className={r.unusual ? 'font-semibold text-danger' : 'font-medium'}>{Number(r.km_per_liter).toFixed(2)}</span>
-      <span className="text-xs text-slate-500"> km/L est.</span>
-      {r.unusual && <div className="text-xs text-danger">Low vs usual {Number(r.usual_km_per_liter).toFixed(1)}</div>}
+      <span className={`inline-flex items-baseline gap-1 rounded-full px-2.5 py-0.5 ${r.unusual ? 'bg-red-50 text-danger ring-1 ring-red-200' : 'bg-brand-light text-brand'}`}>
+        <span className="text-sm font-semibold tabular-nums">{Number(r.km_per_liter).toFixed(2)}</span>
+        <span className="text-[11px]">km/L est.</span>
+      </span>
+      {r.unusual && <div className="mt-1 text-xs text-danger">Low vs usual {Number(r.usual_km_per_liter).toFixed(1)}</div>}
     </div>
+  )
+}
+
+// Identity tint per fuel type (always shown with its name, never color alone).
+const FUEL_CHIP = {
+  DIESEL: 'bg-amber-50 text-amber-800 ring-amber-200',
+  GASOLINE: 'bg-emerald-50 text-emerald-800 ring-emerald-200',
+  HYBRID: 'bg-sky-50 text-sky-800 ring-sky-200',
+  ELECTRIC: 'bg-sky-50 text-sky-800 ring-sky-200',
+  OTHER: 'bg-slate-100 text-slate-700 ring-slate-200',
+}
+
+const dayNum = new Intl.DateTimeFormat('en-PH', { day: 'numeric' })
+const monShort = new Intl.DateTimeFormat('en-PH', { month: 'short' })
+const yearNum = new Intl.DateTimeFormat('en-PH', { year: 'numeric' })
+
+function DateChip({ r }) {
+  const d = new Date(`${r.date}T00:00:00`)
+  return (
+    <Link to={`/fuel/${r.id}`} onClick={(e) => e.stopPropagation()} aria-label={`Open fuel record of ${formatDate(r.date)}`}
+      className="flex w-14 flex-col items-center overflow-hidden rounded-lg border border-slate-200 bg-white text-center shadow-sm hover:border-brand">
+      <span className="w-full bg-brand py-0.5 text-[10px] font-semibold tracking-wider text-white uppercase">{monShort.format(d)}</span>
+      <span className="text-lg leading-tight font-bold text-ink tabular-nums">{dayNum.format(d)}</span>
+      <span className="pb-0.5 text-[10px] text-slate-500">{yearNum.format(d)}</span>
+    </Link>
   )
 }
 
 /** Columns shared with the vehicle Fuel tab (`withVehicle` = false there). */
 export function fuelColumns({ withVehicle = true } = {}) {
   return [
-    { key: 'date', label: 'Date', render: (r) => (
-      <Link to={`/fuel/${r.id}`} onClick={(e) => e.stopPropagation()} className="font-medium whitespace-nowrap text-brand hover:underline">{formatDate(r.date)}</Link>
-    ) },
+    { key: 'date', label: 'Date', render: (r) => <DateChip r={r} /> },
     ...(withVehicle ? [{ key: 'vehicle', label: 'Vehicle', render: (r) => (
-      <div><div className="font-medium">{r.plate_number}</div><div className="text-xs text-slate-500">{r.driver_name ?? 'Driver not recorded'}</div></div>
-    ) }] : [{ key: 'driver', label: 'Driver', render: (r) => r.driver_name ?? <span className="text-slate-400">—</span> }]),
-    { key: 'liters', label: 'Liters', className: 'text-right tabular-nums', render: (r) => (
-      <div><div>{liters(r.liters)}</div>{r.is_full_tank && <Badge tone="blue">Full tank</Badge>}</div>
+      <div className="flex items-center gap-3">
+        <VehiclePhoto vehicle={{ photo_url: r.vehicle_photo_url, plate_number: r.plate_number, make: '', model: r.vehicle_label }} className="w-16 shrink-0 border border-slate-200" />
+        <div className="min-w-0">
+          <div className="font-semibold tracking-wide">{r.plate_number}</div>
+          <div className="truncate text-xs text-slate-500">{r.vehicle_label}</div>
+          <div className="truncate text-xs text-slate-500">{r.driver_name ? `Driver: ${r.driver_name}` : 'Driver not recorded'}</div>
+        </div>
+      </div>
+    ) }] : [{ key: 'driver', label: 'Driver', render: (r) => r.driver_name ?? <span className="text-slate-400">Not recorded</span> }]),
+    { key: 'fuel', label: 'Fuel', render: (r) => (
+      <div className="space-y-1">
+        <div className="text-base font-semibold tabular-nums">{liters(r.liters)}</div>
+        <div className="flex flex-wrap gap-1">
+          <span className={`rounded-md px-1.5 py-0.5 text-[11px] font-medium ring-1 ${FUEL_CHIP[r.fuel_type] ?? FUEL_CHIP.OTHER}`}>{r.fuel_type_display}</span>
+          {r.is_full_tank && <span className="rounded-md bg-brand-light px-1.5 py-0.5 text-[11px] font-medium text-brand ring-1 ring-brand/20">Full tank</span>}
+        </div>
+      </div>
     ) },
-    { key: 'price', label: '₱ / L', className: 'text-right tabular-nums', render: (r) => Number(r.unit_price).toFixed(2) },
-    { key: 'amount', label: 'Amount', className: 'text-right tabular-nums font-medium', render: (r) => formatPeso(r.total_amount) },
-    { key: 'odometer', label: 'Odometer', className: 'text-right tabular-nums', render: (r) => (
-      <div><div>{formatKm(r.odometer)}</div>{r.distance_since_last != null && <div className="text-xs text-slate-500">+{r.distance_since_last.toLocaleString('en-PH')} km since last</div>}</div>
+    { key: 'cost', label: 'Cost', className: 'text-right', render: (r) => (
+      <div className="tabular-nums">
+        <div className="text-base font-semibold text-ink">{formatPeso(r.total_amount)}</div>
+        <div className="text-xs whitespace-nowrap text-slate-500">{Number(r.liters).toLocaleString('en-PH', { maximumFractionDigits: 3 })} L × ₱{Number(r.unit_price).toFixed(2)}</div>
+      </div>
+    ) },
+    { key: 'odometer', label: 'Odometer', className: 'text-right', render: (r) => (
+      <div className="tabular-nums">
+        <div className="font-medium">{formatKm(r.odometer)}</div>
+        <div className="text-xs whitespace-nowrap text-slate-500">{r.distance_since_last != null ? `+${r.distance_since_last.toLocaleString('en-PH')} km since last` : 'First on record'}</div>
+      </div>
     ) },
     { key: 'kml', label: 'Efficiency', render: (r) => <KmPerLiter r={r} /> },
     { key: 'po', label: 'PO / receipt', render: (r) => (
-      <div className="text-sm">
-        <div className="font-mono text-[13px]">{r.po_number || <span className="font-sans text-slate-400">No PO</span>}</div>
-        <div className="text-xs text-slate-500">{r.supplier || r.receipt_number || ''}</div>
+      <div className="space-y-1">
+        {r.po_number
+          ? <span className="inline-block rounded-md border border-slate-300 bg-white px-2 py-0.5 font-mono text-xs font-semibold text-ink">{r.po_number}</span>
+          : <span className="inline-block rounded-md border border-dashed border-slate-300 px-2 py-0.5 text-xs text-slate-400">No PO</span>}
+        <div className="flex items-center gap-1 text-xs text-slate-500">
+          {r.attachment_count > 0 && <Paperclip size={12} className="text-green-700" aria-label={`${r.attachment_count} attachment(s)`} />}
+          <span className="truncate">{r.supplier || r.receipt_number || ''}</span>
+        </div>
       </div>
     ) },
   ]

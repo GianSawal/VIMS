@@ -131,6 +131,7 @@ class FuelRecordSerializer(serializers.ModelSerializer):
     plate_number = serializers.CharField(source='vehicle.plate_number', read_only=True)
     vehicle_label = serializers.SerializerMethodField()
     office_code = serializers.CharField(source='vehicle.office.code', read_only=True)
+    vehicle_photo_url = serializers.SerializerMethodField()
     driver_name = serializers.CharField(source='driver.full_name', read_only=True, default=None)
     fuel_type_display = serializers.CharField(source='get_fuel_type_display', read_only=True)
     total_amount = serializers.DecimalField(max_digits=12, decimal_places=2, required=False, allow_null=True,
@@ -143,7 +144,8 @@ class FuelRecordSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = FuelRecord
-        fields = ['id', 'date', 'vehicle', 'plate_number', 'vehicle_label', 'office_code', 'driver', 'driver_name',
+        fields = ['id', 'date', 'vehicle', 'plate_number', 'vehicle_label', 'office_code', 'vehicle_photo_url',
+                  'driver', 'driver_name',
                   'po_number', 'supplier', 'fuel_type', 'fuel_type_display', 'liters', 'unit_price', 'total_amount',
                   'odometer', 'is_full_tank', 'receipt_number', 'remarks', 'distance_since_last', 'km_per_liter',
                   'usual_km_per_liter', 'unusual', 'attachment_count', 'created_at', 'updated_at']
@@ -160,6 +162,9 @@ class FuelRecordSerializer(serializers.ModelSerializer):
 
     def get_vehicle_label(self, r):
         return f'{r.vehicle.make} {r.vehicle.model}'
+
+    def get_vehicle_photo_url(self, r):
+        return r.vehicle.photo.url if r.vehicle.photo else None
 
     def get_distance_since_last(self, r):
         prev = getattr(r, 'prev_odometer', None)
