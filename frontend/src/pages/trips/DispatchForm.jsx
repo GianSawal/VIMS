@@ -6,7 +6,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { api, applyFieldErrors, invalidatePrefix, useList } from '../../api'
 import { Button, Field, inputClass } from '../../components/ui'
 import { useToast } from '../../components/toast'
-import PlaceSearch, { useMapsEnabled } from '../../components/PlaceSearch'
+import PlaceSearch, { EMPTY_PLACE, useMapsEnabled } from '../../components/PlaceSearch'
 import RouteEstimate from '../../components/RouteEstimate'
 import { useAllOffices } from '../admin/Offices'
 import { bookingLabel, bookingWindow, endOfDay, fromLocalInput, km, toLocalInput } from './common'
@@ -97,10 +97,10 @@ export default function DispatchForm({ vehicle, mode = 'dispatch', onClose, onSa
     },
   })
   const chosen = vehicles.data?.results.find((v) => String(v.id) === watch('vehicle')) ?? vehicle
-  // Origin/destination: the text is what gets saved; place_id only helps Google find the exact spot.
+  // Origin/destination: the text is the record; coordinates and the route line come from the map when available.
   const mapsOn = useMapsEnabled()
-  const [origin, setOrigin] = useState({ text: '', place_id: null })
-  const [dest, setDest] = useState({ text: '', place_id: null })
+  const [origin, setOrigin] = useState(EMPTY_PLACE)
+  const [dest, setDest] = useState(EMPTY_PLACE)
   const [estimate, setEstimate] = useState(null)
 
   const save = useMutation({
@@ -118,6 +118,11 @@ export default function DispatchForm({ vehicle, mode = 'dispatch', onClose, onSa
     ...v,
     estimated_distance_km: estimate ? String(estimate.distance_km) : null,
     estimated_duration_min: estimate ? estimate.duration_min : null,
+    origin_lat: estimate ? estimate.origin[0].toFixed(6) : null,
+    origin_lng: estimate ? estimate.origin[1].toFixed(6) : null,
+    destination_lat: estimate ? estimate.destination[0].toFixed(6) : null,
+    destination_lng: estimate ? estimate.destination[1].toFixed(6) : null,
+    route_geometry: estimate ? estimate.geometry : null,
     vehicle: Number(v.vehicle),
     driver: Number(v.driver),
     requesting_office: v.requesting_office ? Number(v.requesting_office) : null,
@@ -230,12 +235,12 @@ export default function DispatchForm({ vehicle, mode = 'dispatch', onClose, onSa
         <input type="hidden" {...register('destination')} />
         <Field label="Origin *" htmlFor="origin-search" error={errors.origin?.message}>
           <PlaceSearch id="origin-search" value={origin} enabled={mapsOn} invalid={!!errors.origin}
-            placeholder={mapsOn ? 'Search a place, e.g. DOLE Regional Office III' : 'e.g. DOLE Regional Office'}
+            placeholder={mapsOn ? 'Search a place, e.g. DOLE Regional Office III, San Fernando' : 'e.g. DOLE Regional Office'}
             onChange={(p) => { setOrigin(p); setEstimate(null); setValue('origin', p.text, { shouldValidate: !!errors.origin }) }} />
         </Field>
         <Field label="Destination *" htmlFor="destination-search" error={errors.destination?.message}>
           <PlaceSearch id="destination-search" value={dest} enabled={mapsOn} invalid={!!errors.destination}
-            placeholder={mapsOn ? 'Search where the trip goes' : 'e.g. Provincial Office, Tarlac'}
+            placeholder={mapsOn ? 'Search where the trip goes, e.g. Royce Hotel, Clark' : 'e.g. Provincial Office, Tarlac'}
             onChange={(p) => { setDest(p); setEstimate(null); setValue('destination', p.text, { shouldValidate: !!errors.destination }) }} />
         </Field>
         <RouteEstimate origin={origin} destination={dest} enabled={mapsOn} onEstimate={setEstimate} />

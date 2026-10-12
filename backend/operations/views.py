@@ -322,16 +322,18 @@ class FuelRecordViewSet(AttachmentsMixin, OfficeScopedMixin, mixins.ListModelMix
                          'full_tank_count': agg['full'], 'with_po_count': agg['with_po']})
 
 
-# ---------------------------------------------------------------- Google Maps (server-side proxy)
+# ---------------------------------------------------------------- Maps: Geoapify (server-side proxy)
 
 class MapsRouteInput(drf_serializers.Serializer):
     class Point(drf_serializers.Serializer):
-        place_id = drf_serializers.CharField(required=False, allow_blank=True, max_length=300)
+        lat = drf_serializers.FloatField(required=False, min_value=-90, max_value=90)
+        lon = drf_serializers.FloatField(required=False, min_value=-180, max_value=180)
         address = drf_serializers.CharField(required=False, allow_blank=True, max_length=300)
 
         def validate(self, attrs):
-            if not attrs.get('place_id') and not attrs.get('address', '').strip():
-                raise drf_serializers.ValidationError('Give a place or an address.')
+            has_coords = attrs.get('lat') is not None and attrs.get('lon') is not None
+            if not has_coords and not attrs.get('address', '').strip():
+                raise drf_serializers.ValidationError('Pick a place or type an address.')
             return attrs
 
     origin = Point()
@@ -339,7 +341,7 @@ class MapsRouteInput(drf_serializers.Serializer):
 
 
 class MapsView(APIView):
-    """Place search and driving distance for trip forms. Needs operations.add_trip; the key never leaves the server."""
+    """Place search and driving route for trip forms (Geoapify). Needs operations.add_trip; the key never leaves the server."""
     permission_classes = [require('operations.add_trip'), PasswordChangeNotRequired]
     throttle_classes = [ScopedRateThrottle]
     throttle_scope = 'maps'
@@ -350,12 +352,12 @@ class MapsView(APIView):
         if op != 'autocomplete':
             return Response(status=status.HTTP_404_NOT_FOUND)
         if not maps.enabled():
-            return Response({'detail': 'Google Maps is not set up.'}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+            return Response({'detail': 'The trip map is not set up.'}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
         q = request.query_params.get('q', '').strip()
         if len(q) < 3:
             return Response({'results': []})
         try:
-            return Response({'results': maps.autocomplete(q[:200], request.query_params.get('session', '')[:64])})
+            return Response({'results': maps.autocomplete(q[:200])})
         except maps.MapsError as e:
             return Response({'detail': str(e)}, status=status.HTTP_502_BAD_GATEWAY)
 
@@ -363,7 +365,7 @@ class MapsView(APIView):
         if op != 'route':
             return Response(status=status.HTTP_404_NOT_FOUND)
         if not maps.enabled():
-            return Response({'detail': 'Google Maps is not set up.'}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+            return Response({'detail': 'The trip map is not set up.'}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
         s = MapsRouteInput(data=request.data)
         s.is_valid(raise_exception=True)
         try:

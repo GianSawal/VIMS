@@ -38,9 +38,14 @@ class Trip(Tracked):
     returned_at = models.DateTimeField(null=True, blank=True)
     odometer_start = models.IntegerField(null=True, blank=True)
     odometer_end = models.IntegerField(null=True, blank=True)
-    # Google Maps driving estimate, ONE WAY, captured when the trip was planned (compare with the odometer).
+    # Map driving estimate (Geoapify / OpenStreetMap), ONE WAY, captured when the trip was planned.
     estimated_distance_km = models.DecimalField(max_digits=7, decimal_places=1, null=True, blank=True)
     estimated_duration_min = models.PositiveIntegerField(null=True, blank=True)
+    origin_lat = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
+    origin_lng = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
+    destination_lat = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
+    destination_lng = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
+    route_geometry = models.JSONField(null=True, blank=True, help_text='Driving route [[lat, lng], ...] (thinned).')
     distance_km = models.GeneratedField(
         expression=models.F('odometer_end') - models.F('odometer_start'),
         output_field=models.IntegerField(null=True), db_persist=True,

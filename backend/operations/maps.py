@@ -1,21 +1,22 @@
 """
-Google Maps, server side only: the API key stays in backend/.env and is never sent to the browser.
+Geoapify (OpenStreetMap data), server side only: the key stays in backend/.env and never reaches the browser.
 
-- autocomplete(): Places API (New)  places:autocomplete, limited to the Philippines.
-- route():        Routes API        directions/v2:computeRoutes, driving distance and time.
+- autocomplete(): Geocoding API  /v1/geocode/autocomplete, limited to the Philippines.
+- route():        Routing API    /v1/routing (mode=drive): distance, time and the route line.
 
-Uses the standard library HTTP client (no extra dependency). Enable both APIs on the key in Google Cloud and
-restrict the key to the server's IP address.
+Places without coordinates (typed, not picked) are geocoded first with /v1/geocode/search.
+Standard-library HTTP client; no extra dependency.
 """
 import json
 import urllib.error
+import urllib.parse
 import urllib.request
 
 from django.conf import settings
 
-AUTOCOMPLETE_URL = 'https://places.googleapis.com/v1/places:autocomplete'
-ROUTES_URL = 'https://routes.googleapis.com/directions/v2:computeRoutes'
-TIMEOUT = 8  # seconds; the form keeps working if Google is slow
+BASE = 'https://api.geoapify.com/v1'
+TIMEOUT = 8          # seconds; the form keeps working if the service is slow
+MAX_ROUTE_POINTS = 400  # route line is thinned to this many points before it is sent/stored
 
 
 class MapsError(Exception):
@@ -23,54 +24,68 @@ class MapsError(Exception):
 
 
 def enabled():
-    return bool(settings.GOOGLE_MAPS_API_KEY)
+    return bool(settings.GEOAPIFY_API_KEY)
 
 
-def _post(url, body, field_mask):
-    req = urllib.request.Request(url, data=json.dumps(body).encode(), method='POST', headers={
-        'Content-Type': 'application/json',
-        'X-Goog-Api-Key': settings.GOOGLE_MAPS_API_KEY,
-        'X-Goog-FieldMask': field_mask,
-    })
+def _get(path, **params):
+    params['apiKey'] = settings.GEOAPIFY_API_KEY
+    url = f'{BASE}/{path}?{urllib.parse.urlencode(params, safe=",|:")}'
     try:
-        with urllib.request.urlopen(req, timeout=TIMEOUT) as resp:
+        with urllib.request.urlopen(urllib.request.Request(url, headers={'Accept': 'application/json'}), timeout=TIMEOUT) as resp:
             return json.load(resp)
     except urllib.error.HTTPError as e:
-        # Google's error body can include request details; log-worthy, not user-worthy.
-        raise MapsError(f'Google Maps refused the request ({e.code}). Check that the API key and APIs are enabled.') from e
+        raise MapsError(f'The map service refused the request ({e.code}). Check the Geoapify API key.') from e
     except (urllib.error.URLError, TimeoutError) as e:
-        raise MapsError('Google Maps could not be reached. Type the place manually and try again later.') from e
+        raise MapsError('The map service could not be reached. Type the place manually and try again later.') from e
 
 
-def autocomplete(text, session_token=''):
-    """Place suggestions for `text`: [{place_id, main, secondary}]."""
-    body = {'input': text, 'includedRegionCodes': ['ph'], 'languageCode': 'en'}
-    if session_token:
-        body['sessionToken'] = session_token  # groups keystrokes + the final pick into one billed session
-    data = _post(AUTOCOMPLETE_URL, body, 'suggestions.placePrediction.placeId,suggestions.placePrediction.structuredFormat')
-    out = []
-    for s in data.get('suggestions', []):
-        p = s.get('placePrediction')
-        if not p:
-            continue
-        fmt = p.get('structuredFormat', {})
-        out.append({'place_id': p['placeId'], 'main': fmt.get('mainText', {}).get('text', ''),
-                    'secondary': fmt.get('secondaryText', {}).get('text', '')})
-    return out
+def autocomplete(text):
+    """Place suggestions: [{place_id, main, secondary, lat, lon}]."""
+    data = _get('geocode/autocomplete', text=text, filter='countrycode:ph', format='json', limit=6, lang='en')
+    return [{
+        'place_id': r.get('place_id', ''),
+        'main': r.get('address_line1') or r.get('name') or r.get('formatted', ''),
+        'secondary': r.get('address_line2', ''),
+        'lat': r['lat'], 'lon': r['lon'],
+    } for r in data.get('results', []) if 'lat' in r and 'lon' in r]
 
 
-def _waypoint(w):
-    return {'placeId': w['place_id']} if w.get('place_id') else {'address': w['address']}
+def _locate(point):
+    """{lat, lon} as given, or geocode the typed address."""
+    if point.get('lat') is not None and point.get('lon') is not None:
+        return float(point['lat']), float(point['lon'])
+    data = _get('geocode/search', text=point['address'], filter='countrycode:ph', format='json', limit=1)
+    results = data.get('results') or []
+    if not results:
+        raise MapsError(f'Could not find "{point["address"]}" on the map. Pick a suggestion instead.')
+    return results[0]['lat'], results[0]['lon']
+
+
+def _thin(coords, limit=MAX_ROUTE_POINTS):
+    """Keep every n-th point (always the last) so a long route stays small enough to store and draw."""
+    if len(coords) <= limit:
+        return coords
+    step = len(coords) / (limit - 1)
+    return [coords[int(i * step)] for i in range(limit - 1)] + [coords[-1]]
 
 
 def route(origin, destination):
-    """One-way driving distance and time. origin/destination: {'place_id': ...} or {'address': ...}."""
-    data = _post(ROUTES_URL, {
-        'origin': _waypoint(origin), 'destination': _waypoint(destination), 'travelMode': 'DRIVE',
-        'routingPreference': 'TRAFFIC_UNAWARE', 'regionCode': 'ph', 'units': 'METRIC',
-    }, 'routes.distanceMeters,routes.duration')
-    routes = data.get('routes') or []
-    if not routes or 'distanceMeters' not in routes[0]:
+    """
+    One-way driving route. origin/destination: {lat, lon} or {address}.
+    Returns {distance_km, duration_min, origin: [lat, lon], destination: [lat, lon], geometry: [[lat, lon], ...]}.
+    """
+    a, b = _locate(origin), _locate(destination)
+    data = _get('routing', waypoints=f'{a[0]},{a[1]}|{b[0]},{b[1]}', mode='drive')
+    features = data.get('features') or []
+    if not features:
         raise MapsError('No driving route was found between these places.')
-    seconds = int(str(routes[0].get('duration', '0s')).rstrip('s') or 0)
-    return {'distance_km': round(routes[0]['distanceMeters'] / 1000, 1), 'duration_min': round(seconds / 60)}
+    props, geom = features[0]['properties'], features[0]['geometry']
+    lines = geom['coordinates'] if geom['type'] == 'MultiLineString' else [geom['coordinates']]
+    coords = [[round(lat, 5), round(lon, 5)] for line in lines for lon, lat in line]  # GeoJSON is [lon, lat]
+    return {
+        'distance_km': round(props['distance'] / 1000, 1),
+        'duration_min': round(props['time'] / 60),
+        'origin': [round(a[0], 6), round(a[1], 6)],
+        'destination': [round(b[0], 6), round(b[1], 6)],
+        'geometry': _thin(coords),
+    }

@@ -1,7 +1,8 @@
-"""Google Maps proxy: place search + driving distance (Google mocked), and the estimate saved on trips."""
+"""Geoapify proxy: place search + driving route (service mocked), and the location/route saved on trips."""
 import io
 import json
 import urllib.error
+import urllib.parse
 from datetime import timedelta
 
 import pytest
@@ -12,13 +13,17 @@ from accounts.models import Office
 from fleet.test_drivers import make_driver
 from fleet.test_vehicles import as_role, make_vehicle
 from operations import maps
+from operations.models import Trip
 
 pytestmark = pytest.mark.django_db
+
+ROUTE = {'features': [{'properties': {'distance': 36660, 'time': 1867.1},
+                       'geometry': {'type': 'MultiLineString', 'coordinates': [[[120.689117, 15.032933], [120.6, 15.1], [120.530099, 15.180947]]]}}]}
 
 
 @pytest.fixture(autouse=True)
 def seed(settings):
-    settings.GOOGLE_MAPS_API_KEY = 'test-key'
+    settings.GEOAPIFY_API_KEY = 'test-key'
     call_command('seed_reference', stdout=io.StringIO())
 
 
@@ -31,84 +36,113 @@ class FakeResponse(io.BytesIO):
 
 
 @pytest.fixture
-def google(monkeypatch):
-    """Records what we send to Google and answers like the real APIs."""
+def geo(monkeypatch):
+    """Records the URLs we call and answers like Geoapify."""
     calls = []
 
     def fake_urlopen(req, timeout):
-        body = json.loads(req.data)
-        calls.append({'url': req.full_url, 'body': body, 'headers': dict(req.header_items())})
-        if 'autocomplete' in req.full_url:
-            return FakeResponse(json.dumps({'suggestions': [
-                {'placePrediction': {'placeId': 'P1', 'structuredFormat': {
-                    'mainText': {'text': 'Luxent Hotel'}, 'secondaryText': {'text': 'Timog Ave, Quezon City'}}}},
-                {'queryPrediction': {'text': {'text': 'luxent'}}},  # non-place suggestions are skipped
+        url = urllib.parse.urlparse(req.full_url)
+        q = dict(urllib.parse.parse_qsl(url.query))
+        calls.append({'path': url.path, 'q': q})
+        if url.path.endswith('/geocode/autocomplete'):
+            return FakeResponse(json.dumps({'results': [
+                {'place_id': 'P1', 'address_line1': 'Royce Hotel and Casino', 'address_line2': 'Mabalacat, Pampanga',
+                 'lat': 15.1809467, 'lon': 120.5300991},
+                {'place_id': 'NOPOS', 'address_line1': 'No coordinates'},  # skipped
             ]}).encode())
-        return FakeResponse(json.dumps({'routes': [{'distanceMeters': 128449, 'duration': '9300s'}]}).encode())
+        if url.path.endswith('/geocode/search'):
+            return FakeResponse(json.dumps({'results': [{'lat': 15.0328, 'lon': 120.689}]}).encode())
+        return FakeResponse(json.dumps(ROUTE).encode())
 
     monkeypatch.setattr(maps.urllib.request, 'urlopen', fake_urlopen)
     return calls
 
 
-def test_autocomplete_proxies_with_server_key_and_ph_only(google):
-    c = as_role('Field Office User')
-    r = c.get('/api/maps/autocomplete/', {'q': 'luxent', 'session': 'abc'})
+def test_autocomplete_ph_only_with_server_key(geo):
+    r = as_role('Field Office User').get('/api/maps/autocomplete/', {'q': 'royce hotel clark'})
     assert r.status_code == 200
-    assert r.json() == {'results': [{'place_id': 'P1', 'main': 'Luxent Hotel', 'secondary': 'Timog Ave, Quezon City'}]}
-    sent = google[0]
-    assert sent['body']['includedRegionCodes'] == ['ph'] and sent['body']['sessionToken'] == 'abc'
-    assert sent['headers']['X-goog-api-key'] == 'test-key'
+    assert r.json() == {'results': [{'place_id': 'P1', 'main': 'Royce Hotel and Casino', 'secondary': 'Mabalacat, Pampanga',
+                                     'lat': 15.1809467, 'lon': 120.5300991}]}
+    assert geo[0]['q']['filter'] == 'countrycode:ph' and geo[0]['q']['apiKey'] == 'test-key'
     assert 'test-key' not in r.content.decode()  # the key never reaches the browser
 
 
-def test_short_queries_skip_google(google):
-    assert as_role('Fleet Administrator').get('/api/maps/autocomplete/', {'q': 'lu'}).json() == {'results': []}
-    assert google == []
+def test_short_queries_skip_the_service(geo):
+    assert as_role('Fleet Administrator').get('/api/maps/autocomplete/', {'q': 'ro'}).json() == {'results': []}
+    assert geo == []
 
 
-def test_route_distance_and_time(google):
-    c = as_role('Fleet Administrator')
-    r = c.post('/api/maps/route/', {'origin': {'address': 'DOLE Regional Office III, San Fernando, Pampanga'},
-                                    'destination': {'place_id': 'P1'}}, format='json')
-    assert r.status_code == 200 and r.json() == {'distance_km': 128.4, 'duration_min': 155}
-    assert google[0]['body']['origin'] == {'address': 'DOLE Regional Office III, San Fernando, Pampanga'}
-    assert google[0]['body']['destination'] == {'placeId': 'P1'} and google[0]['body']['travelMode'] == 'DRIVE'
-    assert c.post('/api/maps/route/', {'origin': {}, 'destination': {'place_id': 'P1'}}, format='json').status_code == 400
+def test_route_from_coordinates(geo):
+    r = as_role('Fleet Administrator').post('/api/maps/route/', {
+        'origin': {'lat': 15.032933, 'lon': 120.689117}, 'destination': {'lat': 15.1809467, 'lon': 120.5300991}}, format='json')
+    assert r.status_code == 200
+    body = r.json()
+    assert body['distance_km'] == 36.7 and body['duration_min'] == 31
+    assert body['geometry'][0] == [15.03293, 120.68912] and len(body['geometry']) == 3  # [lat, lng] for Leaflet
+    assert geo[0]['q']['waypoints'] == '15.032933,120.689117|15.1809467,120.5300991' and geo[0]['q']['mode'] == 'drive'
 
 
-def test_google_failures_become_friendly_errors(monkeypatch):
+def test_route_geocodes_typed_addresses(geo):
+    r = as_role('Fleet Administrator').post('/api/maps/route/', {
+        'origin': {'address': 'DOLE Regional Office III, San Fernando'}, 'destination': {'lat': 15.18, 'lon': 120.53}}, format='json')
+    assert r.status_code == 200 and r.json()['origin'] == [15.0328, 120.689]
+    assert [c['path'].rsplit('/', 1)[-1] for c in geo] == ['search', 'routing']
+    assert as_role('Fleet Administrator').post('/api/maps/route/', {'origin': {}, 'destination': {'lat': 1, 'lon': 1}}, format='json').status_code == 400
+
+
+def test_long_routes_are_thinned():
+    coords = [[float(i), 0.0] for i in range(2000)]
+    thin = maps._thin(coords)
+    assert len(thin) == maps.MAX_ROUTE_POINTS and thin[0] == coords[0] and thin[-1] == coords[-1]
+
+
+def test_service_failures_become_friendly_errors(monkeypatch):
     def down(req, timeout):
         raise urllib.error.URLError('no network')
     monkeypatch.setattr(maps.urllib.request, 'urlopen', down)
-    r = as_role('Fleet Administrator').get('/api/maps/autocomplete/', {'q': 'luxent'})
+    r = as_role('Fleet Administrator').get('/api/maps/autocomplete/', {'q': 'royce'})
     assert r.status_code == 502 and 'could not be reached' in r.json()['detail']
 
     def no_route(req, timeout):
-        return FakeResponse(b'{}')
+        return FakeResponse(b'{"features": []}')
     monkeypatch.setattr(maps.urllib.request, 'urlopen', no_route)
-    r = as_role('Fleet Administrator').post('/api/maps/route/', {'origin': {'address': 'a b c'}, 'destination': {'address': 'd e f'}}, format='json')
+    r = as_role('Fleet Administrator').post('/api/maps/route/', {'origin': {'lat': 1, 'lon': 1}, 'destination': {'lat': 2, 'lon': 2}}, format='json')
     assert r.status_code == 502 and 'No driving route' in r.json()['detail']
 
 
-def test_disabled_without_key_and_needs_trip_permission(settings, google):
+def test_disabled_without_key_and_needs_trip_permission(settings, geo):
     assert as_role('Viewer').get('/api/maps/status/').status_code == 403
     assert as_role('Fleet Administrator').get('/api/maps/status/').json() == {'enabled': True}
-    settings.GOOGLE_MAPS_API_KEY = ''
+    settings.GEOAPIFY_API_KEY = ''
     c = as_role('Fleet Administrator')
     assert c.get('/api/maps/status/').json() == {'enabled': False}
-    assert c.get('/api/maps/autocomplete/', {'q': 'luxent'}).status_code == 503
-    assert google == []
+    assert c.get('/api/maps/autocomplete/', {'q': 'royce'}).status_code == 503
+    assert geo == []
 
 
-def test_trip_saves_the_estimate():
+def test_trip_saves_locations_route_and_estimate():
     fo = Office.objects.create(code='FO1', name='FO1', office_type='FIELD')
     v, d = make_vehicle(fo, 'MAP 1', current_odometer=1000), make_driver(fo)
     c = as_role('Fleet Administrator')
-    r = c.post('/api/trips/', {'vehicle': v.pk, 'driver': d.pk, 'origin': 'RO', 'destination': 'Luxent Hotel',
+    line = [[15.032933, 120.689117], [15.1, 120.6], [15.180947, 120.530099]]
+    r = c.post('/api/trips/', {'vehicle': v.pk, 'driver': d.pk, 'origin': 'DOLE RO III', 'destination': 'Royce Hotel',
                                'purpose': 'Meeting', 'departed_at': timezone.now().isoformat(), 'odometer_start': 1000,
-                               'estimated_distance_km': '128.4', 'estimated_duration_min': 155}, format='json')
-    assert r.status_code == 201 and r.json()['estimated_distance_km'] == '128.4' and r.json()['estimated_duration_min'] == 155
-    r = c.post('/api/trips/schedule/', {'vehicle': make_vehicle(fo, 'MAP 2').pk, 'driver': make_driver(fo, 'Juan', 'L-2').pk,
-                                        'scheduled_departure': (timezone.now() + timedelta(days=2)).isoformat(),
-                                        'origin': 'RO', 'destination': 'Tarlac', 'purpose': 'x', 'estimated_distance_km': '45.0'}, format='json')
-    assert r.status_code == 201 and r.json()['estimated_distance_km'] == '45.0'
+                               'estimated_distance_km': '36.7', 'estimated_duration_min': 31,
+                               'origin_lat': '15.032933', 'origin_lng': '120.689117',
+                               'destination_lat': '15.180947', 'destination_lng': '120.530099', 'route_geometry': line}, format='json')
+    assert r.status_code == 201, r.json()
+    t = Trip.objects.get()
+    assert str(t.destination_lat) == '15.180947' and t.route_geometry == line and str(t.estimated_distance_km) == '36.7'
+    assert r.json()['route_geometry'] == line
+    bad = c.post('/api/trips/schedule/', {'vehicle': make_vehicle(fo, 'MAP 2').pk, 'driver': make_driver(fo, 'Juan', 'L-2').pk,
+                                          'scheduled_departure': (timezone.now() + timedelta(days=2)).isoformat(),
+                                          'origin': 'a', 'destination': 'b', 'purpose': 'x', 'route_geometry': [['x', 1]]}, format='json')
+    assert bad.status_code == 400 and 'route_geometry' in bad.json()
+    # editing the destination later can update the saved route too
+    r = c.patch(f'/api/trips/{t.pk}/', {'destination': 'Clark', 'route_geometry': line[:2], 'estimated_distance_km': '20.0'}, format='json')
+    assert r.status_code == 200 and r.json()['route_geometry'] == line[:2]
+
+
+def test_tv_display_does_not_expose_coordinates():
+    from operations.serializers import DisplayTripSerializer
+    assert not {'origin_lat', 'destination_lat', 'route_geometry'} & set(DisplayTripSerializer.Meta.fields)

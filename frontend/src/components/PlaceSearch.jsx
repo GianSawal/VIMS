@@ -4,7 +4,7 @@ import { Loader2, MapPin } from 'lucide-react'
 import { api, errorMessage } from '../api'
 import { inputClass } from './ui'
 
-/** Is server-side Google Maps configured? (GOOGLE_MAPS_API_KEY in backend/.env) */
+/** Is the server-side map service configured? (GEOAPIFY_API_KEY in backend/.env) */
 export function useMapsEnabled() {
   const q = useQuery({
     queryKey: ['/maps/status/'],
@@ -15,21 +15,22 @@ export function useMapsEnabled() {
   return q.data === true
 }
 
-/** Free Google Maps directions link (no API key needed). */
+/** OpenStreetMap directions link (free, no key). Uses coordinates when known, else a search for the text. */
 export function mapsLink(origin, destination) {
-  const p = new URLSearchParams({ api: '1', origin: origin.text, destination: destination.text, travelmode: 'driving' })
-  if (origin.place_id) p.set('origin_place_id', origin.place_id)
-  if (destination.place_id) p.set('destination_place_id', destination.place_id)
-  return `https://www.google.com/maps/dir/?${p}`
+  if (origin.lat != null && destination.lat != null) {
+    return `https://www.openstreetmap.org/directions?engine=fossgis_osrm_car&route=${origin.lat},${origin.lon};${destination.lat},${destination.lon}`
+  }
+  return `https://www.openstreetmap.org/search?query=${encodeURIComponent(destination.text)}`
 }
 
+export const EMPTY_PLACE = { text: '', place_id: null, lat: null, lon: null }
+
 /**
- * Text input with Google place suggestions (Philippines). Works as a plain input when Maps is off.
- * value: { text, place_id }  onChange(next value)
+ * Text input with place suggestions (Geoapify, Philippines). Works as a plain input when maps are off.
+ * value: { text, place_id, lat, lon }  onChange(next value)
  */
 export default function PlaceSearch({ id, value, onChange, enabled, placeholder, invalid, describedBy }) {
   const listId = useId()
-  const [session] = useState(() => crypto.randomUUID()) // one billing session per search box
   const [items, setItems] = useState([])
   const [open, setOpen] = useState(false)
   const [active, setActive] = useState(-1)
@@ -42,17 +43,17 @@ export default function PlaceSearch({ id, value, onChange, enabled, placeholder,
     if (!enabled || !typed.current || value.place_id || q.length < 3) return undefined
     const t = setTimeout(() => {
       setLoading(true)
-      api.get('/maps/autocomplete/', { params: { q, session } })
+      api.get('/maps/autocomplete/', { params: { q } })
         .then((r) => { setItems(r.data.results); setOpen(true); setActive(-1); setError('') })
         .catch((e) => { setItems([]); setError(errorMessage(e)) })
         .finally(() => setLoading(false))
     }, 300)
     return () => clearTimeout(t)
-  }, [value.text, value.place_id, enabled, session])
+  }, [value.text, value.place_id, enabled])
 
   const pick = (it) => {
     typed.current = false
-    onChange({ text: [it.main, it.secondary].filter(Boolean).join(', '), place_id: it.place_id })
+    onChange({ text: [it.main, it.secondary].filter(Boolean).join(', '), place_id: it.place_id, lat: it.lat, lon: it.lon })
     setOpen(false)
     setItems([])
   }
@@ -70,7 +71,7 @@ export default function PlaceSearch({ id, value, onChange, enabled, placeholder,
       <MapPin size={16} className={`absolute top-2.5 left-3 ${value.place_id ? 'text-brand' : 'text-slate-400'}`} aria-hidden="true" />
       <input id={id} className={`${inputClass} pl-9 ${invalid ? 'border-danger' : ''}`} placeholder={placeholder} autoComplete="off"
         value={value.text} onKeyDown={onKeyDown} onBlur={() => setTimeout(() => setOpen(false), 150)}
-        onChange={(e) => { typed.current = true; onChange({ text: e.target.value, place_id: null }) }}
+        onChange={(e) => { typed.current = true; onChange({ text: e.target.value, place_id: null, lat: null, lon: null }) }}
         role={enabled ? 'combobox' : undefined} aria-expanded={enabled ? open : undefined} aria-controls={enabled ? listId : undefined}
         aria-autocomplete={enabled ? 'list' : undefined} aria-activedescendant={active >= 0 ? `${listId}-${active}` : undefined}
         aria-invalid={invalid || undefined} aria-describedby={describedBy} />
@@ -86,7 +87,7 @@ export default function PlaceSearch({ id, value, onChange, enabled, placeholder,
               <span><span className="block font-medium text-ink">{it.main}</span><span className="block text-xs text-slate-500">{it.secondary}</span></span>
             </li>
           ))}
-          <li className="px-3 pt-1 text-right text-[10px] text-slate-400" aria-hidden="true">Powered by Google</li>
+          <li className="px-3 pt-1 text-right text-[10px] text-slate-400" aria-hidden="true">Powered by Geoapify</li>
         </ul>
       )}
       {error && <p className="mt-1 text-xs text-amber-700">{error}</p>}

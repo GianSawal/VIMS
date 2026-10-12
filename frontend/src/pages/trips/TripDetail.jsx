@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { lazy, Suspense, useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -9,6 +9,7 @@ import { api, applyFieldErrors, errorMessage, invalidatePrefix, useList } from '
 import { useCan } from '../../auth'
 import Attachments from '../../components/Attachments'
 import { mapsLink } from '../../components/PlaceSearch'
+const TripMap = lazy(() => import('../../components/TripMap')) // Leaflet loads only when a map is shown
 import { durationText } from '../../components/RouteEstimate'
 import { Button, Field, formatDateTime, inputClass, Modal } from '../../components/ui'
 import { useToast } from '../../components/toast'
@@ -98,15 +99,26 @@ export default function TripDetail() {
             <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-slate-100 pt-3 text-sm">
               {t.estimated_distance_km != null ? (
                 <span>
-                  Google Maps estimate: <strong>≈ {Number(t.estimated_distance_km).toLocaleString('en-PH')} km</strong> one way
+                  Map estimate: <strong>≈ {Number(t.estimated_distance_km).toLocaleString('en-PH')} km</strong> one way
                   {' '}(≈ {(Number(t.estimated_distance_km) * 2).toLocaleString('en-PH', { maximumFractionDigits: 1 })} km round trip)
                   {t.estimated_duration_min != null && `, about ${durationText(t.estimated_duration_min)} each way`}
                   {t.distance_km != null && <span className="text-slate-500"> · actual {t.distance_km.toLocaleString('en-PH')} km by odometer</span>}
                 </span>
               ) : <span className="text-slate-500">No distance estimate was recorded.</span>}
-              <a href={mapsLink({ text: t.origin }, { text: t.destination })} target="_blank" rel="noopener noreferrer"
-                className="ml-auto inline-flex items-center gap-1 font-medium text-brand hover:underline">Open in Google Maps <ExternalLink size={14} aria-hidden="true" /></a>
+              <a href={mapsLink({ text: t.origin, lat: t.origin_lat, lon: t.origin_lng }, { text: t.destination, lat: t.destination_lat, lon: t.destination_lng })}
+                target="_blank" rel="noopener noreferrer"
+                className="ml-auto inline-flex items-center gap-1 font-medium text-brand hover:underline">Open in OpenStreetMap <ExternalLink size={14} aria-hidden="true" /></a>
             </div>
+            {(t.route_geometry?.length > 1 || (t.origin_lat != null && t.destination_lat != null)) && (
+              <div className="mt-3">
+                <Suspense fallback={<div className="h-64 animate-pulse rounded-lg bg-slate-100 sm:h-80" />}>
+                <TripMap route={t.route_geometry}
+                  origin={t.origin_lat != null ? [Number(t.origin_lat), Number(t.origin_lng)] : null}
+                  destination={t.destination_lat != null ? [Number(t.destination_lat), Number(t.destination_lng)] : null}
+                  originLabel={t.origin} destinationLabel={t.destination} />
+                </Suspense>
+              </div>
+            )}
           </Card>
 
           <Card title="Time and odometer">

@@ -10,7 +10,20 @@ from . import fuel
 from .models import FuelRecord, Trip
 
 DESCRIPTIVE = ['requesting_office', 'passengers', 'origin', 'destination', 'purpose', 'remarks',
-               'estimated_distance_km', 'estimated_duration_min']
+               'estimated_distance_km', 'estimated_duration_min', 'origin_lat', 'origin_lng', 'destination_lat',
+               'destination_lng', 'route_geometry']
+
+
+def clean_geometry(v):
+    """Route line from the map: a list of [lat, lng] pairs, at most a few hundred points."""
+    if v in (None, []):
+        return None
+    ok = isinstance(v, list) and len(v) <= 1000 and all(
+        isinstance(p, list) and len(p) == 2 and all(isinstance(x, (int, float)) for x in p)
+        and -90 <= p[0] <= 90 and -180 <= p[1] <= 180 for p in v)
+    if not ok:
+        raise serializers.ValidationError('Route must be a list of [latitude, longitude] points.')
+    return v
 
 
 class TripSerializer(serializers.ModelSerializer):
@@ -32,12 +45,16 @@ class TripSerializer(serializers.ModelSerializer):
         fields = ['id', 'ticket_number', 'vehicle', 'plate_number', 'vehicle_label', 'office_code', 'vehicle_photo_url', 'driver_photo_url', 'driver',
                   'driver_name', 'requesting_office', 'requesting_office_name', 'passengers', 'origin', 'destination',
                   'purpose', 'scheduled_departure', 'scheduled_return', 'schedule_day', 'departed_at', 'returned_at',
-                  'odometer_start', 'odometer_end', 'distance_km', 'estimated_distance_km', 'estimated_duration_min', 'status', 'status_display', 'remarks',
+                  'odometer_start', 'odometer_end', 'distance_km', 'estimated_distance_km', 'estimated_duration_min',
+                  'origin_lat', 'origin_lng', 'destination_lat', 'destination_lng', 'route_geometry', 'status', 'status_display', 'remarks',
                   'created_at', 'updated_at']
         read_only_fields = [f for f in fields if f not in DESCRIPTIVE]
 
     def get_vehicle_label(self, t):
         return f'{t.vehicle.make} {t.vehicle.model}'
+
+    def validate_route_geometry(self, v):
+        return clean_geometry(v)
 
     def get_vehicle_photo_url(self, t):
         return t.vehicle.photo.url if t.vehicle.photo else None
@@ -68,6 +85,14 @@ class DispatchSerializer(serializers.Serializer):
     remarks = serializers.CharField(required=False, allow_blank=True, default='')
     estimated_distance_km = serializers.DecimalField(max_digits=7, decimal_places=1, min_value=0, required=False, allow_null=True)
     estimated_duration_min = serializers.IntegerField(min_value=0, required=False, allow_null=True)
+    origin_lat = serializers.DecimalField(max_digits=9, decimal_places=6, required=False, allow_null=True, min_value=-90, max_value=90)
+    origin_lng = serializers.DecimalField(max_digits=9, decimal_places=6, required=False, allow_null=True, min_value=-180, max_value=180)
+    destination_lat = serializers.DecimalField(max_digits=9, decimal_places=6, required=False, allow_null=True, min_value=-90, max_value=90)
+    destination_lng = serializers.DecimalField(max_digits=9, decimal_places=6, required=False, allow_null=True, min_value=-180, max_value=180)
+    route_geometry = serializers.JSONField(required=False, allow_null=True)
+
+    def validate_route_geometry(self, v):
+        return clean_geometry(v)
 
 
 class CompleteSerializer(serializers.Serializer):
@@ -96,6 +121,14 @@ class ScheduleSerializer(serializers.Serializer):
     remarks = serializers.CharField(required=False, allow_blank=True, default='')
     estimated_distance_km = serializers.DecimalField(max_digits=7, decimal_places=1, min_value=0, required=False, allow_null=True)
     estimated_duration_min = serializers.IntegerField(min_value=0, required=False, allow_null=True)
+    origin_lat = serializers.DecimalField(max_digits=9, decimal_places=6, required=False, allow_null=True, min_value=-90, max_value=90)
+    origin_lng = serializers.DecimalField(max_digits=9, decimal_places=6, required=False, allow_null=True, min_value=-180, max_value=180)
+    destination_lat = serializers.DecimalField(max_digits=9, decimal_places=6, required=False, allow_null=True, min_value=-90, max_value=90)
+    destination_lng = serializers.DecimalField(max_digits=9, decimal_places=6, required=False, allow_null=True, min_value=-180, max_value=180)
+    route_geometry = serializers.JSONField(required=False, allow_null=True)
+
+    def validate_route_geometry(self, v):
+        return clean_geometry(v)
 
 
 class RescheduleSerializer(serializers.Serializer):

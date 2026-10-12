@@ -147,18 +147,21 @@ The board shows today's trips (scheduled, on trip, returned, cancelled) and the 
 every minute, pages long lists, flags delayed departures and overdue returns, and never receives passengers,
 purpose, remarks or odometer readings.
 
-## Google Maps place search and distance (trip forms)
+## Trip map: place search, route and distance (Geoapify + OpenStreetMap)
 
-Optional. Without a key the trip forms use plain text boxes and still offer a free "Open in Google Maps" link.
+Optional. Without a key the trip forms use plain text boxes and still offer an "Open in OpenStreetMap" link.
 
-1. In Google Cloud Console create (or pick) a project with **billing enabled**.
-2. Enable **Places API (New)** and **Routes API**.
-3. Create an API key, restrict it to those two APIs, and under *Application restrictions* choose **IP addresses**
-   with the server's public IP (the key is only used by Django, never by the browser).
-4. Put it in `backend/.env` as `GOOGLE_MAPS_API_KEY=...` and restart Django.
+1. Create a free account at https://myprojects.geoapify.com, create a project and copy its API key.
+2. Put it in `backend/.env` as `GEOAPIFY_API_KEY=...` and restart Django. The key is used only by Django and never
+   sent to the browser. In the Geoapify project settings you can restrict it to the server's IP address.
 
-Endpoints (need `operations.add_trip`, rate-limited 120/min per user): `GET /api/maps/status/`,
-`GET /api/maps/autocomplete/?q=&session=` (Philippines only), `POST /api/maps/route/`
-`{origin: {place_id | address}, destination: {...}}` returning one-way `distance_km` and `duration_min`.
-The estimate is saved on the trip (`estimated_distance_km`, `estimated_duration_min`) and shown next to the
-odometer distance. Google bills per request; check current pricing and set a budget alert in Cloud Console.
+How it works: the schedule/dispatch form searches places through `GET /api/maps/autocomplete/?q=` (Philippines only)
+and, once origin and destination are picked, calls `POST /api/maps/route/` `{origin: {lat, lon} | {address},
+destination: ...}`. The response (one-way `distance_km`, `duration_min`, `origin`, `destination`, `geometry` as
+`[[lat, lng], ...]`, thinned to 400 points) is drawn with React Leaflet on OpenStreetMap tiles and saved on the trip:
+`estimated_distance_km`, `estimated_duration_min`, `origin_lat/lng`, `destination_lat/lng`, `route_geometry`.
+Both endpoints need `operations.add_trip` and are rate-limited (120/min per user). `GET /api/maps/status/` tells the
+UI whether maps are on. The trip page redraws the saved route without calling Geoapify again.
+
+Attribution (shown on the map, required): "© OpenStreetMap contributors" and "Routing Geoapify". OpenStreetMap's
+public tile server is fine for light internal use; switch tile provider if usage grows.
