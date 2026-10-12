@@ -6,14 +6,13 @@ import {
 } from 'lucide-react'
 import { api, errorMessage, useList } from '../../api'
 import { useCan } from '../../auth'
-import DataTable from '../../components/DataTable'
+import DateChip from '../../components/DateChip'
 import { initials } from '../../components/filters'
 import PhotoUpload from '../../components/PhotoUpload'
 import { Button, ConfirmDialog, formatDateTime } from '../../components/ui'
 import { useToast } from '../../components/toast'
 import { NotFound } from '../Errors'
-import { fuelColumns } from '../fuel/FuelList'
-import { tripColumns } from '../trips/TripList'
+import { TripStatusBadge } from '../trips/common'
 import AssignmentsTab from './AssignmentsTab'
 import FuelTab from './FuelTab'
 import MaintenanceTab from './MaintenanceTab'
@@ -78,13 +77,13 @@ export default function VehicleProfile() {
 
       {/* Hero */}
       <section className="mb-4 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-        <div className="grid md:grid-cols-[22rem_1fr]">
+        <div className="grid md:grid-cols-[18rem_1fr]">
           <div className="border-b border-slate-200 bg-slate-50 p-4 md:border-r md:border-b-0">
             <PhotoUpload basePath={`/vehicles/${v.id}`} detailKey={['/vehicles/', String(v.id)]} listPrefix="/vehicles/"
               photoUrl={v.photo_url} noun="vehicle" current={<VehiclePhoto vehicle={v} className="border border-slate-200" />}
               canChange={can('fleet.manage_vehicle_photo') && canChange && !v.is_archived} />
           </div>
-          <div className="flex flex-col p-6">
+          <div className="p-6">
             <div className="flex flex-wrap items-start gap-3">
               <div className="mr-auto">
                 <div className="flex flex-wrap items-center gap-3">
@@ -108,7 +107,7 @@ export default function VehicleProfile() {
                 ))}
             </div>
 
-            <dl className="mt-auto grid gap-4 pt-6 text-sm sm:grid-cols-3">
+            <dl className="mt-5 grid gap-4 rounded-lg bg-slate-50 px-4 py-3 text-sm sm:grid-cols-3">
               <Fact icon={Building2} label="Owning office" value={v.office_name} />
               <Fact icon={UserRound} label="Accountable person" value={a?.accountable_person ?? 'Unassigned'} />
               <Fact icon={IdCard} label="Driver"
@@ -146,7 +145,7 @@ export default function VehicleProfile() {
       </div>
 
       <div role="tabpanel">
-        {tab === 'overview' ? <Overview v={v} onGo={goto} navigate={navigate} />
+        {tab === 'overview' ? <Overview v={v} onGo={goto} />
           : tab === 'assignments' ? <AssignmentsTab v={v} />
           : tab === 'trips' ? <TripsTab v={v} />
           : tab === 'fuel' ? <FuelTab v={v} />
@@ -174,7 +173,7 @@ export default function VehicleProfile() {
   )
 }
 
-function Overview({ v, onGo, navigate }) {
+function Overview({ v, onGo }) {
   const a = v.current_assignment
   const trips = useList('/trips/', { vehicle: v.id, page_size: 3 })
   const fuel = useList('/fuel-records/', { vehicle: v.id, page_size: 3 })
@@ -224,11 +223,22 @@ function Overview({ v, onGo, navigate }) {
           )}
         </Card>
 
-        <Mini title="Latest trips" onAll={() => onGo('trips')}>
-          <DataTable columns={tripColumns({ withVehicle: false })} query={trips} footer={false} onRowClick={(t) => navigate(`/trips/${t.id}`)} empty="No trips recorded yet." />
+        <Mini title="Latest trips" onAll={() => onGo('trips')} query={trips} empty="No trips recorded yet.">
+          {(t) => (
+            <Row key={t.id} to={`/trips/${t.id}`} date={t.departed_at ?? t.scheduled_departure}
+              title={<><span className="font-mono text-xs font-semibold text-brand">{t.ticket_number}</span><TripStatusBadge status={t.status} /></>}
+              line={`${t.origin} → ${t.destination}`} meta={`${t.driver_name} · ${t.purpose}`}
+              value={t.distance_km != null ? formatKm(t.distance_km) : '—'} valueLabel="distance" />
+          )}
         </Mini>
-        <Mini title="Latest fuel" onAll={() => onGo('fuel')}>
-          <DataTable columns={fuelColumns({ withVehicle: false })} query={fuel} footer={false} onRowClick={(r) => navigate(`/fuel/${r.id}`)} empty="No fuel records yet." />
+        <Mini title="Latest fuel" onAll={() => onGo('fuel')} query={fuel} empty="No fuel records yet.">
+          {(r) => (
+            <Row key={r.id} to={`/fuel/${r.id}`} date={r.date}
+              title={<><span className="font-semibold">{Number(r.liters).toLocaleString('en-PH', { maximumFractionDigits: 3 })} L</span><span className="text-xs text-slate-500">{r.fuel_type_display}{r.is_full_tank ? ' · full tank' : ''}</span></>}
+              line={`${formatKm(r.odometer)}${r.distance_since_last != null ? ` · +${r.distance_since_last.toLocaleString('en-PH')} km since last` : ''}`}
+              meta={[r.driver_name, r.supplier, r.po_number && `PO ${r.po_number}`].filter(Boolean).join(' · ') || 'No driver or supplier recorded'}
+              value={formatPeso(r.total_amount)} valueLabel={r.km_per_liter ? `${Number(r.km_per_liter).toFixed(1)} km/L est.` : 'cost'} />
+          )}
         </Mini>
       </div>
 
@@ -261,15 +271,38 @@ function Overview({ v, onGo, navigate }) {
   )
 }
 
-function Mini({ title, onAll, children }) {
+/** Card with the latest 3 items as compact rows; `children` renders one row. */
+function Mini({ title, onAll, query, empty, children }) {
+  const rows = query.data?.results ?? []
   return (
-    <section>
-      <div className="mb-2 flex items-baseline justify-between">
+    <section className="rounded-xl border border-slate-200 bg-white shadow-sm">
+      <div className="flex items-baseline justify-between px-5 pt-4 pb-2">
         <h2 className="text-sm font-semibold text-brand">{title}</h2>
         <button type="button" onClick={onAll} className="text-sm text-brand hover:underline">View all</button>
       </div>
-      {children}
+      {query.isLoading ? <div className="mx-5 mb-4 h-16 animate-pulse rounded-lg bg-slate-100" />
+        : rows.length ? <ul className="divide-y divide-slate-100">{rows.map(children)}</ul>
+        : <p className="px-5 pb-5 text-sm text-slate-500">{empty}</p>}
     </section>
+  )
+}
+
+function Row({ to, date, title, line, meta, value, valueLabel }) {
+  return (
+    <li>
+      <Link to={to} className="flex items-center gap-4 px-5 py-3 hover:bg-slate-50">
+        <DateChip value={date} />
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">{title}</div>
+          <div className="truncate text-sm text-ink">{line}</div>
+          <div className="truncate text-xs text-slate-500">{meta}</div>
+        </div>
+        <div className="shrink-0 text-right">
+          <div className="font-semibold tabular-nums">{value}</div>
+          <div className="text-xs text-slate-500">{valueLabel}</div>
+        </div>
+      </Link>
+    </li>
   )
 }
 
