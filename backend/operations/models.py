@@ -6,7 +6,9 @@ from django.db.models.functions import Coalesce
 
 from accounts.models import Office
 from config.base_models import Tracked, non_negative, ordered
-from fleet.models import Driver, Vehicle
+from django.contrib.contenttypes.fields import GenericRelation
+
+from fleet.models import Attachment, Driver, Vehicle
 
 
 def new_display_token():
@@ -83,11 +85,15 @@ class FuelRecord(Tracked):
     is_full_tank = models.BooleanField(default=False, help_text='Only full-tank fill-ups give a fair km/L estimate.')
     receipt_number = models.CharField(max_length=40, blank=True)
     remarks = models.TextField(blank=True)
+    attachments = GenericRelation(Attachment)  # receipt / PO scans; lets the PO log count them
 
     class Meta:
         ordering = ['-date', '-odometer']
         constraints = non_negative('liters', 'unit_price', 'total_amount', 'odometer')
-        indexes = [models.Index(fields=['vehicle', 'date'])]
+        indexes = [models.Index(fields=['vehicle', 'date']), models.Index(fields=['vehicle', 'odometer'])]
+
+    def __str__(self):
+        return f'{self.vehicle.plate_number} {self.date:%Y-%m-%d} {self.liters} L'
 
 
 class RFIDAccount(Tracked):

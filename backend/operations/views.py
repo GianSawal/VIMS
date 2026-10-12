@@ -1,4 +1,5 @@
 from datetime import datetime, time, timedelta
+from decimal import Decimal
 
 from django.db.models import Count, Q, Sum
 from django.db.models.functions import Coalesce
@@ -16,10 +17,11 @@ from accounts.permissions import OfficeScopedMixin, PasswordChangeNotRequired, r
 from audit.services import diff, log
 from fleet.attachments_api import AttachmentsMixin
 
+from . import fuel as fuel_service
 from . import trips as trip_service
-from .models import DisplayScreen, Trip
+from .models import DisplayScreen, FuelRecord, Trip
 from .serializers import (DESCRIPTIVE, CancelSerializer, CompleteSerializer, DispatchScheduledSerializer,
-                          DispatchSerializer, DisplayTripSerializer, RescheduleSerializer, ScheduleSerializer,
+                          DispatchSerializer, DisplayTripSerializer, FuelRecordSerializer, RescheduleSerializer, ScheduleSerializer,
                           TripSerializer)
 
 CAN_CHANGE_TRIP = [require('operations.change_trip'), PasswordChangeNotRequired]
@@ -190,3 +192,95 @@ class DisplayTripsView(APIView):
             'today': DisplayTripSerializer(today_trips, many=True).data,
             'upcoming': DisplayTripSerializer(upcoming, many=True).data,
         })
+
+
+# ---------------------------------------------------------------- fuel
+
+class FuelFilter(filters.FilterSet):
+    office = filters.NumberFilter(field_name='vehicle__office')
+    date_from = filters.DateFilter(field_name='date', lookup_expr='gte')
+    date_to = filters.DateFilter(field_name='date', lookup_expr='lte')
+    has_po = filters.BooleanFilter(method='with_po', help_text='true = Fuel PO log (records with a PO number)')
+
+    class Meta:
+        model = FuelRecord
+        fields = ['vehicle', 'driver', 'fuel_type', 'is_full_tank']
+
+    def with_po(self, qs, name, value):
+        return qs.exclude(po_number='') if value else qs.filter(po_number='')
+
+
+FUEL_AUDITED = ['date', 'vehicle', 'driver', 'po_number', 'supplier', 'fuel_type', 'liters', 'unit_price',
+                'total_amount', 'odometer', 'is_full_tank', 'receipt_number']
+
+
+def fuel_snapshot(r):
+    return {f: str(getattr(r, f'{f}_id' if f in ('vehicle', 'driver') else f)) for f in FUEL_AUDITED}
+
+
+class FuelRecordViewSet(AttachmentsMixin, OfficeScopedMixin, mixins.ListModelMixin, mixins.RetrieveModelMixin,
+                        mixins.CreateModelMixin, mixins.UpdateModelMixin, viewsets.GenericViewSet):
+    """
+    Fuel fill-ups. The same rows feed the Fuel PO log (`?has_po=true`), so PO data is never entered twice.
+    Distance since last fill-up and estimated km/L (full tank to full tank) are computed, never typed. No DELETE.
+    """
+    queryset = FuelRecord.objects.select_related('vehicle', 'vehicle__office', 'driver')
+    serializer_class = FuelRecordSerializer
+    office_field = 'vehicle__office'
+    filterset_class = FuelFilter
+    search_fields = ['po_number', 'receipt_number', 'supplier', 'vehicle__plate_number', 'driver__full_name']
+    ordering_fields = ['date', 'odometer', 'liters', 'total_amount', 'unit_price']
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        if self.action in ('list', 'retrieve'):
+            qs = fuel_service.with_analytics(qs).annotate(attachment_count=Count('attachments', distinct=True))
+            qs = qs.order_by('-date', '-odometer', '-id')  # GROUP BY from Count drops Meta.ordering
+        return qs
+
+    def _respond(self, record, code):
+        record = self.get_queryset().model.objects.filter(pk=record.pk)
+        record = fuel_service.with_analytics(record.select_related('vehicle', 'vehicle__office', 'driver')).get()
+        return Response(FuelRecordSerializer(record, context=self.get_serializer_context()).data, status=code)
+
+    def _log_odometer(self, record, before, after):
+        if after != before:
+            log(self.request, 'odometer_update', record.vehicle, f'Odometer updated by fuel record on {record.date}',
+                {'current_odometer': [str(before), str(after)]})
+
+    def create(self, request, *args, **kwargs):
+        s = self.get_serializer(data=request.data)
+        s.is_valid(raise_exception=True)
+        record, before, after = fuel_service.save_record(user=request.user, data=dict(s.validated_data))
+        log(request, 'create', record, f'Fuel: {record.liters} L for {record.vehicle.plate_number} on {record.date}',
+            {'after': fuel_snapshot(record)})
+        self._log_odometer(record, before, after)
+        return self._respond(record, status.HTTP_201_CREATED)
+
+    def update(self, request, *args, **kwargs):
+        instance = self.get_object()
+        s = self.get_serializer(instance, data=request.data, partial=kwargs.get('partial', False))
+        s.is_valid(raise_exception=True)
+        before_snap = fuel_snapshot(instance)
+        data = {f: getattr(instance, f) for f in FUEL_AUDITED + ['remarks']}
+        data.update(s.validated_data)
+        if 'total_amount' not in s.validated_data and ({'liters', 'unit_price'} & set(s.validated_data)):
+            data['total_amount'] = None  # recompute when quantity/price change without a new receipt total
+        record, before, after = fuel_service.save_record(user=request.user, instance=instance, data=data)
+        changes = diff(before_snap, fuel_snapshot(record))
+        if changes:
+            log(request, 'update', record, f'Updated fuel record of {record.vehicle.plate_number} on {record.date}', changes)
+        self._log_odometer(record, before, after)
+        return self._respond(record, status.HTTP_200_OK)
+
+    @action(detail=False, methods=['get'])
+    def summary(self, request):
+        """Totals for the same filters as the list."""
+        qs = self.filter_queryset(super().get_queryset()).order_by()
+        agg = qs.aggregate(count=Count('id'), liters=Sum('liters'), amount=Sum('total_amount'),
+                           full=Count('id', filter=Q(is_full_tank=True)), with_po=Count('id', filter=~Q(po_number='')))
+        dec = lambda v, places: str(Decimal(str(v or 0)).quantize(Decimal(places)))  # strings, like DecimalFields
+        liters, amount = Decimal(str(agg['liters'] or 0)), Decimal(str(agg['amount'] or 0))
+        return Response({'count': agg['count'], 'liters': dec(liters, '0.001'), 'amount': dec(amount, '0.01'),
+                         'average_price': dec(amount / liters, '0.01') if liters else None,
+                         'full_tank_count': agg['full'], 'with_po_count': agg['with_po']})

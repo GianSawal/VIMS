@@ -89,6 +89,9 @@ Django session in an HttpOnly cookie plus CSRF token. The SPA calls `GET /api/au
 | `/api/trips/{id}/complete/` | POST `{returned_at, odometer_end, remarks?}` | moves the vehicle odometer forward; vehicle back to Serviceable |
 | `/api/trips/{id}/cancel/` | POST `{reason}` | open trips only; odometer untouched |
 | `/api/trips/{id}/attachments/` | GET / POST / DELETE `…/{att_id}/` | same rules as driver attachments |
+| `/api/fuel-records/` | CRUD (no delete) | `?vehicle= &driver= &office= &fuel_type= &date_from= &date_to= &has_po=true &is_full_tank= &search=`; total computed if blank; returns `distance_since_last`, `km_per_liter` (estimate, full tank to full tank), `unusual` |
+| `/api/fuel-records/summary/` | GET | count, liters, amount, average price for the same filters |
+| `/api/fuel-records/{id}/attachments/` | GET / POST / DELETE | receipt and PO scans |
 | `/api/drivers/` | CRUD (no delete) | `?search= &office= &is_active= &license_status=VALID\|EXPIRING\|EXPIRED` |
 | `/api/drivers/{id}/assignments/` | GET | the driver's vehicle history |
 | `/api/drivers/{id}/attachments/` | GET / POST multipart `file`, `description` · `DELETE …/attachments/{att_id}/` | PDF/JPEG/PNG/WebP ≤ `ATTACHMENT_MAX_BYTES`; changes need `fleet.change_driver` |

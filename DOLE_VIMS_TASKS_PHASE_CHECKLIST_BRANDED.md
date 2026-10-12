@@ -306,28 +306,28 @@ approved for public display.
 
 # Phase 7 --- Fuel Management
 
--   [ ] Fuel CRUD API
--   [ ] Fuel Purchase Order number
--   [ ] Vehicle
--   [ ] Driver
--   [ ] Supplier
--   [ ] Fuel type
--   [ ] Fuel quantity
--   [ ] Unit price
--   [ ] Total cost
--   [ ] Odometer
--   [ ] Receipt/reference
--   [ ] Attachment
--   [ ] Fuel list
--   [ ] Vehicle fuel-history tab
--   [ ] Fuel PO log view
--   [ ] Date/office/vehicle filters
--   [ ] Fuel cost calculation
--   [ ] Distance-between-fueling calculation
--   [ ] Estimated km/L calculation
--   [ ] Clearly label estimated fuel efficiency
--   [ ] Detect invalid odometer sequence
--   [ ] Tests
+-   [x] Fuel CRUD API (no DELETE; edits audited)
+-   [x] Fuel Purchase Order number
+-   [x] Vehicle
+-   [x] Driver
+-   [x] Supplier
+-   [x] Fuel type (must match a gasoline/diesel vehicle)
+-   [x] Fuel quantity
+-   [x] Unit price
+-   [x] Total cost (computed from liters × price; receipt total accepted within ₱1)
+-   [x] Odometer (newest fill-up moves the vehicle odometer forward)
+-   [x] Receipt/reference
+-   [x] Attachment (receipt/PO scans)
+-   [x] Fuel list
+-   [x] Vehicle fuel-history tab
+-   [x] Fuel PO log view (same rows, `?has_po=true`; shows missing supporting documents)
+-   [x] Date/office/vehicle filters (vehicle filter via API and the vehicle Fuel tab)
+-   [x] Fuel cost calculation
+-   [x] Distance-between-fueling calculation
+-   [x] Estimated km/L calculation (full tank to full tank only; unusual-consumption flag below 75% of usual)
+-   [x] Clearly label estimated fuel efficiency
+-   [x] Detect invalid odometer sequence (must fit between previous and next fill-ups)
+-   [x] Tests (`operations/test_fuel.py`; analytics also verified on MySQL)
 
 **Phase gate:** Fuel history and PO report can reproduce required
 existing spreadsheet information without duplicate data entry.
