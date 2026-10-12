@@ -68,7 +68,7 @@ erDiagram
     VehicleDocument {
         enum document_type
         date expiry_date ">= issue_date"
-        enum status "ACTIVE / SUPERSEDED"
+        enum status "ACTIVE / SUPERSEDED / CANCELLED"
     }
     Notification {
         string dedupe_key "unique per recipient"
@@ -90,6 +90,8 @@ erDiagram
 | Non-negative odometer, liters, costs | DB CHECK |
 | End date/odometer not before start | DB CHECK |
 | Trip distance and maintenance total | DB generated columns |
+| One current LTO / OR / CR / GSIS / insurance per vehicle; renewal keeps history | `fleet/documents.py` (locks the vehicle row) |
+| Document expiry bands (expired, 7, 15, 30, 60 days) | `fleet/documents.py` `expiry_state()` / `band_filter()`, thresholds in `DOCUMENT_ALERT_DAYS` |
 | No duplicate threshold alerts | DB UNIQUE (`recipient`, `dedupe_key`) |
 | Audit log append-only | Admin read-only; no write API |
 

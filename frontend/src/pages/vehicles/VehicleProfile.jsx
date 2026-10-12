@@ -14,6 +14,7 @@ import { useToast } from '../../components/toast'
 import { NotFound } from '../Errors'
 import { TripStatusBadge } from '../trips/common'
 import AssignmentsTab from './AssignmentsTab'
+import DocumentsTab from './DocumentsTab'
 import FuelTab from './FuelTab'
 import MaintenanceTab from './MaintenanceTab'
 import TripsTab from './TripsTab'
@@ -26,7 +27,7 @@ const TABS = [
   ['trips', 'Trips'],
   ['fuel', 'Fuel'],
   ['maintenance', 'Maintenance'],
-  ['documents', 'Documents', 9],
+  ['documents', 'Documents'],
   ['rfid', 'RFID / Toll', 10],
   ['activity', 'Activity', 14],
 ]
@@ -150,6 +151,7 @@ export default function VehicleProfile() {
           : tab === 'trips' ? <TripsTab v={v} />
           : tab === 'fuel' ? <FuelTab v={v} />
           : tab === 'maintenance' ? <MaintenanceTab v={v} />
+          : tab === 'documents' ? <DocumentsTab v={v} />
           : (
             <div className="rounded-xl border border-dashed border-slate-300 bg-white p-10 text-center text-slate-500">
               {TABS.find(([k]) => k === tab)?.[1] ?? 'This section'} arrives in Phase {TABS.find(([k]) => k === tab)?.[2]}.

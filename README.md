@@ -97,6 +97,10 @@ Django session in an HttpOnly cookie plus CSRF token. The SPA calls `GET /api/au
 | `/api/maintenance-categories/` | list / create / update | reference list (unpaginated) |
 | `/api/fuel-records/summary/` | GET | count, liters, amount, average price for the same filters |
 | `/api/fuel-records/{id}/attachments/` | GET / POST / DELETE | receipt and PO scans |
+| `/api/documents/` | CRUD (no delete), multipart `file` | `?vehicle= &document_type=OR,CR &status=ACTIVE &band=EXPIRED\|7\|15\|30\|60\|VALID\|NONE &office= &search=`; soonest expiry first; detail includes `history` |
+| `/api/documents/{id}/renew/` | POST `{reference_number, issue_date, expiry_date, file?, remarks}` | new current document; the old one becomes `SUPERSEDED` (needs add + change) |
+| `/api/documents/{id}/cancel/` | POST `{reason}` | wrong entry: kept, stops alerting |
+| `/api/documents/summary/` | GET | current documents per expiry band and per type |
 | `/api/drivers/` | CRUD (no delete) | `?search= &office= &is_active= &license_status=VALID\|EXPIRING\|EXPIRED` |
 | `/api/drivers/{id}/photo/` | POST (multipart `photo`) / DELETE | needs `fleet.change_driver`; same rules as vehicle photos |
 | `/api/drivers/{id}/assignments/` | GET | the driver's vehicle history |

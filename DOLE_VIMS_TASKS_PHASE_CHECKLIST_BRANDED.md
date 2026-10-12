@@ -365,25 +365,25 @@ by configured date/odometer rules.
 
 # Phase 9 --- Documents, LTO, GSIS and Renewals
 
--   [ ] Document CRUD API
--   [ ] Document types
--   [ ] Reference number
--   [ ] Issue date
--   [ ] Expiration date
--   [ ] File upload
--   [ ] Vehicle documents tab
--   [ ] LTO records
--   [ ] GSIS/insurance records
--   [ ] OR/CR records
--   [ ] Expiration validation
--   [ ] 60-day alert
--   [ ] 30-day alert
--   [ ] 15-day alert
--   [ ] 7-day alert
--   [ ] Expired status
--   [ ] Renewal workflow
--   [ ] Preserve previous document history
--   [ ] Tests
+-   [x] Document CRUD API (`/api/documents/`, no DELETE; cancel a wrong entry)
+-   [x] Document types (LTO registration, OR, CR, GSIS insurance, insurance policy, deed, inspection, other)
+-   [x] Reference number
+-   [x] Issue date
+-   [x] Expiration date (required for LTO, OR, GSIS and insurance)
+-   [x] File upload (scanned PDF/image, content-checked; old scan deleted after replace)
+-   [x] Vehicle documents tab (current documents with renew, plus all records)
+-   [x] LTO records
+-   [x] GSIS/insurance records
+-   [x] OR/CR records
+-   [x] Expiration validation (expiry not before issue, issue not in the future, renewal must expire later)
+-   [x] 60-day alert (expiry band; in-app notifications come in Phase 11)
+-   [x] 30-day alert (expiry band; notification in Phase 11)
+-   [x] 15-day alert (expiry band; notification in Phase 11)
+-   [x] 7-day alert (expiry band; notification in Phase 11)
+-   [x] Expired status
+-   [x] Renewal workflow (`POST /documents/{id}/renew/`, one current document per vehicle and type)
+-   [x] Preserve previous document history (old version kept as Renewed; history timeline on the document page)
+-   [x] Tests (`fleet/test_documents.py`, band edges checked against the SQL filter)
 
 **Phase gate:** Renewing a document creates/preserves history and
 expiration alerts are accurate.

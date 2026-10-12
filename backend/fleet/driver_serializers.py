@@ -82,29 +82,34 @@ class AttachmentSerializer(serializers.ModelSerializer):
 ATTACHMENT_TYPES = {'.pdf', '.jpg', '.jpeg', '.png', '.webp'}
 
 
+def check_upload(f):
+    """PDF or image within ATTACHMENT_MAX_BYTES, checked by content (not just the extension)."""
+    limit = settings.ATTACHMENT_MAX_BYTES
+    if f.size > limit:
+        raise serializers.ValidationError(f'File must be {limit // (1024 * 1024)} MB or smaller.')
+    ext = os.path.splitext(f.name)[1].lower()
+    if ext not in ATTACHMENT_TYPES:
+        raise serializers.ValidationError('Only PDF, JPEG, PNG or WebP files are allowed.')
+    if ext == '.pdf':
+        ok = f.read(5) == b'%PDF-'
+    else:  # trust the bytes, not the extension
+        try:
+            Image.open(f).verify()
+            ok = True
+        except Exception:
+            ok = False
+    f.seek(0)
+    if not ok:
+        raise serializers.ValidationError('The file content does not match its type.')
+    return f
+
+
 class AttachmentUploadSerializer(serializers.Serializer):
     file = serializers.FileField()
     description = serializers.CharField(max_length=255, required=False, allow_blank=True, default='')
 
     def validate_file(self, f):
-        limit = settings.ATTACHMENT_MAX_BYTES
-        if f.size > limit:
-            raise serializers.ValidationError(f'File must be {limit // (1024 * 1024)} MB or smaller.')
-        ext = os.path.splitext(f.name)[1].lower()
-        if ext not in ATTACHMENT_TYPES:
-            raise serializers.ValidationError('Only PDF, JPEG, PNG or WebP files are allowed.')
-        if ext == '.pdf':
-            ok = f.read(5) == b'%PDF-'
-        else:  # trust the bytes, not the extension
-            try:
-                Image.open(f).verify()
-                ok = True
-            except Exception:
-                ok = False
-        f.seek(0)
-        if not ok:
-            raise serializers.ValidationError('The file content does not match its type.')
-        return f
+        return check_upload(f)
 
 
 class AssignmentSerializer(serializers.ModelSerializer):
