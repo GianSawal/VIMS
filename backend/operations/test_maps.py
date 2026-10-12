@@ -1,4 +1,4 @@
-"""Geoapify proxy: place search + driving route (service mocked), and the location/route saved on trips."""
+"""Map proxy (Geoapify and LocationIQ, services mocked): place search, driving route, and what trips save."""
 import io
 import json
 import urllib.error
@@ -23,7 +23,7 @@ ROUTE = {'features': [{'properties': {'distance': 36660, 'time': 1867.1},
 
 @pytest.fixture(autouse=True)
 def seed(settings):
-    settings.GEOAPIFY_API_KEY = 'test-key'
+    settings.MAPS_PROVIDER, settings.GEOAPIFY_API_KEY, settings.LOCATIONIQ_API_KEY = 'geoapify', 'test-key', ''
     call_command('seed_reference', stdout=io.StringIO())
 
 
@@ -112,10 +112,10 @@ def test_service_failures_become_friendly_errors(monkeypatch):
 
 def test_disabled_without_key_and_needs_trip_permission(settings, geo):
     assert as_role('Viewer').get('/api/maps/status/').status_code == 403
-    assert as_role('Fleet Administrator').get('/api/maps/status/').json() == {'enabled': True}
+    assert as_role('Fleet Administrator').get('/api/maps/status/').json() == {'enabled': True, 'provider': 'geoapify'}
     settings.GEOAPIFY_API_KEY = ''
     c = as_role('Fleet Administrator')
-    assert c.get('/api/maps/status/').json() == {'enabled': False}
+    assert c.get('/api/maps/status/').json() == {'enabled': False, 'provider': 'geoapify'}
     assert c.get('/api/maps/autocomplete/', {'q': 'royce'}).status_code == 503
     assert geo == []
 
@@ -146,3 +146,70 @@ def test_trip_saves_locations_route_and_estimate():
 def test_tv_display_does_not_expose_coordinates():
     from operations.serializers import DisplayTripSerializer
     assert not {'origin_lat', 'destination_lat', 'route_geometry'} & set(DisplayTripSerializer.Meta.fields)
+
+
+# ---------------------------------------------------------------- LocationIQ
+
+LIQ_ROUTE = {'routes': [{'distance': 20758.7, 'duration': 1617.8, 'geometry': {
+    'type': 'LineString', 'coordinates': [[120.657117, 15.064503], [120.6, 15.1], [120.530099, 15.180947]]}}]}
+
+
+@pytest.fixture
+def liq(settings, monkeypatch):
+    settings.MAPS_PROVIDER, settings.LOCATIONIQ_API_KEY = 'locationiq', 'pk.test'
+    calls = []
+
+    def fake_urlopen(req, timeout):
+        url = urllib.parse.urlparse(req.full_url)
+        q = dict(urllib.parse.parse_qsl(url.query))
+        calls.append({'path': url.path, 'q': q, 'url': req.full_url})
+        if url.path.endswith('/autocomplete'):
+            if q['q'].startswith('zzz'):  # LocationIQ answers "nothing found" with HTTP 404
+                raise urllib.error.HTTPError(req.full_url, 404, 'Unable to geocode', {}, io.BytesIO(b'{"error":"Unable to geocode"}'))
+            return FakeResponse(json.dumps([{'place_id': '331', 'display_place': 'Department of Labor and Employment',
+                                             'display_address': 'Diosdado Macapagal Government Center, San Fernando, Pampanga',
+                                             'lat': '15.0646288', 'lon': '120.6573293'}]).encode())
+        if url.path.endswith('/search'):
+            return FakeResponse(json.dumps([{'lat': '15.18', 'lon': '120.53'}]).encode())
+        return FakeResponse(json.dumps(LIQ_ROUTE).encode())
+
+    monkeypatch.setattr(maps.urllib.request, 'urlopen', fake_urlopen)
+    return calls
+
+
+def test_locationiq_autocomplete(liq):
+    c = as_role('Fleet Administrator')
+    r = c.get('/api/maps/autocomplete/', {'q': 'department of labor san fernando'})
+    assert r.json()['results'] == [{'place_id': '331', 'main': 'Department of Labor and Employment',
+                                    'secondary': 'Diosdado Macapagal Government Center, San Fernando, Pampanga',
+                                    'lat': 15.0646288, 'lon': 120.6573293}]
+    assert liq[0]['q']['countrycodes'] == 'ph' and liq[0]['q']['key'] == 'pk.test'
+    assert c.get('/api/maps/autocomplete/', {'q': 'zzz nowhere'}).json() == {'results': []}  # 404 = empty, not an error
+    assert c.get('/api/maps/status/').json() == {'enabled': True, 'provider': 'locationiq'}
+
+
+def test_locationiq_route_uses_lon_lat_order_and_geocodes_typed_text(liq):
+    r = as_role('Fleet Administrator').post('/api/maps/route/', {
+        'origin': {'lat': 15.0646288, 'lon': 120.6573293}, 'destination': {'address': 'Royce Hotel Clark'}}, format='json')
+    assert r.status_code == 200
+    body = r.json()
+    assert body['distance_km'] == 20.8 and body['duration_min'] == 27 and body['destination'] == [15.18, 120.53]
+    assert body['geometry'][0] == [15.0645, 120.65712]  # back to [lat, lng] for Leaflet
+    route_call = liq[-1]
+    assert '/driving/120.6573293,15.0646288;120.53,15.18?' in route_call['url']  # OSRM wants lon,lat
+    assert route_call['q']['geometries'] == 'geojson'
+
+
+def test_provider_defaults_to_locationiq_when_its_key_is_set(settings):
+    settings.MAPS_PROVIDER, settings.LOCATIONIQ_API_KEY, settings.GEOAPIFY_API_KEY = '', 'pk.x', 'g'
+    assert maps.provider() == 'locationiq'
+    settings.LOCATIONIQ_API_KEY = ''
+    assert maps.provider() == 'geoapify'
+
+
+def test_rate_limit_message(liq, monkeypatch):
+    def busy(req, timeout):
+        raise urllib.error.HTTPError(req.full_url, 429, 'Too Many Requests', {}, io.BytesIO(b''))
+    monkeypatch.setattr(maps.urllib.request, 'urlopen', busy)
+    r = as_role('Fleet Administrator').get('/api/maps/autocomplete/', {'q': 'royce'})
+    assert r.status_code == 502 and 'busy' in r.json()['detail']

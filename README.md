@@ -147,13 +147,20 @@ The board shows today's trips (scheduled, on trip, returned, cancelled) and the 
 every minute, pages long lists, flags delayed departures and overdue returns, and never receives passengers,
 purpose, remarks or odometer readings.
 
-## Trip map: place search, route and distance (Geoapify + OpenStreetMap)
+## Trip map: place search, route and distance (LocationIQ or Geoapify + OpenStreetMap)
 
 Optional. Without a key the trip forms use plain text boxes and still offer an "Open in OpenStreetMap" link.
 
-1. Create a free account at https://myprojects.geoapify.com, create a project and copy its API key.
-2. Put it in `backend/.env` as `GEOAPIFY_API_KEY=...` and restart Django. The key is used only by Django and never
-   sent to the browser. In the Geoapify project settings you can restrict it to the server's IP address.
+Two providers are supported; both use OpenStreetMap data. **LocationIQ is the default** because it finds Philippine
+government offices better (e.g. "Department of Labor and Employment, San Fernando"). Search by the office's full
+name; abbreviations like "DOLE RO III" are often not in the map data.
+
+1. Create a free account at https://locationiq.com (or https://myprojects.geoapify.com) and copy the access token.
+2. In `backend/.env` set `MAPS_PROVIDER=locationiq` and `LOCATIONIQ_API_KEY=...`
+   (or `MAPS_PROVIDER=geoapify` and `GEOAPIFY_API_KEY=...`), then restart Django. Keys are used only by Django and
+   never sent to the browser. Restrict them to the server's IP / referrer in the provider's dashboard.
+3. LocationIQ's free plan allows about 2 requests per second; the form debounces typing and shows a friendly
+   "busy" message if the limit is hit.
 
 How it works: the schedule/dispatch form searches places through `GET /api/maps/autocomplete/?q=` (Philippines only)
 and, once origin and destination are picked, calls `POST /api/maps/route/` `{origin: {lat, lon} | {address},
@@ -163,5 +170,5 @@ destination: ...}`. The response (one-way `distance_km`, `duration_min`, `origin
 Both endpoints need `operations.add_trip` and are rate-limited (120/min per user). `GET /api/maps/status/` tells the
 UI whether maps are on. The trip page redraws the saved route without calling Geoapify again.
 
-Attribution (shown on the map, required): "© OpenStreetMap contributors" and "Routing Geoapify". OpenStreetMap's
+Attribution (shown on the map, required): "© OpenStreetMap contributors" and the active provider (LocationIQ or Geoapify). OpenStreetMap's
 public tile server is fine for light internal use; switch tile provider if usage grows.

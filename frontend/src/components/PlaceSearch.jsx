@@ -4,16 +4,19 @@ import { Loader2, MapPin } from 'lucide-react'
 import { api, errorMessage } from '../api'
 import { inputClass } from './ui'
 
-/** Is the server-side map service configured? (GEOAPIFY_API_KEY in backend/.env) */
-export function useMapsEnabled() {
-  const q = useQuery({
+/** Map service status from the server: { enabled, provider } (keys live in backend/.env). */
+export function useMapsStatus() {
+  return useQuery({
     queryKey: ['/maps/status/'],
-    queryFn: () => api.get('/maps/status/').then((r) => r.data.enabled),
+    queryFn: () => api.get('/maps/status/').then((r) => r.data),
     staleTime: 10 * 60 * 1000,
     retry: false,
-  })
-  return q.data === true
+  }).data ?? { enabled: false, provider: null }
 }
+
+export const useMapsEnabled = () => useMapsStatus().enabled === true
+
+export const PROVIDER_NAME = { locationiq: 'LocationIQ', geoapify: 'Geoapify' }
 
 /** OpenStreetMap directions link (free, no key). Uses coordinates when known, else a search for the text. */
 export function mapsLink(origin, destination) {
@@ -26,7 +29,7 @@ export function mapsLink(origin, destination) {
 export const EMPTY_PLACE = { text: '', place_id: null, lat: null, lon: null }
 
 /**
- * Text input with place suggestions (Geoapify, Philippines). Works as a plain input when maps are off.
+ * Text input with place suggestions (LocationIQ or Geoapify, Philippines). Works as a plain input when maps are off.
  * value: { text, place_id, lat, lon }  onChange(next value)
  */
 export default function PlaceSearch({ id, value, onChange, enabled, placeholder, invalid, describedBy }) {
@@ -37,6 +40,7 @@ export default function PlaceSearch({ id, value, onChange, enabled, placeholder,
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const typed = useRef(false)
+  const { provider } = useMapsStatus()
 
   useEffect(() => {
     const q = value.text.trim()
@@ -87,7 +91,7 @@ export default function PlaceSearch({ id, value, onChange, enabled, placeholder,
               <span><span className="block font-medium text-ink">{it.main}</span><span className="block text-xs text-slate-500">{it.secondary}</span></span>
             </li>
           ))}
-          <li className="px-3 pt-1 text-right text-[10px] text-slate-400" aria-hidden="true">Powered by Geoapify</li>
+          <li className="px-3 pt-1 text-right text-[10px] text-slate-400" aria-hidden="true">Search by {PROVIDER_NAME[provider] ?? 'the map service'}</li>
         </ul>
       )}
       {error && <p className="mt-1 text-xs text-amber-700">{error}</p>}

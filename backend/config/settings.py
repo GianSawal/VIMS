@@ -91,7 +91,10 @@ MEDIA_ROOT = env.path('MEDIA_ROOT', default=BASE_DIR / 'media')
 FILE_UPLOAD_MAX_MEMORY_SIZE = env.int('FILE_UPLOAD_MAX_BYTES', default=5 * 1024 * 1024)
 VEHICLE_PHOTO_MAX_BYTES = env.int('VEHICLE_PHOTO_MAX_BYTES', default=5 * 1024 * 1024)
 ATTACHMENT_MAX_BYTES = env.int('ATTACHMENT_MAX_BYTES', default=10 * 1024 * 1024)
-# Server-side Geoapify key (place search + routing on OpenStreetMap data). Empty = maps turned off.
+# Trip map (place search + routing on OpenStreetMap data), server-side keys. Empty = maps turned off.
+# MAPS_PROVIDER: locationiq | geoapify (default: locationiq when its key is set).
+MAPS_PROVIDER = env('MAPS_PROVIDER', default='')
+LOCATIONIQ_API_KEY = env('LOCATIONIQ_API_KEY', default='')
 GEOAPIFY_API_KEY = env('GEOAPIFY_API_KEY', default='')
 # A preventive-maintenance schedule is "due soon" within this many days / km of its due point.
 MAINTENANCE_DUE_SOON_DAYS = env.int('MAINTENANCE_DUE_SOON_DAYS', default=30)

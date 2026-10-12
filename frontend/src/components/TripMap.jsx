@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { MapContainer, Marker, Polyline, TileLayer, Tooltip, useMap } from 'react-leaflet'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
+import { PROVIDER_NAME, useMapsStatus } from './PlaceSearch'
 
 // Pins drawn as inline SVG (Leaflet's default PNG markers break under Vite and don't match the theme).
 const pin = (color, letter) => L.divIcon({
@@ -29,6 +30,9 @@ function FitBounds({ points }) {
  * origin/destination: [lat, lng] or null; route: [[lat, lng], ...] or null; labels for the pin tooltips.
  */
 export default function TripMap({ origin, destination, route, originLabel, destinationLabel, className = 'h-64 sm:h-80' }) {
+  const { provider } = useMapsStatus()
+  const links = { locationiq: 'https://locationiq.com/', geoapify: 'https://www.geoapify.com/' }
+  const credit = provider ? ` | Routing <a href="${links[provider]}">${PROVIDER_NAME[provider]}</a>` : ''
   const points = route?.length ? route : [origin, destination].filter(Boolean)
   const center = points[0] ?? [15.03, 120.69] // Region III fallback
   return (
@@ -37,7 +41,7 @@ export default function TripMap({ origin, destination, route, originLabel, desti
       <MapContainer center={center} zoom={11} scrollWheelZoom={false} className="h-full w-full">
         <TileLayer
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors | Routing <a href="https://www.geoapify.com/">Geoapify</a>' />
+          attribution={`&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors${credit}`} />
         {route?.length > 1 && <Polyline positions={route} pathOptions={{ color: ROUTE_COLOR, weight: 5, opacity: 0.85 }} />}
         {origin && <Marker position={origin} icon={ORIGIN_PIN}><Tooltip>From: {originLabel}</Tooltip></Marker>}
         {destination && <Marker position={destination} icon={DESTINATION_PIN}><Tooltip>To: {destinationLabel}</Tooltip></Marker>}
