@@ -28,3 +28,20 @@ export const km = (v) => (v == null ? '—' : `${num.format(v)} km`)
 
 const dt = new Intl.DateTimeFormat('en-PH', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
 export const shortDateTime = (v) => (v ? dt.format(new Date(v)) : '—')
+
+// ---- availability (mirrors operations/trips.py: booking_window / _check_booking / _check_reserved) ----
+
+export const endOfDay = (d) => { const e = new Date(d); e.setHours(23, 59, 59, 999); return e }
+const timeOnly = new Intl.DateTimeFormat('en-PH', { hour: 'numeric', minute: '2-digit' })
+
+/** A booking holds [departure, expected return], or the rest of its departure day when no return is given. */
+export function bookingWindow(b) {
+  const s = new Date(b.scheduled_departure)
+  return [s, b.scheduled_return ? new Date(b.scheduled_return) : endOfDay(s)]
+}
+
+export function bookingLabel(b) {
+  const [s, e] = bookingWindow(b)
+  const end = b.scheduled_return ? timeOnly.format(e) : 'end of day'
+  return `${timeOnly.format(s)} – ${end} (${b.ticket_number})`
+}

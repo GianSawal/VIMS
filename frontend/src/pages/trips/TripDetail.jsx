@@ -12,7 +12,8 @@ import { Button, Field, formatDateTime, inputClass, Modal } from '../../componen
 import { useToast } from '../../components/toast'
 import { NotFound } from '../Errors'
 import { useAllOffices } from '../admin/Offices'
-import { fromLocalInput, km, toLocalInput, tripDuration, TripStatusBadge } from './common'
+import { bookingLabel, fromLocalInput, km, toLocalInput, tripDuration, TripStatusBadge } from './common'
+import { useAvailability } from './DispatchForm'
 import { odometerField, parseKm } from '../vehicles/common'
 
 export default function TripDetail() {
@@ -420,7 +421,7 @@ const rescheduleSchema = z.object({
 function RescheduleForm({ trip, onClose }) {
   const vehicles = useList('/vehicles/', { page_size: 500 })
   const drivers = useList('/drivers/', { page_size: 500, is_active: true })
-  const { register, handleSubmit, setError, formState: { errors } } = useForm({
+  const { register, handleSubmit, setError, watch, formState: { errors } } = useForm({
     resolver: zodResolver(rescheduleSchema),
     defaultValues: {
       vehicle: String(trip.vehicle), driver: String(trip.driver),
@@ -428,6 +429,10 @@ function RescheduleForm({ trip, onClose }) {
       scheduled_return: trip.scheduled_return ? toLocalInput(trip.scheduled_return) : '',
     },
   })
+  const when = (name) => (watch(name) ? new Date(watch(name)) : null)
+  const avail = useAvailability({ start: when('scheduled_departure'), end: when('scheduled_return'), excludeId: trip.id })
+  const vehicleBusy = avail.vehicleClash(watch('vehicle'))
+  const driverBusy = avail.driverClash(watch('driver'))
   const [save, error] = useTripMutation(trip, 'reschedule', 'Trip rescheduled.', onClose, setError, Object.keys(rescheduleSchema.shape))
   return (
     <form noValidate className="grid gap-4 sm:grid-cols-2" onSubmit={handleSubmit((v) => save.mutate({
@@ -438,8 +443,8 @@ function RescheduleForm({ trip, onClose }) {
       <Field label="Vehicle *" htmlFor="vehicle" error={errors.vehicle?.message}>
         <select id="vehicle" className={inputClass} {...register('vehicle')}>
           {vehicles.data?.results.map((v) => (
-            <option key={v.id} value={v.id} disabled={['UNSERVICEABLE', 'DISPOSED'].includes(v.status)}>
-              {v.plate_number} · {v.make} {v.model}{v.status === 'SERVICEABLE' ? '' : ` (${v.status_display})`}
+            <option key={v.id} value={v.id} disabled={['UNSERVICEABLE', 'DISPOSED'].includes(v.status) || !!avail.vehicleClash(v.id)}>
+              {v.plate_number} · {v.make} {v.model}{avail.vehicleClash(v.id) ? ` – booked ${bookingLabel(avail.vehicleClash(v.id))}` : v.status === 'SERVICEABLE' ? '' : ` (${v.status_display})`}
             </option>
           )) ?? <option value={trip.vehicle}>{trip.plate_number}</option>}
         </select>
@@ -447,7 +452,9 @@ function RescheduleForm({ trip, onClose }) {
       <Field label="Driver *" htmlFor="driver" error={errors.driver?.message}>
         <select id="driver" className={inputClass} {...register('driver')}>
           {drivers.data?.results.map((d) => (
-            <option key={d.id} value={d.id} disabled={d.license_status === 'EXPIRED'}>{d.full_name} ({d.office_code})</option>
+            <option key={d.id} value={d.id} disabled={d.license_status === 'EXPIRED' || !!avail.driverClash(d.id)}>
+              {d.full_name} ({d.office_code}){avail.driverClash(d.id) ? ` – booked ${bookingLabel(avail.driverClash(d.id))}` : ''}
+            </option>
           )) ?? <option value={trip.driver}>{trip.driver_name}</option>}
         </select>
       </Field>
@@ -457,6 +464,12 @@ function RescheduleForm({ trip, onClose }) {
       <Field label="Expected return" htmlFor="scheduled_return" error={errors.scheduled_return?.message}>
         <input id="scheduled_return" type="datetime-local" className={inputClass} {...register('scheduled_return')} />
       </Field>
+      {(vehicleBusy || driverBusy) && (
+        <div role="alert" className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-danger sm:col-span-2">
+          {vehicleBusy && <p>Vehicle unavailable at this time: booked {bookingLabel(vehicleBusy)}.</p>}
+          {driverBusy && <p>Driver unavailable at this time: booked {bookingLabel(driverBusy)}.</p>}
+        </div>
+      )}
       <div className="flex justify-end gap-2 sm:col-span-2">
         <Button variant="secondary" onClick={onClose}>Back</Button>
         <Button type="submit" disabled={save.isPending}>{save.isPending ? 'Saving…' : 'Reschedule'}</Button>

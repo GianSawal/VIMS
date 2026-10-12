@@ -7,7 +7,7 @@ import { api, applyFieldErrors, invalidatePrefix, useList } from '../../api'
 import { Button, Field, inputClass } from '../../components/ui'
 import { useToast } from '../../components/toast'
 import { useAllOffices } from '../admin/Offices'
-import { fromLocalInput, km, toLocalInput } from './common'
+import { bookingLabel, bookingWindow, endOfDay, fromLocalInput, km, toLocalInput } from './common'
 import { odometerField } from '../vehicles/common'
 
 const DISPATCHABLE = ['SERVICEABLE', 'IN_USE']
@@ -40,6 +40,34 @@ const schemas = {
 
 // Tomorrow 8:00 AM, a sensible default for a booking.
 const tomorrowAt8 = () => { const d = new Date(); d.setDate(d.getDate() + 1); d.setHours(8, 0, 0, 0); return toLocalInput(d) }
+
+const isoDay = (d) => d.toLocaleDateString('en-CA')
+const validDate = (d) => d instanceof Date && !isNaN(d)
+
+/**
+ * Which vehicles/drivers are already booked for a time. Pass {start, end} for a booking window
+ * (end empty = rest of that day) or {point} for "leaving now". Mirrors the server's rules; the server decides.
+ */
+export function useAvailability({ start, end, point, excludeId }) {
+  const from = point ?? start
+  const ok = validDate(from)
+  const to = validDate(end) ? end : from
+  const q = useList('/trips/', ok
+    ? { status: 'SCHEDULED', date_from: isoDay(new Date(from.getTime() - 7 * 864e5)), date_to: isoDay(to), page_size: 500 }
+    : { status: 'SCHEDULED', page_size: 1 })
+  const bookings = ok ? (q.data?.results ?? []).filter((b) => b.id !== excludeId) : []
+  const windowEnd = validDate(end) ? end : ok ? endOfDay(from) : null
+  const hits = (b) => {
+    const [os, oe] = bookingWindow(b)
+    return point ? os <= point && point < oe : os < windowEnd && from < oe
+  }
+  const clash = (key, id) => bookings.find((b) => b[key] === Number(id) && hits(b))
+  return {
+    vehicleClash: (id) => clash('vehicle', id),
+    driverClash: (id) => clash('driver', id),
+    vehicleDay: (id) => bookings.filter((b) => b.vehicle === Number(id) && isoDay(new Date(b.scheduled_departure)) === isoDay(from)),
+  }
+}
 
 /**
  * Modal body. mode="dispatch": the vehicle leaves now (odometer required).
@@ -99,6 +127,13 @@ export default function DispatchForm({ vehicle, mode = 'dispatch', onClose, onSa
   const vehicleField = register('vehicle')
 
   const chosenDriver = drivers.data?.results.find((d) => String(d.id) === watch('driver'))
+  const when = (name) => (watch(name) ? new Date(watch(name)) : null)
+  const avail = useAvailability(scheduling
+    ? { start: when('scheduled_departure'), end: when('scheduled_return') }
+    : { point: when('departed_at') })
+  const vehicleBusy = chosen && avail.vehicleClash(chosen.id)
+  const driverBusy = chosenDriver && avail.driverClash(chosenDriver.id)
+  const dayBookings = chosen ? avail.vehicleDay(chosen.id) : []
 
   return (
     <form noValidate className="space-y-5" onSubmit={handleSubmit(submit)}>
@@ -121,8 +156,8 @@ export default function DispatchForm({ vehicle, mode = 'dispatch', onClose, onSa
               }}>
               <option value="">Select a vehicle…</option>
               {vehicles.data?.results.map((v) => (
-                <option key={v.id} value={v.id} disabled={!usable(v)}>
-                  {v.plate_number} · {v.make} {v.model}{v.status === 'SERVICEABLE' ? '' : ` (${v.status_display})`}
+                <option key={v.id} value={v.id} disabled={!usable(v) || !!avail.vehicleClash(v.id)}>
+                  {v.plate_number} · {v.make} {v.model}{avail.vehicleClash(v.id) ? ` – booked ${bookingLabel(avail.vehicleClash(v.id))}` : v.status === 'SERVICEABLE' ? '' : ` (${v.status_display})`}
                 </option>
               ))}
             </select>
@@ -133,8 +168,8 @@ export default function DispatchForm({ vehicle, mode = 'dispatch', onClose, onSa
           <select id="driver" className={inputClass} {...register('driver')}>
             <option value="">Select a driver…</option>
             {drivers.data?.results.map((d) => (
-              <option key={d.id} value={d.id} disabled={d.license_status === 'EXPIRED'}>
-                {d.full_name} ({d.office_code}){d.license_status === 'EXPIRED' ? ' – license expired' : d.license_status === 'EXPIRING' ? ' – license expiring' : ''}
+              <option key={d.id} value={d.id} disabled={d.license_status === 'EXPIRED' || !!avail.driverClash(d.id)}>
+                {d.full_name} ({d.office_code}){avail.driverClash(d.id) ? ` – booked ${bookingLabel(avail.driverClash(d.id))}` : d.license_status === 'EXPIRED' ? ' – license expired' : d.license_status === 'EXPIRING' ? ' – license expiring' : ''}
               </option>
             ))}
           </select>
@@ -144,6 +179,19 @@ export default function DispatchForm({ vehicle, mode = 'dispatch', onClose, onSa
             <span><span className="text-slate-500">Status</span> <strong className="font-medium">{chosen.status_display}</strong></span>
             <span><span className="text-slate-500">Office</span> <strong className="font-medium">{chosen.office_code}</strong></span>
             <span><span className="text-slate-500">Odometer</span> <strong className="font-medium tabular-nums">{km(chosen.current_odometer)}</strong></span>
+          </div>
+        )}
+        {(vehicleBusy || driverBusy) && (
+          <div role="alert" className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-danger sm:col-span-2">
+            {vehicleBusy && <p>Vehicle unavailable at this time: booked {bookingLabel(vehicleBusy)}.</p>}
+            {driverBusy && <p>Driver unavailable at this time: booked {bookingLabel(driverBusy)}.</p>}
+            <p className="text-xs">Pick another time{vehicle ? '' : ', vehicle'} or driver.</p>
+          </div>
+        )}
+        {!vehicleBusy && dayBookings.length > 0 && (
+          <div className="rounded-lg bg-slate-50 px-3 py-2 text-sm text-slate-600 sm:col-span-2">
+            <span className="font-medium text-ink">{chosen.plate_number} is also booked that day:</span>{' '}
+            {dayBookings.map(bookingLabel).join(' · ')}
           </div>
         )}
       </Section>

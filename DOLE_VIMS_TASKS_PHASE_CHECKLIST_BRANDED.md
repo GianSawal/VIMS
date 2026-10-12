@@ -278,7 +278,7 @@ correctly and preserves history.
 ## Trip scheduling
 
 -   [x] "Scheduled" trip status: book a vehicle and driver for a future date/time (no odometer at booking)
--   [x] Prevent double-booking a vehicle or driver in overlapping schedules (no expected return = holds the rest of that day)
+-   [x] Prevent double-booking a vehicle or driver in overlapping schedules (no expected return = holds the rest of that day; "Dispatch now" is also blocked inside someone's booking; forms show booked vehicles/drivers as unavailable)
 -   [x] Dispatch a scheduled trip (scheduled → dispatched) and cancel/reschedule it (dispatch only on the scheduled day, entering the current odometer; missed bookings must be rescheduled)
 -   [x] Schedule calendar/list view in the Trips page (Scheduled status card, "Leaving today" board; calendar view not built)
 -   [x] Audit scheduling, rescheduling and cancellation

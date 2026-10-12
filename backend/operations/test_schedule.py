@@ -227,3 +227,21 @@ def test_display_flags_delayed_departure(vehicle, driver):
         pytest.skip('just after midnight; the booking fell on yesterday')
     rows = display(DisplayScreen.objects.create(name='Lobby').token).json()['today']
     assert rows[0]['flag'] == 'DELAYED'
+
+
+def test_dispatch_now_blocked_inside_someone_elses_booking(vehicle, driver, fo1):
+    c = as_role('Fleet Administrator')
+    now = timezone.now()
+    booked = make_scheduled(vehicle, driver, now - timedelta(minutes=30), now + timedelta(hours=2))
+    walk_in_driver, walk_in_vehicle = make_driver(fo1, 'Juan', 'L-2'), make_vehicle(fo1, 'SCH 2')
+    body = {'origin': 'RO', 'destination': 'X', 'purpose': 'Errand', 'departed_at': now.isoformat(), 'odometer_start': 20000}
+    r = c.post('/api/trips/', {**body, 'vehicle': vehicle.pk, 'driver': walk_in_driver.pk}, format='json')
+    assert r.status_code == 400 and f'reserved for {booked.ticket_number}' in r.json()['vehicle'][0]
+    r = c.post('/api/trips/', {**body, 'vehicle': walk_in_vehicle.pk, 'driver': driver.pk, 'odometer_start': 0}, format='json')
+    assert r.status_code == 400 and 'reserved' in r.json()['driver'][0]
+    # once the booking window is over, the vehicle is free for a walk-in trip
+    booked.scheduled_return = now - timedelta(minutes=1)
+    booked.scheduled_departure = now - timedelta(hours=3)
+    booked.save()
+    r = c.post('/api/trips/', {**body, 'vehicle': vehicle.pk, 'driver': walk_in_driver.pk}, format='json')
+    assert r.status_code == 201, r.json()

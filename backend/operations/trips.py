@@ -12,6 +12,7 @@ import uuid
 from datetime import datetime, time, timedelta
 
 from django.db import transaction
+from django.db.models import Q
 from django.utils import timezone
 from rest_framework import serializers
 
@@ -118,6 +119,18 @@ def _check_booking(vehicle, driver, start, end, exclude=None):
                 _fail('driver', f'This driver is already booked on {other.ticket_number} ({when}).')
 
 
+def _check_reserved(vehicle, driver, at, exclude=None):
+    """A vehicle or driver inside someone's booked window can't be taken out by another trip."""
+    bookings = Trip.objects.filter(status=Trip.Status.SCHEDULED, scheduled_departure__lte=at).filter(
+        Q(vehicle=vehicle) | Q(driver=driver)).exclude(pk=exclude)
+    for b in bookings:
+        start, end = booking_window(b.scheduled_departure, b.scheduled_return)
+        if start <= at < end:
+            span = f"{timezone.localtime(start):%I:%M %p} – {timezone.localtime(end):%I:%M %p}".replace(' 11:59 PM', ' end of day')
+            who = 'vehicle' if b.vehicle_id == vehicle.pk else 'driver'
+            _fail(who, f'This {who} is reserved for {b.ticket_number} ({span}). Dispatch that booking or reschedule it first.')
+
+
 def schedule(*, user, vehicle, driver, scheduled_departure, scheduled_return=None, ticket_number='', **fields):
     """Book a trip ahead. No odometer yet: it is read on the day, at dispatch."""
     _check_scope(user, vehicle, driver)
@@ -171,6 +184,7 @@ def dispatch_scheduled(trip, *, odometer_start, departed_at=None):
         if timezone.localtime(departed_at).date() != today:
             _fail('departed_at', 'The departure must be today.')
         _check_departure(vehicle, trip.driver, departed_at, odometer_start, exclude=trip.pk)
+        _check_reserved(vehicle, trip.driver, departed_at, exclude=trip.pk)
         trip.status, trip.departed_at, trip.odometer_start = Trip.Status.DISPATCHED, departed_at, odometer_start
         trip.save()
         _mark_in_use(vehicle)
@@ -186,6 +200,7 @@ def dispatch(*, user, vehicle, driver, departed_at, odometer_start, ticket_numbe
     with transaction.atomic():
         vehicle = _lock_vehicle(vehicle.pk)
         _check_departure(vehicle, driver, departed_at, odometer_start)
+        _check_reserved(vehicle, driver, departed_at)
         trip = Trip.objects.create(
             ticket_number=ticket or f'PENDING-{uuid.uuid4().hex}', vehicle=vehicle, driver=driver,
             departed_at=departed_at, odometer_start=odometer_start, created_by=user, **fields)
