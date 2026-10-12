@@ -19,6 +19,7 @@ class TripSerializer(serializers.ModelSerializer):
     vehicle_label = serializers.SerializerMethodField()
     office_code = serializers.CharField(source='vehicle.office.code', read_only=True)
     vehicle_photo_url = serializers.SerializerMethodField()
+    driver_photo_url = serializers.SerializerMethodField()
     driver_name = serializers.CharField(source='driver.full_name', read_only=True)
     requesting_office = serializers.PrimaryKeyRelatedField(queryset=Office.objects.all(), required=False, allow_null=True)
     requesting_office_name = serializers.CharField(source='requesting_office.name', read_only=True, default=None)
@@ -27,7 +28,7 @@ class TripSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Trip
-        fields = ['id', 'ticket_number', 'vehicle', 'plate_number', 'vehicle_label', 'office_code', 'vehicle_photo_url', 'driver',
+        fields = ['id', 'ticket_number', 'vehicle', 'plate_number', 'vehicle_label', 'office_code', 'vehicle_photo_url', 'driver_photo_url', 'driver',
                   'driver_name', 'requesting_office', 'requesting_office_name', 'passengers', 'origin', 'destination',
                   'purpose', 'scheduled_departure', 'scheduled_return', 'schedule_day', 'departed_at', 'returned_at',
                   'odometer_start', 'odometer_end', 'distance_km', 'status', 'status_display', 'remarks',
@@ -39,6 +40,9 @@ class TripSerializer(serializers.ModelSerializer):
 
     def get_vehicle_photo_url(self, t):
         return t.vehicle.photo.url if t.vehicle.photo else None
+
+    def get_driver_photo_url(self, t):
+        return t.driver.photo.url if t.driver.photo else None
 
     def get_schedule_day(self, t):
         if t.status != Trip.Status.SCHEDULED:

@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
-import { CalendarClock, CalendarPlus, CircleCheck, CircleSlash, Clock, MapPin, Milestone, Navigation, Plus, Route as RouteIcon, UserRound } from 'lucide-react'
+import { CalendarClock, CalendarPlus, CircleCheck, CircleSlash, Clock, MapPin, Milestone, Navigation, Plus, Route as RouteIcon } from 'lucide-react'
 import { useList } from '../../api'
 import { useCan, useMe } from '../../auth'
 import DataTable from '../../components/DataTable'
 import DateChip from '../../components/DateChip'
-import { CardGrid, SearchBox, selectClass, StatCard, Toolbar } from '../../components/filters'
+import { Avatar, CardGrid, SearchBox, selectClass, StatCard, Toolbar } from '../../components/filters'
 import { Button, Modal, PageHeader } from '../../components/ui'
 import { useAllOffices } from '../admin/Offices'
 import { VehiclePhoto } from '../vehicles/common'
@@ -23,6 +23,23 @@ const CARDS = {
 const card = (t) => ({ icon: CARDS[t][0], tint: CARDS[t][1], label: CARDS[t][2] })
 
 const clock = new Intl.DateTimeFormat('en-PH', { hour: 'numeric', minute: '2-digit' })
+
+/** Vehicle photo and driver (photo or initials) for the live trip cards. */
+function TripIdentity({ t }) {
+  return (
+    <div className="flex gap-3">
+      <VehiclePhoto vehicle={{ photo_url: t.vehicle_photo_url, plate_number: t.plate_number, make: '', model: t.vehicle_label }} className="w-28 shrink-0 border border-slate-200" />
+      <div className="min-w-0 flex-1">
+        <div className="font-semibold tracking-wide">{t.plate_number}</div>
+        <div className="truncate text-xs text-slate-500">{t.vehicle_label}</div>
+        <div className="mt-2 flex items-center gap-2">
+          <Avatar name={t.driver_name} src={t.driver_photo_url} className="h-8! w-8! text-xs" />
+          <span className="min-w-0"><span className="block text-[11px] leading-none text-slate-500">Driver</span><span className="block truncate text-sm font-medium">{t.driver_name}</span></span>
+        </div>
+      </div>
+    </div>
+  )
+}
 
 /** What happened / happens at what time, in words, for the "When" column. */
 function whenText(t) {
@@ -64,11 +81,11 @@ export function tripColumns({ withVehicle = true } = {}) {
         <div className="min-w-0">
           <div className="font-semibold tracking-wide">{t.plate_number}</div>
           <div className="truncate text-xs text-slate-500">{t.vehicle_label}</div>
-          <div className="flex items-center gap-1 truncate text-xs text-slate-600"><UserRound size={12} aria-hidden="true" />{t.driver_name}</div>
+          <div className="mt-1 flex items-center gap-1.5 truncate text-xs text-slate-600"><Avatar name={t.driver_name} src={t.driver_photo_url} className="h-5! w-5! text-[9px]" />{t.driver_name}</div>
         </div>
       </div>
     ) }] : [{ key: 'driver', label: 'Driver', render: (t) => (
-      <span className="flex items-center gap-1.5"><UserRound size={14} className="text-slate-400" aria-hidden="true" />{t.driver_name}</span>
+      <span className="flex items-center gap-2"><Avatar name={t.driver_name} src={t.driver_photo_url} className="h-7! w-7! text-[10px]" />{t.driver_name}</span>
     ) }]),
     { key: 'route', label: 'Route', render: (t) => (
       <ol className="relative max-w-64 space-y-1 pl-4 text-sm" aria-label={`From ${t.origin} to ${t.destination}`}>
@@ -118,13 +135,13 @@ function LeavingToday({ canChange }) {
       <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
         {rows.map((t) => (
           <article key={t.id} className="flex flex-col rounded-xl border border-l-4 border-slate-200 border-l-amber-500 bg-white p-4 shadow-sm">
-            <div className="flex items-start justify-between gap-2">
-              <div>
-                <div className="text-lg font-semibold tabular-nums">{new Date(t.scheduled_departure).toLocaleTimeString('en-PH', { hour: 'numeric', minute: '2-digit' })}</div>
-                <div className="font-medium">{t.plate_number} <span className="font-normal text-slate-500">· {t.driver_name}</span></div>
+            <div className="mb-3 flex items-center justify-between gap-2">
+              <div className="flex items-center gap-1.5 text-lg font-semibold text-amber-700 tabular-nums">
+                <Clock size={16} aria-hidden="true" />{new Date(t.scheduled_departure).toLocaleTimeString('en-PH', { hour: 'numeric', minute: '2-digit' })}
               </div>
               <Link to={`/trips/${t.id}`} className="font-mono text-xs font-semibold text-brand hover:underline">{t.ticket_number}</Link>
             </div>
+            <TripIdentity t={t} />
             <p className="mt-2 truncate text-sm" title={t.destination}><span className="text-slate-500">To</span> {t.destination}</p>
             {canChange && (
               <div className="mt-3 border-t border-slate-100 pt-3">
@@ -165,13 +182,11 @@ function OpenTrips({ canChange, onViewAll }) {
           const long = (now - new Date(t.departed_at)) / 36e5 > LONG_TRIP_HOURS
           return (
             <article key={t.id} className={`flex flex-col rounded-xl border border-l-4 bg-white p-4 shadow-sm ${long ? 'border-amber-300 border-l-amber-500' : 'border-slate-200 border-l-brand'}`}>
-              <div className="flex items-start justify-between gap-2">
-                <div>
-                  <div className="font-semibold">{t.plate_number}</div>
-                  <div className="text-xs text-slate-500">{t.vehicle_label} · {t.driver_name}</div>
-                </div>
+              <div className="mb-3 flex items-center justify-between gap-2">
+                <span className="text-xs font-semibold tracking-wider text-brand uppercase">On trip</span>
                 <Link to={`/trips/${t.id}`} className="font-mono text-xs font-semibold text-brand hover:underline">{t.ticket_number}</Link>
               </div>
+              <TripIdentity t={t} />
               <p className="mt-2 truncate text-sm" title={t.destination}><span className="text-slate-500">To</span> {t.destination}</p>
               <div className="mt-3 flex items-center gap-2 border-t border-slate-100 pt-3 text-sm">
                 <Clock size={15} className={long ? 'text-amber-600' : 'text-slate-400'} aria-hidden="true" />

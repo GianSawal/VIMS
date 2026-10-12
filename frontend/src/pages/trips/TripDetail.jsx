@@ -4,7 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { Link, useParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowDown, CalendarClock, CalendarX, Check, CircleCheck, Clock, Gauge, MapPin, Navigation, Pencil, Repeat, UserRound, Users, X, XCircle } from 'lucide-react'
+import { ArrowDown, CalendarClock, CalendarX, Check, CircleCheck, Clock, Gauge, MapPin, Navigation, Pencil, Repeat, Users, X, XCircle } from 'lucide-react'
 import { api, applyFieldErrors, errorMessage, invalidatePrefix, useList } from '../../api'
 import { useCan } from '../../auth'
 import Attachments from '../../components/Attachments'
@@ -14,7 +14,8 @@ import { NotFound } from '../Errors'
 import { useAllOffices } from '../admin/Offices'
 import { bookingLabel, fromLocalInput, km, toLocalInput, tripDuration, TripStatusBadge } from './common'
 import { useAvailability } from './DispatchForm'
-import { odometerField, parseKm } from '../vehicles/common'
+import { odometerField, parseKm, VehiclePhoto } from '../vehicles/common'
+import { Avatar } from '../../components/filters'
 
 export default function TripDetail() {
   const { id } = useParams()
@@ -116,9 +117,15 @@ export default function TripDetail() {
 
         <div className="space-y-4">
           <Card title="Vehicle and driver">
-            <dl className="space-y-3 text-sm">
-              <Item label="Vehicle" value={<Link to={`/vehicles/${t.vehicle}`} className="font-medium text-brand hover:underline">{t.plate_number}</Link>} hint={`${t.vehicle_label} · ${t.office_code}`} />
-              <Item label="Driver" icon={UserRound} value={<Link to={`/drivers/${t.driver}`} className="font-medium text-brand hover:underline">{t.driver_name}</Link>} />
+            <Link to={`/vehicles/${t.vehicle}`} className="block" aria-label={`Open vehicle ${t.plate_number}`}>
+              <VehiclePhoto vehicle={{ photo_url: t.vehicle_photo_url, plate_number: t.plate_number, make: '', model: t.vehicle_label }} className="border border-slate-200" />
+            </Link>
+            <dl className="mt-4 space-y-4 text-sm">
+              <Item label="Vehicle" value={<Link to={`/vehicles/${t.vehicle}`} className="font-semibold text-brand hover:underline">{t.plate_number}</Link>} hint={`${t.vehicle_label} · ${t.office_code}`} />
+              <div className="flex items-center gap-3">
+                <Avatar name={t.driver_name} src={t.driver_photo_url} className="h-12! w-12! text-base" />
+                <div><dt className="text-xs text-slate-500">Driver</dt><dd><Link to={`/drivers/${t.driver}`} className="font-semibold text-brand hover:underline">{t.driver_name}</Link></dd></div>
+              </div>
               <Item label="Requesting office" value={t.requesting_office_name ?? '—'} />
             </dl>
           </Card>
