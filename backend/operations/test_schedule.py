@@ -211,7 +211,7 @@ def test_display_shows_today_and_upcoming_without_sensitive_fields(vehicle, driv
     assert {t['ticket_number'] for t in body['today']} == {today_booked.ticket_number, 'OUT-1'}
     assert [t['ticket_number'] for t in body['upcoming']] == [upcoming.ticket_number]
     row = next(t for t in body['today'] if t['ticket_number'] == 'OUT-1')
-    assert row['flag'] == 'OVERDUE'
+    assert row['flag'] == 'OVERDUE' and row['vehicle_photo_url'] is None
     for t in body['today'] + body['upcoming']:
         assert not {'passengers', 'purpose', 'remarks', 'odometer_start', 'id', 'vehicle', 'driver'} & set(t)
     screen.refresh_from_db()
