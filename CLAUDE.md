@@ -66,3 +66,4 @@ Logo is `IMAGES/DOLE.png` (served from `frontend/public/dole-logo.png`). Use onl
 
 - Windows with Git Bash. Long heredocs containing quotes can break the shell; write files with the editor tools instead.
 - `.gitattributes` forces LF; Git's CRLF warnings on Windows are harmless.
+- After adding or changing a token in `frontend/src/index.css` `@theme`, restart `npm run dev`; the running dev server can keep serving the old CSS (symptom: elements using the new token render invisible, e.g. chart bars).
