@@ -144,7 +144,7 @@ function LicenseCard({ d }) {
 
 function RecentTrips({ driverId, onOpen }) {
   const query = useList('/trips/', { driver: driverId, page_size: 5 })
-  return <DataTable columns={tripColumns()} query={query} page={1} onPage={() => {}} onRowClick={onOpen} empty="No trips recorded for this driver yet." />
+  return <DataTable columns={tripColumns()} query={query} footer={false} onRowClick={onOpen} empty="No trips recorded for this driver yet." />
 }
 
 function History({ driverId }) {

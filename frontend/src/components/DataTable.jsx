@@ -8,8 +8,9 @@ const PAGE_SIZE = 25
  * query: a useList() result ({ data: {count, results}, isLoading, isError, error, isFetching })
  * toolbar: optional node rendered inside the card, above the header (filters, search)
  * onRowClick: optional; mouse convenience only, so keep a real link in the row for keyboard users
+ * footer: false hides the count/pagination bar (for "latest N" mini tables)
  */
-export default function DataTable({ columns, query, page, onPage, toolbar, onRowClick, empty = 'No records found.' }) {
+export default function DataTable({ columns, query, page = 1, onPage, toolbar, onRowClick, footer = true, empty = 'No records found.' }) {
   const { data, isLoading, isError, error, isFetching } = query
   const rows = data?.results ?? []
   const count = data?.count ?? 0
@@ -54,7 +55,7 @@ export default function DataTable({ columns, query, page, onPage, toolbar, onRow
           </tbody>
         </table>
       </div>
-      {data && (
+      {data && footer && (
         <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-600">
           <span>{count === 0 ? 'No records' : <>Showing <strong className="font-semibold text-ink">{first}–{last}</strong> of <strong className="font-semibold text-ink">{count}</strong></>}</span>
           <div className="flex items-center gap-2">
