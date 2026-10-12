@@ -98,6 +98,7 @@ class Driver(Tracked):
     license_restrictions = models.CharField(max_length=50, blank=True, help_text='e.g. A, B, B1, B2')
     license_issue_date = models.DateField(null=True, blank=True)
     license_expiry_date = models.DateField(db_index=True)
+    photo = models.ImageField(upload_to=safe_upload_to, null=True, blank=True)
     is_active = models.BooleanField(default=True)
 
     class Meta:

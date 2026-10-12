@@ -5,6 +5,8 @@ import { Pencil } from 'lucide-react'
 import { api, errorMessage, useList } from '../../api'
 import { useCan } from '../../auth'
 import Attachments from '../../components/Attachments'
+import { initials } from '../../components/filters'
+import PhotoUpload from '../../components/PhotoUpload'
 import DataTable from '../../components/DataTable'
 import { Badge, Button, formatDateTime, Modal } from '../../components/ui'
 import { NotFound } from '../Errors'
@@ -57,6 +59,17 @@ export default function DriverProfile() {
       </div>
 
       <div className="grid gap-4 lg:grid-cols-3">
+        <div className="space-y-4">
+          <section className="rounded-lg border border-slate-200 bg-white p-4" aria-label="Driver photo">
+            <PhotoUpload basePath={`/drivers/${d.id}`} detailKey={['/drivers/', id]} listPrefix="/drivers/"
+              photoUrl={d.photo_url} noun="driver" frame="aspect-square" canChange={can('fleet.change_driver')}
+              current={d.photo_url
+                ? <div className="aspect-square overflow-hidden rounded-md bg-slate-100"><img src={d.photo_url} alt={`Photo of ${d.full_name}`} className="h-full w-full object-cover" /></div>
+                : <div className="flex aspect-square items-center justify-center rounded-md bg-brand-light text-6xl font-bold text-brand" role="img" aria-label="No photo">{initials(d.full_name)}</div>} />
+          </section>
+          <CurrentVehicle d={d} />
+        </div>
+
         <section className="rounded-lg border border-slate-200 bg-white p-4 lg:col-span-2">
           <h2 className="mb-3 text-sm font-semibold text-brand">Driver details</h2>
           <dl className="grid gap-3 text-sm sm:grid-cols-2">
@@ -65,17 +78,6 @@ export default function DriverProfile() {
             ))}
           </dl>
           <p className="mt-4 text-xs text-slate-400">Last updated {formatDateTime(d.updated_at)}</p>
-        </section>
-
-        <section className="rounded-lg border border-slate-200 bg-white p-4">
-          <h2 className="mb-3 text-sm font-semibold text-brand">Current vehicle</h2>
-          {d.current_vehicles.length ? (
-            <ul className="space-y-1 text-sm">
-              {d.current_vehicles.map((v) => (
-                <li key={v.assignment_id}><Link to={`/vehicles/${v.vehicle_id}`} className="font-medium text-brand hover:underline">{v.plate_number}</Link></li>
-              ))}
-            </ul>
-          ) : <p className="text-sm text-slate-500">Not assigned to a vehicle.</p>}
         </section>
       </div>
 
@@ -86,6 +88,21 @@ export default function DriverProfile() {
         {editing && <DriverForm driver={d} onClose={() => setEditing(false)} />}
       </Modal>
     </div>
+  )
+}
+
+function CurrentVehicle({ d }) {
+  return (
+    <section className="rounded-lg border border-slate-200 bg-white p-4">
+      <h2 className="mb-3 text-sm font-semibold text-brand">Current vehicle</h2>
+      {d.current_vehicles.length ? (
+        <ul className="space-y-1 text-sm">
+          {d.current_vehicles.map((v) => (
+            <li key={v.assignment_id}><Link to={`/vehicles/${v.vehicle_id}`} className="font-medium text-brand hover:underline">{v.plate_number}</Link></li>
+          ))}
+        </ul>
+      ) : <p className="text-sm text-slate-500">Not assigned to a vehicle.</p>}
+    </section>
   )
 }
 

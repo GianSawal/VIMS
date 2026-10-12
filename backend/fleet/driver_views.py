@@ -5,6 +5,7 @@ from django.utils import timezone
 from django_filters import rest_framework as filters
 from rest_framework import mixins, viewsets
 from rest_framework.decorators import action
+from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.response import Response
 
 from accounts.permissions import OfficeScopedMixin, PasswordChangeNotRequired, require
@@ -13,6 +14,7 @@ from audit.services import diff, log
 from .attachments_api import AttachmentsMixin
 from .driver_serializers import AssignmentSerializer, DriverSerializer
 from .models import Driver, VehicleAssignment
+from .photos import change_photo
 
 AUDITED = ['employee_number', 'full_name', 'office', 'contact_number', 'license_number', 'license_type',
            'license_restrictions', 'license_issue_date', 'license_expiry_date', 'is_active']
@@ -60,6 +62,14 @@ class DriverViewSet(AttachmentsMixin, OfficeScopedMixin, mixins.ListModelMixin, 
         changes = diff(before, snapshot(d))
         if changes:
             log(self.request, 'update', d, f'Updated driver {d.full_name}', changes)
+
+    @action(detail=True, methods=['post', 'delete'], parser_classes=[MultiPartParser, FormParser],
+            permission_classes=[require('fleet.change_driver'), PasswordChangeNotRequired])
+    def photo(self, request, pk=None):
+        """POST multipart `photo` (JPEG/PNG/WebP) to upload/replace; DELETE to remove."""
+        d = self.get_object()
+        change_photo(request, d)
+        return Response(self.get_serializer(self.get_queryset().get(pk=d.pk)).data)
 
     @action(detail=False, methods=['get'])
     def summary(self, request):

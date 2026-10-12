@@ -8,7 +8,10 @@ export const selectClass = `${inputBase} h-9 py-0`
 export const initials = (name) =>
   name.split(/\s+/).filter((w) => w && !w.endsWith('.')).slice(0, 2).map((w) => w[0]).join('').toUpperCase() || '?'
 
-export function Avatar({ name, className = '' }) {
+export function Avatar({ name, src, className = '' }) {
+  if (src) {
+    return <img src={src} alt="" aria-hidden="true" className={`h-10 w-10 shrink-0 rounded-full object-cover ring-1 ring-slate-200 ${className}`} />
+  }
   return (
     <span aria-hidden="true"
       className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand-light text-sm font-semibold text-brand ${className}`}>

@@ -1,4 +1,3 @@
-from django.db import transaction
 from django.db.models import Count
 from django.utils import timezone
 from rest_framework import mixins, serializers, status, viewsets
@@ -13,6 +12,7 @@ from audit.services import diff, log
 from . import assignments as assignment_service
 from .driver_serializers import AssignInputSerializer, AssignmentSerializer, EndAssignmentSerializer
 from .models import Vehicle
+from .photos import change_photo
 from .serializers import PhotoSerializer, VehicleDetailSerializer, VehicleSerializer
 
 CAN_CHANGE = [require('fleet.change_vehicle'), PasswordChangeNotRequired]
@@ -97,28 +97,8 @@ class VehicleViewSet(OfficeScopedMixin, mixins.ListModelMixin, mixins.RetrieveMo
     def photo(self, request, pk=None):
         """POST multipart `photo` to upload/replace; DELETE to remove. Needs fleet.manage_vehicle_photo."""
         v = self.get_object()
-        old = v.photo.name if v.photo else None
-
-        if request.method == 'DELETE':
-            if not old:
-                return Response(status=status.HTTP_204_NO_CONTENT)
-            v.photo = None
-            v.save(update_fields=['photo', 'updated_at'])
-            log(request, 'photo_remove', v, f'Removed photo of {v}', {'photo': [old, None]})
-        else:
-            s = PhotoSerializer(data=request.data)
-            s.is_valid(raise_exception=True)
-            v.photo = s.validated_data['photo']
-            v.save(update_fields=['photo', 'updated_at'])
-            log(request, 'photo_replace' if old else 'photo_upload', v,
-                f'{"Replaced" if old else "Uploaded"} photo of {v}', {'photo': [old, v.photo.name]})
-
-        if old:
-            # ponytail: obsolete photos are deleted immediately; switch to a retention job if policy requires keeping them.
-            storage = v.photo.storage
-            transaction.on_commit(lambda: storage.delete(old))
-        data = VehicleDetailSerializer(v, context={'request': request}).data
-        return Response(data, status=status.HTTP_200_OK)
+        change_photo(request, v)
+        return Response(VehicleDetailSerializer(v, context={'request': request}).data)
 
     # ---- assignments (history is append-only: reassigning ends the old row and starts a new one) ----
 

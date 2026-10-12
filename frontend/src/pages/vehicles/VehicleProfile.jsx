@@ -1,14 +1,15 @@
-import { useEffect, useRef, useState } from 'react'
+import { useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
-  Archive, ArchiveRestore, Building2, CalendarDays, CircleDot, Fuel, Gauge, History, IdCard, ImagePlus, Pencil, Trash2, Upload,
+  Archive, ArchiveRestore, Building2, CalendarDays, CircleDot, Fuel, Gauge, History, IdCard, Pencil,
 } from 'lucide-react'
 import { api, errorMessage } from '../../api'
 import { useCan } from '../../auth'
 import { Button, ConfirmDialog, formatDateTime } from '../../components/ui'
 import { useToast } from '../../components/toast'
 import { NotFound } from '../Errors'
+import PhotoUpload from '../../components/PhotoUpload'
 import AssignmentsTab from './AssignmentsTab'
 import TripsTab from './TripsTab'
 import FuelTab from './FuelTab'
@@ -225,93 +226,13 @@ function Overview({ v, onHistory }) {
 // "Atty. SARAH BUENA S. MIRASOL" -> "SM": skips titles/initials that end with a period.
 const initials = (name) => name.split(/\s+/).filter((w) => w && !w.endsWith('.')).slice(0, 2).map((w) => w[0]).join('').toUpperCase() || '?'
 
-const ACCEPT = ['image/jpeg', 'image/png', 'image/webp']
-const MAX_MB = 5 // matches VEHICLE_PHOTO_MAX_BYTES default; the server enforces the real limit
-
 function PhotoPanel({ v }) {
   const can = useCan()
-  const qc = useQueryClient()
-  const toast = useToast()
-  const input = useRef(null)
-  const [file, setFile] = useState(null)
-  const [preview, setPreview] = useState(null)
-  const [progress, setProgress] = useState(0)
-  const [error, setError] = useState('')
-  const [confirmRemove, setConfirmRemove] = useState(false)
-  const allowed = can('fleet.manage_vehicle_photo') && can('fleet.change_vehicle') && !v.is_archived
-
-  useEffect(() => () => preview && URL.revokeObjectURL(preview), [preview])
-
-  const done = (data, msg) => {
-    qc.setQueryData(['/vehicles/', String(v.id)], data)
-    qc.invalidateQueries({ queryKey: ['/vehicles/'] })
-    toast(msg)
-    setFile(null); setPreview(null); setProgress(0)
-  }
-
-  const upload = useMutation({
-    mutationFn: () => {
-      const body = new FormData()
-      body.append('photo', file)
-      return api.post(`/vehicles/${v.id}/photo/`, body, {
-        onUploadProgress: (e) => e.total && setProgress(Math.round((e.loaded / e.total) * 100)),
-      })
-    },
-    onSuccess: ({ data }) => done(data, v.photo_url ? 'Photo replaced.' : 'Photo uploaded.'),
-    onError: (err) => { setError(errorMessage(err)); setProgress(0) },
-  })
-  const remove = useMutation({
-    mutationFn: () => api.delete(`/vehicles/${v.id}/photo/`),
-    onSuccess: ({ data }) => { done(data, 'Photo removed.'); setConfirmRemove(false) },
-    onError: (err) => { toast(errorMessage(err), 'error'); setConfirmRemove(false) },
-  })
-
-  const pick = (e) => {
-    const f = e.target.files?.[0]
-    e.target.value = ''
-    if (!f) return
-    setError('')
-    if (!ACCEPT.includes(f.type)) return setError('Choose a JPEG, PNG or WebP image.')
-    if (f.size > MAX_MB * 1024 * 1024) return setError(`Photo must be ${MAX_MB} MB or smaller.`)
-    setFile(f)
-    setPreview(URL.createObjectURL(f))
-  }
-
   return (
     <div className="rounded-lg border border-slate-200 bg-white p-4">
-      {preview
-        ? <div className="aspect-[4/3] overflow-hidden rounded-md bg-white ring-2 ring-gold"><img src={preview} alt="Preview of the new photo" className="h-full w-full object-contain" /></div>
-        : <VehiclePhoto vehicle={v} />}
-
-      {error && <p role="alert" className="mt-2 text-sm text-danger">{error}</p>}
-      {upload.isPending && (
-        <div className="mt-3 h-2 overflow-hidden rounded bg-slate-200" role="progressbar" aria-valuenow={progress} aria-valuemin={0} aria-valuemax={100} aria-label="Upload progress">
-          <div className="h-full bg-brand transition-all" style={{ width: `${progress}%` }} />
-        </div>
-      )}
-
-      {allowed && (
-        <div className="mt-3 flex flex-wrap gap-2">
-          <input ref={input} type="file" accept={ACCEPT.join(',')} className="hidden" onChange={pick} aria-label="Choose vehicle photo" />
-          {file ? (
-            <>
-              <Button onClick={() => upload.mutate()} disabled={upload.isPending}><Upload size={16} /> {upload.isPending ? `Uploading ${progress}%` : 'Save photo'}</Button>
-              <Button variant="secondary" onClick={() => { setFile(null); setPreview(null) }} disabled={upload.isPending}>Cancel</Button>
-            </>
-          ) : (
-            <>
-              <Button variant="secondary" onClick={() => input.current.click()}>
-                <ImagePlus size={16} /> {v.photo_url ? 'Change photo' : 'Upload photo'}
-              </Button>
-              {v.photo_url && <Button variant="ghost" className="text-danger" onClick={() => setConfirmRemove(true)}><Trash2 size={16} /> Remove</Button>}
-            </>
-          )}
-        </div>
-      )}
-      {allowed && !file && <p className="mt-2 text-xs text-slate-500">JPEG, PNG or WebP, up to {MAX_MB} MB.</p>}
-
-      <ConfirmDialog open={confirmRemove} title="Remove photo" message="The vehicle photo will be deleted. This is recorded in the audit trail."
-        confirmLabel="Remove" danger busy={remove.isPending} onConfirm={() => remove.mutate()} onClose={() => setConfirmRemove(false)} />
+      <PhotoUpload basePath={`/vehicles/${v.id}`} detailKey={['/vehicles/', String(v.id)]} listPrefix="/vehicles/"
+        photoUrl={v.photo_url} noun="vehicle" current={<VehiclePhoto vehicle={v} />}
+        canChange={can('fleet.manage_vehicle_photo') && can('fleet.change_vehicle') && !v.is_archived} />
     </div>
   )
 }

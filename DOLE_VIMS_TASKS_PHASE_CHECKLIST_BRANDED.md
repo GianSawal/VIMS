@@ -214,7 +214,7 @@ archive vehicles according to role/office permissions.
 # Phase 5 --- Driver and Assignment Module
 
 -   [x] Driver CRUD API (no DELETE; deactivate instead)
--   [x] Driver list/profile UI
+-   [x] Driver list/profile UI (with driver photo upload, added 2026-10-12)
 -   [x] Driver license fields
 -   [x] Driver license attachments (PDF/JPEG/PNG/WebP, content-checked, 10 MB)
 -   [x] Driver license expiration logic (valid / expiring ≤60 days / expired + list filter; alerts come in Phase 11)

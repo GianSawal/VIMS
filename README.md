@@ -94,6 +94,7 @@ Django session in an HttpOnly cookie plus CSRF token. The SPA calls `GET /api/au
 | `/api/fuel-records/summary/` | GET | count, liters, amount, average price for the same filters |
 | `/api/fuel-records/{id}/attachments/` | GET / POST / DELETE | receipt and PO scans |
 | `/api/drivers/` | CRUD (no delete) | `?search= &office= &is_active= &license_status=VALID\|EXPIRING\|EXPIRED` |
+| `/api/drivers/{id}/photo/` | POST (multipart `photo`) / DELETE | needs `fleet.change_driver`; same rules as vehicle photos |
 | `/api/drivers/{id}/assignments/` | GET | the driver's vehicle history |
 | `/api/drivers/{id}/attachments/` | GET / POST multipart `file`, `description` · `DELETE …/attachments/{att_id}/` | PDF/JPEG/PNG/WebP ≤ `ATTACHMENT_MAX_BYTES`; changes need `fleet.change_driver` |
 | `/api/vehicles/{id}/photo/` | POST (multipart `photo`) / DELETE | needs `fleet.manage_vehicle_photo`; JPEG/PNG/WebP ≤ `VEHICLE_PHOTO_MAX_BYTES` |

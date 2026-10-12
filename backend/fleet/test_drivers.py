@@ -181,3 +181,40 @@ def test_summary_counts_respect_filters_and_scope(fo1, fo2):
     assert admin.get(f'/api/drivers/summary/?office={fo1.pk}&is_active=true').json()['total'] == 3
     scoped = as_role('Field Office User', [fo1])
     assert scoped.get('/api/drivers/summary/').json()['by_license']['EXPIRED'] == 1  # FO2's expired driver hidden
+
+
+def test_driver_photo_upload_replace_remove(fo1, settings, django_capture_on_commit_callbacks):
+    d = make_driver(fo1)
+    c = as_role('Fleet Administrator')
+    r = c.post(f'/api/drivers/{d.pk}/photo/', {'photo': image('JPEG', 'me.jpg')})
+    assert r.status_code == 200, r.json()
+    first = r.json()['photo_url']
+    assert first.startswith('/media/fleet/driver/') and first.endswith('.jpg')
+    first_path = settings.MEDIA_ROOT / first.removeprefix('/media/')
+    with django_capture_on_commit_callbacks(execute=True):
+        r = c.post(f'/api/drivers/{d.pk}/photo/', {'photo': image('PNG', 'me.png')})
+    assert r.json()['photo_url'].endswith('.png') and not first_path.exists()
+    assert c.get('/api/drivers/').json()['results'][0]['photo_url'] == r.json()['photo_url']
+    assert c.delete(f'/api/drivers/{d.pk}/photo/').json()['photo_url'] is None
+    assert list(AuditLog.objects.filter(entity_id=str(d.pk), action__startswith='photo').order_by('id')
+                .values_list('action', flat=True)) == ['photo_upload', 'photo_replace', 'photo_remove']
+
+
+def test_driver_photo_validation_and_permissions(fo1, fo2):
+    d, far = make_driver(fo1, 'Near', 'L-1'), make_driver(fo2, 'Far', 'L-2')
+    admin = as_role('Fleet Administrator')
+    assert admin.post(f'/api/drivers/{d.pk}/photo/', {'photo': SimpleUploadedFile('x.jpg', b'not an image')}).status_code == 400
+    assert admin.post(f'/api/drivers/{d.pk}/photo/', {'photo': image('GIF', 'x.gif')}).status_code == 400
+    for role in ('Viewer', 'Field Office User'):
+        assert as_role(role, [fo1]).post(f'/api/drivers/{d.pk}/photo/', {'photo': image()}).status_code == 403
+    # scoped user with change rights can't touch another office's driver
+    from django.contrib.auth.models import Permission
+    from accounts.models import User
+    u = User.objects.create_user('scoped')
+    u.user_permissions.add(*Permission.objects.filter(codename__in=['view_driver', 'change_driver']))
+    u.offices.set([fo1])
+    from rest_framework.test import APIClient
+    c = APIClient()
+    c.force_authenticate(u)
+    assert c.post(f'/api/drivers/{far.pk}/photo/', {'photo': image()}).status_code == 404
+    assert c.post(f'/api/drivers/{d.pk}/photo/', {'photo': image()}).status_code == 200

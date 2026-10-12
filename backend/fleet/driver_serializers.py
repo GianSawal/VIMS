@@ -17,16 +17,20 @@ class DriverSerializer(serializers.ModelSerializer):
     license_type_display = serializers.CharField(source='get_license_type_display', read_only=True)
     license_status = serializers.SerializerMethodField()
     current_vehicles = serializers.SerializerMethodField()
+    photo_url = serializers.SerializerMethodField()
 
     class Meta:
         model = Driver
         fields = ['id', 'employee_number', 'full_name', 'office', 'office_name', 'office_code', 'contact_number',
                   'license_number', 'license_type', 'license_type_display', 'license_restrictions',
-                  'license_issue_date', 'license_expiry_date', 'license_status', 'is_active', 'current_vehicles',
+                  'license_issue_date', 'license_expiry_date', 'license_status', 'is_active', 'current_vehicles', 'photo_url',
                   'created_at', 'updated_at']
         read_only_fields = ['created_at', 'updated_at']
         # Uniqueness is checked in validate() after normalizing.
         extra_kwargs = {f: {'validators': []} for f in ('employee_number', 'license_number')}
+
+    def get_photo_url(self, d):
+        return d.photo.url if d.photo else None
 
     def get_license_status(self, d):
         return d.license_status()

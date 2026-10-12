@@ -62,7 +62,7 @@ export default function DriverList() {
   const columns = [
     { key: 'driver', label: 'Driver', render: (d) => (
       <div className="flex items-center gap-3">
-        <Avatar name={d.full_name} />
+        <Avatar name={d.full_name} src={d.photo_url} />
         <div className="min-w-0">
           <Link to={`/drivers/${d.id}`} className="font-semibold text-brand hover:underline">{d.full_name}</Link>
           <div className="text-xs text-slate-500">{d.employee_number ? `Emp. no. ${d.employee_number}` : 'No employee number'}</div>
