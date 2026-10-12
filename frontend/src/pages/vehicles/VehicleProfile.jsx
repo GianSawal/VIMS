@@ -16,6 +16,7 @@ import { fuelColumns } from '../fuel/FuelList'
 import { tripColumns } from '../trips/TripList'
 import AssignmentsTab from './AssignmentsTab'
 import FuelTab from './FuelTab'
+import MaintenanceTab from './MaintenanceTab'
 import TripsTab from './TripsTab'
 import { duration, formatDate, formatKm, formatPeso, fuelLabel, StatusBadge, VehiclePhoto } from './common'
 
@@ -25,7 +26,7 @@ const TABS = [
   ['assignments', 'Assignments'],
   ['trips', 'Trips'],
   ['fuel', 'Fuel'],
-  ['maintenance', 'Maintenance', 8],
+  ['maintenance', 'Maintenance'],
   ['documents', 'Documents', 9],
   ['rfid', 'RFID / Toll', 10],
   ['activity', 'Activity', 14],
@@ -149,6 +150,7 @@ export default function VehicleProfile() {
           : tab === 'assignments' ? <AssignmentsTab v={v} />
           : tab === 'trips' ? <TripsTab v={v} />
           : tab === 'fuel' ? <FuelTab v={v} />
+          : tab === 'maintenance' ? <MaintenanceTab v={v} />
           : (
             <div className="rounded-xl border border-dashed border-slate-300 bg-white p-10 text-center text-slate-500">
               {TABS.find(([k]) => k === tab)?.[1] ?? 'This section'} arrives in Phase {TABS.find(([k]) => k === tab)?.[2]}.

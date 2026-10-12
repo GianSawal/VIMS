@@ -17,11 +17,12 @@ import TripDetail from './pages/trips/TripDetail'
 import TripDisplay from './pages/display/TripDisplay'
 import FuelList from './pages/fuel/FuelList'
 import FuelDetail from './pages/fuel/FuelDetail'
+import MaintenanceList from './pages/maintenance/MaintenanceList'
+import MaintenanceDetail from './pages/maintenance/MaintenanceDetail'
 
 // Each route gets a real page as its phase is built; Pending marks what's not built yet.
 const pending = [
   ['dashboard', 'Dashboard', 12],
-  ['maintenance', 'Maintenance', 8],
   ['documents', 'Documents & Renewals', 9],
   ['reports', 'Reports', 13],
   ['notifications', 'Notifications', 11],
@@ -57,6 +58,10 @@ export default function App() {
           <Route element={<RequirePerm perm="operations.view_fuelrecord" />}>
             <Route path="fuel" element={<FuelList />} />
             <Route path="fuel/:id" element={<FuelDetail />} />
+          </Route>
+          <Route element={<RequirePerm perm="maintenance.view_maintenancerecord" />}>
+            <Route path="maintenance" element={<MaintenanceList />} />
+            <Route path="maintenance/:id" element={<MaintenanceDetail />} />
           </Route>
           <Route element={<RequirePerm perm="accounts.view_office" />}>
             <Route path="admin/offices" element={<Offices />} />

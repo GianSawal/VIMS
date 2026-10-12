@@ -91,6 +91,10 @@ Django session in an HttpOnly cookie plus CSRF token. The SPA calls `GET /api/au
 | `/api/trips/{id}/attachments/` | GET / POST / DELETE `…/{att_id}/` | same rules as driver attachments |
 | `/api/fuel-records/` | CRUD (no delete) | `?vehicle= &driver= &office= &fuel_type= &date_from= &date_to= &has_po=true &is_full_tank= &search=`; total computed if blank; returns `distance_since_last`, `km_per_liter` (estimate, full tank to full tank), `unusual` |
 | `/api/fuel-records/insights/` | GET | chart data for the same filters: cost/liters per month (last 12 months, or the date range) and top 5 vehicles by cost |
+| `/api/maintenance/` | CRUD (no delete) | `?vehicle= &status= &category= &office= &open=true &date_from= &date_to= &search=`; `summary/`, `insights/` for cards and charts; `attachments/` |
+| `/api/maintenance/{id}/status/` | POST `{status, completed_on?, odometer?, labor_cost?, parts_cost?, next_service_*?}` | forward-only flow; completing resets preventive schedules |
+| `/api/maintenance-schedules/` | CRUD (no delete) | per vehicle + category; `due` computed live: `OVERDUE`, `DUE_SOON`, `OK`, `NO_BASELINE`; `?due=`, `summary/` |
+| `/api/maintenance-categories/` | list / create / update | reference list (unpaginated) |
 | `/api/fuel-records/summary/` | GET | count, liters, amount, average price for the same filters |
 | `/api/fuel-records/{id}/attachments/` | GET / POST / DELETE | receipt and PO scans |
 | `/api/drivers/` | CRUD (no delete) | `?search= &office= &is_active= &license_status=VALID\|EXPIRING\|EXPIRED` |

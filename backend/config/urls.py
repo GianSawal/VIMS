@@ -8,6 +8,7 @@ from rest_framework.routers import DefaultRouter
 from accounts.views import OfficeViewSet, UserViewSet
 from fleet.driver_views import DriverViewSet
 from fleet.views import VehicleViewSet
+from maintenance.views import CategoryViewSet, MaintenanceRecordViewSet, ScheduleViewSet
 from operations.views import DisplayTripsView, FuelRecordViewSet, TripViewSet
 
 router = DefaultRouter()
@@ -17,6 +18,9 @@ router.register('vehicles', VehicleViewSet)
 router.register('drivers', DriverViewSet)
 router.register('trips', TripViewSet)
 router.register('fuel-records', FuelRecordViewSet)
+router.register('maintenance-categories', CategoryViewSet)
+router.register('maintenance-schedules', ScheduleViewSet)
+router.register('maintenance', MaintenanceRecordViewSet)
 
 urlpatterns = [
     path('admin/', admin.site.urls),

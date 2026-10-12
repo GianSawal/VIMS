@@ -91,6 +91,9 @@ MEDIA_ROOT = env.path('MEDIA_ROOT', default=BASE_DIR / 'media')
 FILE_UPLOAD_MAX_MEMORY_SIZE = env.int('FILE_UPLOAD_MAX_BYTES', default=5 * 1024 * 1024)
 VEHICLE_PHOTO_MAX_BYTES = env.int('VEHICLE_PHOTO_MAX_BYTES', default=5 * 1024 * 1024)
 ATTACHMENT_MAX_BYTES = env.int('ATTACHMENT_MAX_BYTES', default=10 * 1024 * 1024)
+# A preventive-maintenance schedule is "due soon" within this many days / km of its due point.
+MAINTENANCE_DUE_SOON_DAYS = env.int('MAINTENANCE_DUE_SOON_DAYS', default=30)
+MAINTENANCE_DUE_SOON_KM = env.int('MAINTENANCE_DUE_SOON_KM', default=500)
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 

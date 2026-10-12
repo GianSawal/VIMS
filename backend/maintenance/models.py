@@ -1,7 +1,8 @@
+from django.contrib.contenttypes.fields import GenericRelation
 from django.db import models
 
 from config.base_models import Tracked, non_negative, ordered
-from fleet.models import Vehicle
+from fleet.models import Attachment, Vehicle
 
 
 class MaintenanceCategory(models.Model):
@@ -43,10 +44,15 @@ class MaintenanceRecord(Tracked):
     next_service_date = models.DateField(null=True, blank=True)
     next_service_odometer = models.IntegerField(null=True, blank=True)
     remarks = models.TextField(blank=True)
+    attachments = GenericRelation(Attachment)  # PR, job order, receipts
 
     class Meta:
-        ordering = ['-date']
+        ordering = ['-date', '-id']
         constraints = [*non_negative('odometer', 'labor_cost', 'parts_cost'), ordered('started_on', 'completed_on')]
+        indexes = [models.Index(fields=['vehicle', 'date'])]
+
+    def __str__(self):
+        return f'{self.vehicle.plate_number} {self.date:%Y-%m-%d} ({self.get_status_display()})'
 
 
 class MaintenanceSchedule(models.Model):
@@ -59,7 +65,11 @@ class MaintenanceSchedule(models.Model):
     last_service_odometer = models.IntegerField(null=True, blank=True)
     is_active = models.BooleanField(default=True)
 
+    def __str__(self):
+        return f'{self.vehicle.plate_number}: {self.category}'
+
     class Meta:
+        ordering = ['vehicle__plate_number', 'category__name']
         constraints = [
             models.UniqueConstraint(fields=['vehicle', 'category'], name='uniq_schedule_vehicle_category'),
             models.CheckConstraint(

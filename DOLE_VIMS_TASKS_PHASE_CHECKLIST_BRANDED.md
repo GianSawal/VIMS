@@ -336,27 +336,27 @@ existing spreadsheet information without duplicate data entry.
 
 # Phase 8 --- Maintenance Management
 
--   [ ] Maintenance CRUD API
--   [ ] Maintenance categories
--   [ ] Multiple categories per event if required
--   [ ] PR/reference number
--   [ ] Supplier/service provider
--   [ ] Description
--   [ ] Odometer
--   [ ] Labor cost
--   [ ] Parts cost
--   [ ] Total cost
--   [ ] Maintenance status
--   [ ] Start/completion date
--   [ ] Attachments
--   [ ] Vehicle maintenance-history tab
--   [ ] Maintenance schedule model
--   [ ] Next service date
--   [ ] Next service odometer
--   [ ] Due-soon calculation
--   [ ] Overdue calculation
--   [ ] Maintenance filters
--   [ ] Tests
+-   [x] Maintenance CRUD API (no DELETE; final records locked except remarks)
+-   [x] Maintenance categories (editable reference list; deactivate, not delete)
+-   [x] Multiple categories per event if required
+-   [x] PR/reference number
+-   [x] Supplier/service provider
+-   [x] Description
+-   [x] Odometer
+-   [x] Labor cost
+-   [x] Parts cost
+-   [x] Total cost (DB-generated)
+-   [x] Maintenance status (Scheduled → For inspection → In progress → Completed, or Cancelled; never backwards; In progress puts the vehicle Under Maintenance so it cannot be dispatched)
+-   [x] Start/completion date
+-   [x] Attachments (PR, job order, receipts)
+-   [x] Vehicle maintenance-history tab (with that vehicle's preventive schedules)
+-   [x] Maintenance schedule model (per vehicle + category; day and/or km interval)
+-   [x] Next service date (typed, or suggested from the schedule on completion)
+-   [x] Next service odometer
+-   [x] Due-soon calculation (within 30 days / 500 km, configurable)
+-   [x] Overdue calculation (either interval reached)
+-   [x] Maintenance filters (status cards, office, category, date range, search; schedules by due status)
+-   [x] Tests (`maintenance/test_maintenance.py`; due logic also verified on MySQL)
 
 **Phase gate:** System identifies vehicles due/overdue for maintenance
 by configured date/odometer rules.
