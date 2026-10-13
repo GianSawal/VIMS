@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
-import { CalendarDays, Car, CircleCheck, Clock, MapPin, MonitorOff, Navigation, RefreshCw, TriangleAlert, WifiOff } from 'lucide-react'
+import { CalendarDays, Car, CircleCheck, Clock, ClipboardList, MapPin, MonitorOff, Navigation, RefreshCw, TriangleAlert, WifiOff } from 'lucide-react'
 import { api } from '../../api'
 import { initials } from '../../components/filters'
 
@@ -285,7 +285,7 @@ function TripCard({ r, now, featured, wide }) {
 
       <VehicleImage r={r} className={featured ? 'w-[360px]' : 'w-[220px]'} />
 
-      <div className={`flex min-w-0 flex-1 flex-col ${featured ? 'gap-4 p-7' : 'gap-2.5 p-5'}`}>
+      <div className={`flex min-w-0 flex-1 flex-col ${featured ? 'gap-4 p-7' : 'gap-2 p-4'}`}>
         {/* Plate + model, status */}
         <div className="flex items-start gap-4">
           <div className="min-w-0">
@@ -297,11 +297,17 @@ function TripCard({ r, now, featured, wide }) {
           </span>
         </div>
 
-        {/* Destination (hero, wraps) */}
+        {/* Destination (hero, wraps) and purpose (why the trip is made) */}
         <div className="flex min-w-0 items-start gap-2.5">
           <MapPin size={featured ? 30 : 24} className="mt-1 shrink-0 text-gold" aria-hidden="true" />
-          <p className={`leading-[1.15] font-bold tracking-tight ${featured ? 'line-clamp-4 text-[38px]' : 'line-clamp-2 text-[25px]'}`} style={{ color: NAVY }}>{r.destination}</p>
+          <p className={`leading-[1.15] font-bold tracking-tight ${featured ? 'line-clamp-3 text-[38px]' : 'line-clamp-2 text-[25px]'}`} style={{ color: NAVY }}>{r.destination}</p>
         </div>
+        {r.purpose && (
+          <div className="flex min-w-0 items-start gap-2.5">
+            <ClipboardList size={featured ? 24 : 20} className="mt-0.5 shrink-0 text-slate-400" aria-hidden="true" />
+            <p className={`leading-snug text-slate-600 ${featured ? 'line-clamp-2 text-[22px]' : 'line-clamp-1 text-[18px]'}`} title={r.purpose}>{r.purpose}</p>
+          </div>
+        )}
 
         {/* Driver + departure time. Wide cards place them on one row; narrow (2-col) cards stack them so
             driver names and times never get squeezed. */}
@@ -358,15 +364,15 @@ function TripCard({ r, now, featured, wide }) {
 /** Completed-today trips: a compact, subordinate strip under the active cards. Plate · destination · return time. */
 function CompletedToday({ trips, now }) {
   return (
-    <section className="mt-6" aria-labelledby="done-title">
-      <div className="mb-3 flex items-center gap-3">
+    <section className="mt-5" aria-labelledby="done-title">
+      <div className="mb-2.5 flex items-center gap-3">
         <CircleCheck size={22} className="text-emerald-600" aria-hidden="true" />
         <h2 id="done-title" className="text-[20px] font-bold tracking-tight text-slate-600">Completed Today</h2>
         <span className="text-[17px] font-medium text-slate-400 tabular-nums">{trips.length}</span>
       </div>
       <div className="grid grid-cols-2 gap-3">
         {trips.slice(0, COMPLETED_SHOWN).map((r) => (
-          <div key={r.ticket_number} className="flex items-center gap-3 rounded-xl bg-white/70 px-4 py-2.5 ring-1 ring-slate-200">
+          <div key={r.ticket_number} className="flex items-center gap-3 rounded-xl bg-white/70 px-4 py-2 ring-1 ring-slate-200">
             <Plate small>{r.plate_number}</Plate>
             <span className="min-w-0 flex-1 truncate text-[18px] text-slate-600" title={r.destination}>{r.destination}</span>
             <span className="shrink-0 text-[17px] font-semibold text-slate-500 tabular-nums">Back {when(r.returned_at, now)}</span>
@@ -438,7 +444,10 @@ function AgendaDay({ g, now }) {
           <li key={r.ticket_number} className="flex items-center gap-3 rounded-xl px-2 py-1.5 odd:bg-slate-50/70">
             <span className="w-[78px] shrink-0 text-[19px] font-bold tabular-nums" style={{ color: NAVY }}>{t(r.scheduled_departure)}</span>
             <Plate small>{r.plate_number}</Plate>
-            <span className="min-w-0 flex-1 truncate text-[17px] text-slate-600" title={r.destination}>{r.destination}</span>
+            <span className="min-w-0 flex-1 truncate text-[17px]" title={r.purpose ? `${r.destination} — ${r.purpose}` : r.destination}>
+              <span className="text-slate-700">{r.destination}</span>
+              {r.purpose && <span className="text-slate-400"> · {r.purpose}</span>}
+            </span>
             <Avatar name={r.driver_name} src={r.driver_photo_url} size={34} />
           </li>
         ))}

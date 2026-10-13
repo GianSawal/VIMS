@@ -272,7 +272,7 @@ correctly and preserves history.
 ## Requirements
 
 -   [ ] Confirm where the TV(s) will be (which office/s) and whose trips each screen shows
--   [ ] Confirm what is shown publicly (e.g. plate, driver, destination, time; passengers and purpose may be sensitive) — built default: plate, vehicle, driver, destination, times, status; passengers/purpose/odometer never sent
+-   [ ] Confirm what is shown publicly (e.g. plate, driver, destination, time; passengers and purpose may be sensitive) — built default: plate, vehicle, driver (with photo), destination, purpose, times, status; passengers, remarks and odometer never sent
 -   [ ] Confirm display hours, screen size/resolution and the device driving the TV (smart TV browser, mini PC, Chromecast)
 
 ## Trip scheduling

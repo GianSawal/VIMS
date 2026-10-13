@@ -153,7 +153,8 @@ class DisplayScreenSerializer(serializers.ModelSerializer):
 
 
 class DisplayTripSerializer(serializers.ModelSerializer):
-    """Public TV fields only: no passengers, purpose, remarks, odometer or ids."""
+    """Public TV fields only: the trip purpose is shown so viewers know why; passengers, remarks,
+    odometer and ids are not sent."""
     plate_number = serializers.CharField(source='vehicle.plate_number')
     vehicle_label = serializers.SerializerMethodField()
     vehicle_photo_url = serializers.SerializerMethodField()
@@ -165,7 +166,7 @@ class DisplayTripSerializer(serializers.ModelSerializer):
     class Meta:
         model = Trip
         fields = ['ticket_number', 'plate_number', 'vehicle_label', 'vehicle_photo_url', 'driver_name', 'driver_photo_url', 'office_code', 'destination',
-                  'status', 'scheduled_departure', 'scheduled_return', 'departed_at', 'returned_at', 'flag']
+                  'purpose', 'status', 'scheduled_departure', 'scheduled_return', 'departed_at', 'returned_at', 'flag']
 
     def get_vehicle_label(self, t):
         return f'{t.vehicle.make} {t.vehicle.model}'
