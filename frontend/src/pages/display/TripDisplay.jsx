@@ -18,7 +18,7 @@ const W = 1920
 const H = 1080
 const REFRESH_MS = 60_000
 const PAGE_MS = 12_000
-const AGENDA_ROWS = 6
+const AGENDA_ROWS = 5
 const COMPLETED_SHOWN = 6
 const FONT = 'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap'
 const NAVY = '#0a1033'
@@ -113,6 +113,18 @@ export default function TripDisplay() {
   const upcoming = q.data?.upcoming ?? []
   const onRoad = active.filter((r) => r.status === 'DISPATCHED').length
   const late = active.filter((r) => r.flag).length
+
+  // Next 7 days grouped by day (so the date shows once per day, not on every row), capped to AGENDA_ROWS trips.
+  const agenda = []
+  let agendaCount = 0
+  for (const r of upcoming) {
+    if (agendaCount >= AGENDA_ROWS) break
+    const key = new Date(r.scheduled_departure).toDateString()
+    const last = agenda[agenda.length - 1]
+    if (last && last.key === key) last.trips.push(r)
+    else agenda.push({ key, date: new Date(r.scheduled_departure), trips: [r] })
+    agendaCount++
+  }
 
   // Content-driven layout: one trip is a wide featured card; a few stack; many use a 2-column grid and page.
   const featured = active.length === 1
@@ -226,10 +238,10 @@ export default function TripDisplay() {
                 <p className="mt-1 text-[16px] text-slate-400">New schedules appear here automatically.</p>
               </div>
             ) : (
-              <ul className="overflow-hidden px-3 pb-3">
-                {upcoming.slice(0, AGENDA_ROWS).map((r) => <AgendaRow key={r.ticket_number} r={r} now={now} />)}
-                {upcoming.length > AGENDA_ROWS && <li className="px-3 pt-2 text-[17px] font-medium text-slate-500">+{upcoming.length - AGENDA_ROWS} more this week</li>}
-              </ul>
+              <div className="overflow-hidden px-3 pb-3">
+                {agenda.map((g) => <AgendaDay key={g.key} g={g} now={now} />)}
+                {upcoming.length > agendaCount && <div className="px-3 pt-2.5 text-[17px] font-medium text-slate-500">+{upcoming.length - agendaCount} more this week</div>}
+              </div>
             )}
           </section>
         </aside>
@@ -264,6 +276,8 @@ function TripCard({ r, now, featured, wide }) {
   const back = r.scheduled_return && r.flag !== 'OVERDUE' ? `${out ? 'Expected back' : 'Back by'} ${when(r.scheduled_return, now)}` : null
   const progress = out && r.scheduled_return
     ? Math.min(1, Math.max(0, minutes(r.departed_at, now) / Math.max(1, minutes(r.departed_at, r.scheduled_return)))) : null
+  // On-time scheduled trips get a clear countdown pill instead of a plain "leaves in" line.
+  const countdown = !out && !late ? (minutes(now, r.scheduled_departure) <= 1 ? 'Leaving now' : `Leaves in ${span(minutes(now, r.scheduled_departure))}`) : null
 
   return (
     <article className={`relative flex min-w-0 overflow-hidden rounded-3xl bg-white ring-1 ${late ? 'ring-red-200' : 'ring-slate-200'}`}>
@@ -305,7 +319,14 @@ function TripCard({ r, now, featured, wide }) {
                 {verb}{!sameDay(new Date(time), now) && <span className="text-slate-600"> · {shortDay.format(new Date(time))}</span>}
               </div>
               <div className={`leading-none font-bold tracking-tight whitespace-nowrap tabular-nums ${featured ? 'text-[44px]' : 'text-[34px]'} ${late ? 'text-red-700' : ''}`} style={late ? undefined : { color: NAVY }}>{t(time)}</div>
-              <div className={`mt-1 whitespace-nowrap ${featured ? 'text-[18px]' : 'text-[16px]'} ${late ? 'font-semibold text-red-700' : 'text-slate-500'}`}>{sub}{back && !late ? ` · ${back}` : ''}</div>
+              {countdown ? (
+                <div className="mt-2 flex flex-col items-end gap-1">
+                  <span className={`inline-flex items-center gap-1.5 rounded-full bg-amber-50 font-semibold text-amber-800 ring-1 ring-amber-200 ${featured ? 'px-3.5 py-1 text-[18px]' : 'px-3 py-0.5 text-[15px]'}`}><Clock size={featured ? 18 : 14} aria-hidden="true" /> {countdown}</span>
+                  {back && <span className={`text-slate-400 ${featured ? 'text-[16px]' : 'text-[14px]'}`}>{back}</span>}
+                </div>
+              ) : (
+                <div className={`mt-1 whitespace-nowrap ${featured ? 'text-[18px]' : 'text-[16px]'} ${late ? 'font-semibold text-red-700' : 'text-slate-500'}`}>{sub}{back && !late ? ` · ${back}` : ''}</div>
+              )}
             </div>
           </div>
         ) : (
@@ -314,10 +335,12 @@ function TripCard({ r, now, featured, wide }) {
               <Avatar name={r.driver_name} src={r.driver_photo_url} size={40} />
               <span className="min-w-0 flex-1 truncate text-[19px] font-semibold text-slate-800" title={r.driver_name}>{r.driver_name}</span>
             </div>
-            <div className="mt-2.5 flex items-baseline gap-2.5">
+            <div className="mt-2.5 flex items-center gap-2.5">
               <span className="text-[12px] font-semibold tracking-[0.08em] text-slate-400 uppercase">{verb}</span>
               <span className={`text-[28px] leading-none font-bold tabular-nums ${late ? 'text-red-700' : ''}`} style={late ? undefined : { color: NAVY }}>{t(time)}</span>
-              <span className={`ml-auto text-right text-[16px] ${late ? 'font-semibold text-red-700' : 'text-slate-500'}`}>{sub}</span>
+              {countdown
+                ? <span className="ml-auto inline-flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-0.5 text-[14px] font-semibold text-amber-800 ring-1 ring-amber-200"><Clock size={13} aria-hidden="true" /> {countdown}</span>
+                : <span className={`ml-auto text-right text-[16px] ${late ? 'font-semibold text-red-700' : 'text-slate-500'}`}>{sub}</span>}
             </div>
           </div>
         )}
@@ -399,24 +422,28 @@ function Stat({ icon: Icon, label, value, tone, alert }) {
   )
 }
 
-function AgendaRow({ r, now }) {
-  const d = new Date(r.scheduled_departure)
-  const tomorrow = sameDay(d, new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1))
+/** A day's worth of upcoming trips: a slim day header (date shown once), then its trip rows. */
+function AgendaDay({ g, now }) {
+  const tomorrow = sameDay(g.date, new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1))
   return (
-    <li className="flex items-center gap-4 rounded-2xl px-3 py-2.5 odd:bg-slate-50/80">
-      <span className={`flex w-[92px] shrink-0 flex-col items-center rounded-xl py-1.5 leading-none ${tomorrow ? 'bg-brand text-white' : 'bg-white text-slate-700 ring-1 ring-slate-200'}`}>
-        <span className={`text-[12px] font-bold tracking-[0.06em] uppercase ${tomorrow ? 'text-gold' : 'text-slate-500'}`}>{tomorrow ? 'Tomorrow' : wk.format(d)}</span>
-        <span className="mt-1 text-[18px] font-bold">{shortDay.format(d)}</span>
-      </span>
-      <span className="min-w-0 flex-1">
-        <span className="flex items-center gap-3">
-          <span className="text-[20px] font-bold tabular-nums" style={{ color: NAVY }}>{t(r.scheduled_departure)}</span>
-          <Plate small>{r.plate_number}</Plate>
-        </span>
-        <span className="mt-0.5 block truncate text-[17px] text-slate-500" title={r.destination}>{r.destination}</span>
-      </span>
-      <Avatar name={r.driver_name} src={r.driver_photo_url} size={40} />
-    </li>
+    <div className="pt-1.5 first:pt-0">
+      <div className="flex items-center gap-2.5 px-2 pb-1">
+        <span className={`h-4 w-1.5 rounded-full ${tomorrow ? 'bg-brand' : 'bg-slate-300'}`} aria-hidden="true" />
+        <span className={`text-[15px] font-bold tracking-wide uppercase ${tomorrow ? 'text-brand' : 'text-slate-600'}`}>{tomorrow ? 'Tomorrow' : wk.format(g.date)}</span>
+        <span className="text-[15px] font-medium text-slate-400">{shortDay.format(g.date)}</span>
+        {g.trips.length > 1 && <span className="ml-auto text-[14px] font-medium text-slate-400 tabular-nums">{g.trips.length} trips</span>}
+      </div>
+      <ul>
+        {g.trips.map((r) => (
+          <li key={r.ticket_number} className="flex items-center gap-3 rounded-xl px-2 py-1.5 odd:bg-slate-50/70">
+            <span className="w-[78px] shrink-0 text-[19px] font-bold tabular-nums" style={{ color: NAVY }}>{t(r.scheduled_departure)}</span>
+            <Plate small>{r.plate_number}</Plate>
+            <span className="min-w-0 flex-1 truncate text-[17px] text-slate-600" title={r.destination}>{r.destination}</span>
+            <Avatar name={r.driver_name} src={r.driver_photo_url} size={34} />
+          </li>
+        ))}
+      </ul>
+    </div>
   )
 }
 
