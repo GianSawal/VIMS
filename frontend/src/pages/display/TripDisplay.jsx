@@ -18,7 +18,7 @@ const W = 1920
 const H = 1080
 const REFRESH_MS = 60_000
 const PAGE_MS = 12_000
-const AGENDA_ROWS = 5
+const AGENDA_ROWS = 4
 const COMPLETED_SHOWN = 6
 const FONT = 'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap'
 const NAVY = '#0a1033'
@@ -423,8 +423,8 @@ function Plate({ children, small }) {
 
 function Stat({ icon: Icon, label, value, tone, alert }) {
   return (
-    <div className="flex items-center gap-4 py-3">
-      <span className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl ${tone}`}><Icon size={24} aria-hidden="true" /></span>
+    <div className="flex items-center gap-4 py-2.5">
+      <span className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${tone}`}><Icon size={22} aria-hidden="true" /></span>
       <dt className="mr-auto text-[20px] font-medium text-slate-600">{label}</dt>
       <dd className={`text-[42px] leading-none font-bold tracking-tight tabular-nums ${alert ? 'text-red-700' : ''}`} style={alert ? undefined : { color: NAVY }}>{value}</dd>
     </div>
@@ -444,13 +444,25 @@ function AgendaDay({ g, now }) {
       </div>
       <ul>
         {g.trips.map((r) => (
-          <li key={r.ticket_number} className="flex items-center gap-3 rounded-xl px-2 py-1.5 odd:bg-slate-50/70">
-            <span className="w-[78px] shrink-0 text-[19px] font-bold tabular-nums" style={{ color: NAVY }}>{t(r.scheduled_departure)}</span>
-            <Plate small>{r.plate_number}</Plate>
-            <span className="min-w-0 flex-1 truncate text-[17px]" title={r.purpose ? `${r.destination} — ${r.purpose}` : r.destination}>
-              <span className="text-slate-700">{r.destination}</span>
-              {r.purpose && <span className="text-slate-400"> · {r.purpose}</span>}
-            </span>
+          <li key={r.ticket_number} className="flex items-center gap-3 rounded-xl px-2 py-1 odd:bg-slate-50/70">
+            <div className="aspect-[4/3] w-[66px] shrink-0 overflow-hidden rounded-lg border border-slate-200 bg-white">
+              {r.vehicle_photo_url
+                ? <img src={r.vehicle_photo_url} alt="" className="h-full w-full object-contain p-1" />
+                : <div className="flex h-full items-center justify-center bg-slate-50 text-slate-300"><Car size={24} strokeWidth={1.5} aria-hidden="true" /></div>}
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2.5">
+                <span className="text-[18px] font-bold tabular-nums" style={{ color: NAVY }}>{t(r.scheduled_departure)}</span>
+                <Plate small>{r.plate_number}</Plate>
+              </div>
+              <div className="mt-0.5 truncate text-[16px] font-semibold text-slate-700" title={r.destination}>{r.destination}</div>
+              {r.purpose && (
+                <div className="mt-0.5 flex items-center gap-1 text-[14px] text-slate-400">
+                  <ClipboardList size={13} className="shrink-0" aria-hidden="true" />
+                  <span className="truncate" title={r.purpose}>{r.purpose}</span>
+                </div>
+              )}
+            </div>
             <Avatar name={r.driver_name} src={r.driver_photo_url} size={34} />
           </li>
         ))}
