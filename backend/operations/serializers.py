@@ -7,7 +7,7 @@ from accounts.models import Office
 from fleet.models import Driver, Vehicle
 
 from . import fuel
-from .models import FuelRecord, Trip
+from .models import DisplayScreen, FuelRecord, Trip
 
 DESCRIPTIVE = ['requesting_office', 'passengers', 'origin', 'destination', 'purpose', 'remarks',
                'estimated_distance_km', 'estimated_duration_min', 'origin_lat', 'origin_lng', 'destination_lat',
@@ -141,6 +141,15 @@ class RescheduleSerializer(serializers.Serializer):
 class DispatchScheduledSerializer(serializers.Serializer):
     odometer_start = serializers.IntegerField(min_value=0)
     departed_at = serializers.DateTimeField(required=False, help_text='Defaults to now.')
+
+
+class DisplayScreenSerializer(serializers.ModelSerializer):
+    """For staff: which TV links exist. Screens are created and revoked in Django admin."""
+    office_name = serializers.CharField(source='office.name', read_only=True, default=None)
+
+    class Meta:
+        model = DisplayScreen
+        fields = ['id', 'name', 'office', 'office_name', 'is_active', 'last_seen_at', 'token']
 
 
 class DisplayTripSerializer(serializers.ModelSerializer):

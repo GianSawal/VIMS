@@ -245,3 +245,14 @@ def test_dispatch_now_blocked_inside_someone_elses_booking(vehicle, driver, fo1)
     booked.save()
     r = c.post('/api/trips/', {**body, 'vehicle': vehicle.pk, 'driver': walk_in_driver.pk}, format='json')
     assert r.status_code == 201, r.json()
+
+
+def test_staff_can_list_tv_links_by_office(fo1, fo2):
+    mine, other, everyone = (DisplayScreen.objects.create(name='FO1 TV', office=fo1),
+                             DisplayScreen.objects.create(name='FO2 TV', office=fo2), DisplayScreen.objects.create(name='All'))
+    names = lambda c: {s['name'] for s in c.get('/api/display-screens/').json()}
+    assert names(as_role('Fleet Administrator')) == {'FO1 TV', 'FO2 TV', 'All'}
+    assert as_role('Fleet Administrator').get('/api/display-screens/').json()[0]['token'] in {mine.token, other.token, everyone.token}
+    assert as_role('Field Office User', offices=[fo1]).get('/api/display-screens/').status_code == 403  # no view_displayscreen
+    assert APIClient().get('/api/display-screens/').status_code == 401
+    assert as_role('Fleet Administrator').post('/api/display-screens/', {'name': 'x'}).status_code == 405  # manage in admin

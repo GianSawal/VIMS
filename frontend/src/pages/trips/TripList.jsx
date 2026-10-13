@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
-import { CalendarClock, CalendarPlus, CircleCheck, CircleSlash, Clock, MapPin, Milestone, Navigation, Plus, Route as RouteIcon } from 'lucide-react'
+import { CalendarClock, CalendarPlus, CircleCheck, CircleSlash, Clock, MapPin, Milestone, Monitor, Navigation, Plus, Route as RouteIcon } from 'lucide-react'
 import { useList } from '../../api'
 import { useCan, useMe } from '../../auth'
 import DataTable from '../../components/DataTable'
@@ -10,6 +10,7 @@ import { Button, Modal, PageHeader } from '../../components/ui'
 import { useAllOffices } from '../admin/Offices'
 import { VehiclePhoto } from '../vehicles/common'
 import DispatchForm from './DispatchForm'
+import TvScreens from './TvScreens'
 import { CompleteForm, DispatchScheduledForm } from './TripDetail'
 import { km, shortDateTime, TRIP_STATUSES, tripDuration, tripStatusLabel, TripStatusBadge } from './common'
 
@@ -216,6 +217,7 @@ export default function TripList() {
   const navigate = useNavigate()
   const offices = useAllOffices()
   const [newTrip, setNewTrip] = useState(null) // 'schedule' | 'dispatch'
+  const [tv, setTv] = useState(false)
   const [params, setParams] = useSearchParams()
   const [search, setSearch] = useState(params.get('search') ?? '')
   const f = Object.fromEntries(params)
@@ -292,10 +294,13 @@ export default function TripList() {
 
   return (
     <div>
-      <PageHeader title="Trips" actions={can('operations.add_trip') && (
+      <PageHeader title="Trips" actions={(
         <div className="flex gap-2">
-          <Button variant="secondary" onClick={() => setNewTrip('schedule')}><CalendarPlus size={16} /> Schedule trip</Button>
-          <Button onClick={() => setNewTrip('dispatch')}><Plus size={16} /> Dispatch now</Button>
+          {can('operations.view_displayscreen') && <Button variant="secondary" onClick={() => setTv(true)}><Monitor size={16} /> TV board</Button>}
+          {can('operations.add_trip') && <>
+            <Button variant="secondary" onClick={() => setNewTrip('schedule')}><CalendarPlus size={16} /> Schedule trip</Button>
+            <Button onClick={() => setNewTrip('dispatch')}><Plus size={16} /> Dispatch now</Button>
+          </>}
         </div>
       )}>Book trips ahead, dispatch on the day and record returns.</PageHeader>
 
@@ -321,6 +326,9 @@ export default function TripList() {
         onRowClick={(t) => navigate(`/trips/${t.id}`)}
         empty={chips.length ? 'No trips match these filters.' : 'No trips yet.'} />
 
+      <Modal open={tv} onClose={() => setTv(false)} title="TV trip board" wide>
+        {tv && <TvScreens />}
+      </Modal>
       <Modal open={!!newTrip} onClose={() => setNewTrip(null)} title={newTrip === 'schedule' ? 'Schedule a trip' : 'Dispatch a trip now'} wide>
         {newTrip && <DispatchForm mode={newTrip} onClose={() => setNewTrip(null)} onSaved={(t) => navigate(`/trips/${t.id}`)} />}
       </Modal>

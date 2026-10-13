@@ -23,7 +23,7 @@ from . import maps
 from . import trips as trip_service
 from .models import DisplayScreen, FuelRecord, Trip
 from .serializers import (DESCRIPTIVE, CancelSerializer, CompleteSerializer, DispatchScheduledSerializer,
-                          DispatchSerializer, DisplayTripSerializer, FuelRecordSerializer, RescheduleSerializer, ScheduleSerializer,
+                          DispatchSerializer, DisplayScreenSerializer, DisplayTripSerializer, FuelRecordSerializer, RescheduleSerializer, ScheduleSerializer,
                           TripSerializer)
 
 CAN_CHANGE_TRIP = [require('operations.change_trip'), PasswordChangeNotRequired]
@@ -145,6 +145,20 @@ class TripViewSet(AttachmentsMixin, OfficeScopedMixin, mixins.ListModelMixin, mi
         trip = trip_service.cancel(self.get_object(), reason=s.validated_data['reason'])
         log(request, 'trip_cancel', trip, f'Cancelled trip {trip.ticket_number}: {s.validated_data["reason"]}')
         return Response(TripSerializer(trip).data)
+
+
+class DisplayScreenViewSet(OfficeScopedMixin, mixins.ListModelMixin, viewsets.GenericViewSet):
+    """TV screens and their links, for staff with operations.view_displayscreen. Manage them in Django admin."""
+    queryset = DisplayScreen.objects.select_related('office').order_by('-is_active', 'name')
+    serializer_class = DisplayScreenSerializer
+    pagination_class = None
+
+    def get_queryset(self):
+        qs = super(OfficeScopedMixin, self).get_queryset()
+        user = self.request.user
+        if user.has_perm('accounts.view_all_offices'):
+            return qs
+        return qs.filter(Q(office__in=user.offices.all()) | Q(office__isnull=True))  # all-office screens show for everyone
 
 
 class DisplayTripsView(APIView):

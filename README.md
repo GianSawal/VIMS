@@ -85,6 +85,7 @@ Django session in an HttpOnly cookie plus CSRF token. The SPA calls `GET /api/au
 | `/api/trips/schedule/` | POST | book ahead: `{vehicle, driver, scheduled_departure, scheduled_return?, origin, destination, purpose, …}`; no odometer |
 | `/api/trips/{id}/dispatch/` | POST `{odometer_start, departed_at?}` | scheduled trips only, **on the scheduled day**; odometer read then |
 | `/api/trips/{id}/reschedule/` | POST `{vehicle, driver, scheduled_departure, scheduled_return?}` | scheduled trips only; no double-booking |
+| `/api/display-screens/` | GET | TV screens and their links (needs `operations.view_displayscreen`); created/revoked in Django admin; Trips page → **TV board** |
 | `/api/display/trips/?token=` | GET (no login) | TV board data: today + next 7 days, display-safe fields only; rate-limited |
 | `/api/trips/{id}/complete/` | POST `{returned_at, odometer_end, remarks?}` | moves the vehicle odometer forward; vehicle back to Serviceable |
 | `/api/trips/{id}/cancel/` | POST `{reason}` | open trips only; odometer untouched |

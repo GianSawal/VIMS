@@ -115,6 +115,8 @@ CSRF_COOKIE_SAMESITE = 'Lax'
 CORS_ALLOWED_ORIGINS = env.list('CORS_ALLOWED_ORIGINS', default=['http://localhost:5173'])
 CORS_ALLOW_CREDENTIALS = True
 CSRF_TRUSTED_ORIGINS = env.list('CSRF_TRUSTED_ORIGINS', default=['http://localhost:5173'])
+# Where the React app is served; used for links built on the server (e.g. TV display links in the admin).
+FRONTEND_URL = env('FRONTEND_URL', default='http://localhost:5173').rstrip('/')
 
 if not DEBUG:
     SECURE_SSL_REDIRECT = env.bool('SECURE_SSL_REDIRECT', default=True)

@@ -1,4 +1,6 @@
+from django.conf import settings
 from django.contrib import admin
+from django.utils.html import format_html
 
 from .models import DisplayScreen, FuelRecord, RFIDAccount, TollTransaction, Trip
 
@@ -14,4 +16,7 @@ class DisplayScreenAdmin(admin.ModelAdmin):
 
     @admin.display(description='Display link (open on the TV)')
     def display_link(self, obj):
-        return f'/display?token={obj.token}' if obj.pk else 'Save first to generate the link.'
+        if not obj.pk:
+            return 'Save first to generate the link.'
+        url = f'{settings.FRONTEND_URL}/display?token={obj.token}'
+        return format_html('<a href="{}" target="_blank" rel="noopener">{}</a>', url, url)

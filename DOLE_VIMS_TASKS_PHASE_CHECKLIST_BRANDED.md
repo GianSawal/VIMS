@@ -286,7 +286,7 @@ correctly and preserves history.
 ## Display
 
 -   [x] Read-only schedule API for the display (today's and upcoming trips, out now, returned today), office-filtered (`GET /api/display/trips/?token=`; next 7 days)
--   [x] Display access without a staff login: dedicated read-only display account or revocable display token (`DisplayScreen` in Django admin; untick "is active" to revoke)
+-   [x] Display access without a staff login: dedicated read-only display account or revocable display token (`DisplayScreen` in Django admin; untick "is active" to revoke; staff open or copy the links from Trips → TV board)
 -   [x] Full-screen TV route (e.g. `/display`) with DOLE branding, large high-contrast text, live date and clock
 -   [x] Columns: time, vehicle/plate, driver, destination, status (redesigned: "On the road now" cards with vehicle photo, time out and due back; "Later today"; "Coming up" next 7 days; count tiles)
 -   [x] Status shown in words and color: Scheduled, Departed/On trip, Returned, Delayed, Cancelled
