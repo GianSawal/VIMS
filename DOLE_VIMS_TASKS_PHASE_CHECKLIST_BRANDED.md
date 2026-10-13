@@ -288,13 +288,13 @@ correctly and preserves history.
 -   [x] Read-only schedule API for the display (today's and upcoming trips, out now, returned today), office-filtered (`GET /api/display/trips/?token=`; next 7 days)
 -   [x] Display access without a staff login: dedicated read-only display account or revocable display token (`DisplayScreen` in Django admin; untick "is active" to revoke; staff open or copy the links from Trips → TV board)
 -   [x] Full-screen TV route (e.g. `/display`) with DOLE branding, large high-contrast text, live date and clock
--   [x] Columns: time, vehicle/plate, driver, destination, status (departures-board layout on a soft light theme: today's trips table with vehicle photo, plate, driver, destination, time out / due back and status chips; "Today at a glance" counts; next 7 days agenda)
+-   [x] Columns: time, vehicle/plate, driver, destination, status (operations-board layout: deep navy header; today's trips with vehicle photo, plate tag, driver, destination that wraps, time out / expected back and subtle status badges, active trips first; "Today at a Glance" counts; next 7 days with a Tomorrow badge; overnight trips show their date)
 -   [x] Status shown in words and color: Scheduled, Departed/On trip, Returned, Delayed, Cancelled
 -   [x] Highlight delayed departures and overdue returns (15-minute grace)
 -   [x] Auto-refresh (about every 60 seconds) with no interaction needed
 -   [x] Auto-page or scroll when the list is longer than the screen (6 rows per page, every 12 s, with a progress bar)
 -   [x] "Connection lost / last updated" indicator if the network drops
--   [ ] Readable at a distance at 1920×1080 landscape; avoid static elements that cause screen burn-in — built and screenshot-checked at 1920×1080 (soft blue-gray, not glaring white); needs checking on the real TV
+-   [ ] Readable at a distance at 1920×1080 landscape; avoid static elements that cause screen burn-in — fixed 1920×1080 stage scaled to any TV (Full HD, 4K, smaller); screenshot-checked at 1920×1080 and 1366×768; light panels on soft blue-gray; Inter font with system fallback; needs checking on the real TV
 -   [x] Tests (display API scoping, token/permission, no sensitive fields) (`operations/test_schedule.py`)
 -   [ ] UAT on the actual TV
 
