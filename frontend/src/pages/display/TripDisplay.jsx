@@ -303,9 +303,12 @@ function TripCard({ r, now, featured, wide }) {
           <p className={`leading-[1.15] font-bold tracking-tight ${featured ? 'line-clamp-3 text-[38px]' : 'line-clamp-2 text-[25px]'}`} style={{ color: NAVY }}>{r.destination}</p>
         </div>
         {r.purpose && (
-          <div className="flex min-w-0 items-start gap-2.5">
-            <ClipboardList size={featured ? 24 : 20} className="mt-0.5 shrink-0 text-slate-400" aria-hidden="true" />
-            <p className={`leading-snug text-slate-600 ${featured ? 'line-clamp-2 text-[22px]' : 'line-clamp-1 text-[18px]'}`} title={r.purpose}>{r.purpose}</p>
+          <div className="flex min-w-0 items-start gap-2.5 rounded-xl bg-slate-50 px-3 py-2">
+            <ClipboardList size={featured ? 24 : 20} className="mt-0.5 shrink-0 text-brand" aria-hidden="true" />
+            <p className={`leading-snug ${featured ? 'line-clamp-2 text-[22px]' : 'line-clamp-1 text-[18px]'}`} title={r.purpose}>
+              <span className="font-semibold tracking-[0.06em] text-slate-400 uppercase">Purpose: </span>
+              <span className="font-medium text-slate-700">{r.purpose}</span>
+            </p>
           </div>
         )}
 
