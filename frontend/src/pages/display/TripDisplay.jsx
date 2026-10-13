@@ -237,63 +237,62 @@ export default function TripDisplay() {
   )
 }
 
-/** One active trip: vehicle (whole photo, fitted), status and time, destination, driver. */
+/** One active trip: vehicle and driver (same look as the Trips list), status and time, destination. */
 function TripCard({ r, now, big }) {
   const [label, pill, accent] = statusOf(r)
   const out = r.status === 'DISPATCHED'
   const late = !!r.flag
-  // Time block: what happened / happens and the live "how long" line.
   const [verb, time] = out ? ['Departed', r.departed_at] : ['Departs', r.scheduled_departure]
   const sub = out
     ? (r.flag === 'OVERDUE' ? `${span(minutes(r.scheduled_return, now))} overdue` : `On the road ${span(minutes(r.departed_at, now))}`)
     : (r.flag === 'DELAYED' ? `${span(minutes(r.scheduled_departure, now))} past schedule` : `Leaves in ${span(minutes(now, r.scheduled_departure))}`)
+  const back = r.scheduled_return && r.flag !== 'OVERDUE' ? `${out ? 'Expected back' : 'Back by'} ${when(r.scheduled_return, now)}` : null
   // Progress from departure to expected return (only when a return time was planned).
   const progress = out && r.scheduled_return
     ? Math.min(1, Math.max(0, minutes(r.departed_at, now) / Math.max(1, minutes(r.departed_at, r.scheduled_return)))) : null
 
+  const status = (
+    <span className={`inline-flex items-center gap-2 rounded-full px-3.5 py-1 text-[17px] font-semibold ring-1 ${pill}`}>
+      <span className={`h-2 w-2 rounded-full ${accent}`} aria-hidden="true" /> {label}
+    </span>
+  )
+  const clock = (
+    <div>
+      <div className="text-[14px] font-semibold tracking-[0.12em] text-slate-400 uppercase">
+        {verb}{!sameDay(new Date(time), now) && <span className="text-slate-600"> · {shortDay.format(new Date(time))}</span>}
+      </div>
+      <div className={`leading-none font-bold tracking-tight whitespace-nowrap tabular-nums ${big ? 'text-[48px]' : 'text-[40px]'} ${late ? 'text-red-700' : ''}`} style={late ? undefined : { color: NAVY }}>{t(time)}</div>
+    </div>
+  )
+  const subLine = <div className={`text-[18px] whitespace-nowrap ${late ? 'font-semibold text-red-700' : 'text-slate-500'}`}>{sub}</div>
+
   return (
     <article className={`relative flex min-h-0 flex-col overflow-hidden rounded-3xl bg-white ring-1 ${late ? 'ring-red-200' : 'ring-slate-200'}`}>
-      <span className={`absolute inset-x-0 top-0 z-10 h-1.5 ${accent}`} aria-hidden="true" />
+      <span className={`absolute inset-x-0 top-0 h-1.5 ${accent}`} aria-hidden="true" />
 
-      {/* Vehicle + time */}
-      <div className={`flex ${big ? 'flex-col' : 'items-stretch'}`}>
-        <VehicleImage r={r} className={big ? 'h-[330px] w-full' : 'h-[178px] w-[290px] shrink-0'} />
-        <div className={`flex min-w-0 flex-1 flex-col justify-center ${big ? 'flex-row items-center gap-6 px-8 pt-5' : 'px-6 pt-4'}`}>
-          <div className={big ? 'mr-auto' : ''}>
-            <span className={`inline-flex items-center gap-2 rounded-full px-3.5 py-1 text-[17px] font-semibold ring-1 ${pill}`}>
-              <span className={`h-2 w-2 rounded-full ${accent}`} aria-hidden="true" /> {label}
-            </span>
-            <div className="mt-3 text-[14px] font-semibold tracking-[0.12em] text-slate-400 uppercase">
-              {verb}{!sameDay(new Date(time), now) && <span className="text-slate-600"> · {shortDay.format(new Date(time))}</span>}
-            </div>
-            <div className={`text-[44px] leading-none font-bold tracking-tight whitespace-nowrap tabular-nums ${late ? 'text-red-700' : ''}`} style={late ? undefined : { color: NAVY }}>{t(time)}</div>
-          </div>
-          <div className={`text-[19px] ${late ? 'font-semibold text-red-700' : 'text-slate-500'} ${big ? 'text-right' : 'mt-1.5'}`}>
-            {sub}
-            {out && r.scheduled_return && r.flag !== 'OVERDUE' && <div className="text-slate-500">Expected back <strong className="text-slate-700">{when(r.scheduled_return, now)}</strong></div>}
-            {!out && r.scheduled_return && <div className="text-slate-500">Back by <strong className="text-slate-700">{when(r.scheduled_return, now)}</strong></div>}
+      {big ? (
+        <div className="px-8 pt-8">
+          <VehicleDriver r={r} big />
+          <div className="mt-7 flex items-end gap-6 rounded-2xl bg-slate-50 px-6 py-4">
+            <div className="mr-auto space-y-2">{status}{clock}</div>
+            <div className="pb-1 text-right">{subLine}</div>
           </div>
         </div>
-      </div>
+      ) : (
+        <div className="flex items-start gap-5 px-6 pt-6">
+          <VehicleDriver r={r} />
+          <div className="ml-auto flex shrink-0 flex-col items-end gap-2 text-right">{status}{clock}{subLine}</div>
+        </div>
+      )}
 
       {/* Destination */}
-      <div className={`flex min-h-0 flex-1 items-start gap-3 ${big ? 'px-8 pt-5' : 'px-6 pt-4'}`}>
+      <div className={`mt-5 flex min-h-0 flex-1 items-start gap-3 border-t border-slate-100 ${big ? 'px-8 pt-6' : 'px-6 pt-4'}`}>
         <MapPin size={big ? 30 : 26} className="mt-1 shrink-0 text-gold" aria-hidden="true" />
-        <p className={`line-clamp-2 leading-[1.15] font-bold tracking-tight ${big ? 'text-[34px]' : r.destination.length > 50 ? 'text-[23px]' : 'text-[27px]'}`} style={{ color: NAVY }} title={r.destination}>
-          {r.destination}
-        </p>
-      </div>
-
-      {/* Driver + plate */}
-      <div className={`flex items-center gap-4 border-t border-slate-100 ${big ? 'px-8 py-5' : 'px-6 py-3.5'}`}>
-        <Avatar name={r.driver_name} src={r.driver_photo_url} size={big ? 64 : 52} />
-        <div className="mr-auto min-w-0">
-          <div className="text-[13px] font-semibold tracking-[0.12em] text-slate-400 uppercase">Driver</div>
-          <div className={`truncate font-semibold text-slate-800 ${big ? 'text-[24px]' : 'text-[20px]'}`}>{r.driver_name}</div>
-        </div>
-        <div className="text-right">
-          <Plate big={big}>{r.plate_number}</Plate>
-          <div className="mt-1 text-[16px] text-slate-500">{r.vehicle_label}</div>
+        <div className="min-w-0">
+          <p className={`line-clamp-2 leading-[1.15] font-bold tracking-tight ${big ? 'text-[36px]' : r.destination.length > 50 ? 'text-[23px]' : 'text-[27px]'}`} style={{ color: NAVY }} title={r.destination}>
+            {r.destination}
+          </p>
+          {back && <p className={`mt-1.5 text-slate-500 ${big ? 'text-[22px]' : 'text-[18px]'}`}>{back}</p>}
         </div>
       </div>
 
@@ -305,18 +304,23 @@ function TripCard({ r, now, big }) {
   )
 }
 
-/** The whole vehicle photo, fitted (not cropped) on a soft studio backdrop. */
-function VehicleImage({ r, className }) {
+/** Vehicle photo (whole, fitted on white), plate, model, and the driver with their photo, like the Trips list. */
+function VehicleDriver({ r, big }) {
   return (
-    <div className={`relative overflow-hidden bg-[radial-gradient(ellipse_at_center,#ffffff_0%,#eef2f7_70%,#e2e8f0_100%)] ${className}`}>
-      {r.vehicle_photo_url
-        ? <img src={r.vehicle_photo_url} alt={`${r.vehicle_label} ${r.plate_number}`} className="h-full w-full object-contain p-3 mix-blend-multiply" />
-        : (
-          <div className="flex h-full flex-col items-center justify-center text-slate-300">
-            <Car size={64} strokeWidth={1.25} aria-hidden="true" />
-            <span className="mt-1 text-[15px] font-medium text-slate-400">{r.vehicle_label}</span>
-          </div>
-        )}
+    <div className="flex min-w-0 items-center gap-5">
+      <div className={`aspect-[4/3] shrink-0 overflow-hidden rounded-xl border border-slate-200 ${r.vehicle_photo_url ? 'bg-white' : 'bg-slate-100'} ${big ? 'w-[240px]' : 'w-[150px]'}`}>
+        {r.vehicle_photo_url
+          ? <img src={r.vehicle_photo_url} alt={`${r.vehicle_label} ${r.plate_number}`} className="h-full w-full object-contain" />
+          : <div className="flex h-full items-center justify-center text-slate-400"><Car className="h-1/2 w-1/2" strokeWidth={1.25} aria-hidden="true" /></div>}
+      </div>
+      <div className="min-w-0">
+        <div className={`leading-none font-bold tracking-wide whitespace-nowrap ${big ? 'text-[40px]' : 'text-[28px]'}`} style={{ color: NAVY }}>{r.plate_number}</div>
+        <div className={`mt-1.5 truncate text-slate-500 ${big ? 'text-[22px]' : 'text-[17px]'}`}>{r.vehicle_label}</div>
+        <div className="mt-3 flex min-w-0 items-center gap-2.5">
+          <Avatar name={r.driver_name} src={r.driver_photo_url} size={big ? 44 : 32} />
+          <span className={`truncate font-medium text-slate-700 ${big ? 'text-[22px]' : 'text-[17px]'}`}>{r.driver_name}</span>
+        </div>
+      </div>
     </div>
   )
 }
