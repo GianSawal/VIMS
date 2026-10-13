@@ -256,3 +256,19 @@ def test_staff_can_list_tv_links_by_office(fo1, fo2):
     assert as_role('Field Office User', offices=[fo1]).get('/api/display-screens/').status_code == 403  # no view_displayscreen
     assert APIClient().get('/api/display-screens/').status_code == 401
     assert as_role('Fleet Administrator').post('/api/display-screens/', {'name': 'x'}).status_code == 405  # manage in admin
+
+
+def test_display_shows_only_active_trips(vehicle, driver, fo1):
+    now = timezone.now()
+    Trip.objects.create(ticket_number='BACK-1', status='COMPLETED', vehicle=vehicle, driver=driver, origin='RO',
+                        destination='Done', purpose='x', departed_at=now - timedelta(hours=3), returned_at=now - timedelta(minutes=5),
+                        odometer_start=1, odometer_end=20)
+    cancelled = make_scheduled(make_vehicle(fo1, 'CXL 1'), make_driver(fo1, 'Cx', 'L-9'), now + timedelta(minutes=30))
+    cancelled.status = 'CANCELLED'
+    cancelled.save()
+    booked = make_scheduled(make_vehicle(fo1, 'BKD 1'), make_driver(fo1, 'Bk', 'L-8'), now + timedelta(minutes=20))
+    if timezone.localtime(booked.scheduled_departure).date() != TODAY:
+        pytest.skip('just before midnight; the booking falls on tomorrow')
+    rows = display(DisplayScreen.objects.create(name='Lobby').token).json()['today']
+    assert [r['ticket_number'] for r in rows] == [booked.ticket_number]  # returned and cancelled are not shown
+    assert rows[0]['driver_photo_url'] is None

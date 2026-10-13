@@ -158,12 +158,13 @@ class DisplayTripSerializer(serializers.ModelSerializer):
     vehicle_label = serializers.SerializerMethodField()
     vehicle_photo_url = serializers.SerializerMethodField()
     driver_name = serializers.CharField(source='driver.full_name')
+    driver_photo_url = serializers.SerializerMethodField()
     office_code = serializers.CharField(source='vehicle.office.code')
     flag = serializers.SerializerMethodField(help_text='DELAYED (late to leave) or OVERDUE (late to return).')
 
     class Meta:
         model = Trip
-        fields = ['ticket_number', 'plate_number', 'vehicle_label', 'vehicle_photo_url', 'driver_name', 'office_code', 'destination',
+        fields = ['ticket_number', 'plate_number', 'vehicle_label', 'vehicle_photo_url', 'driver_name', 'driver_photo_url', 'office_code', 'destination',
                   'status', 'scheduled_departure', 'scheduled_return', 'departed_at', 'returned_at', 'flag']
 
     def get_vehicle_label(self, t):
@@ -171,6 +172,9 @@ class DisplayTripSerializer(serializers.ModelSerializer):
 
     def get_vehicle_photo_url(self, t):
         return t.vehicle.photo.url if t.vehicle.photo else None
+
+    def get_driver_photo_url(self, t):
+        return t.driver.photo.url if t.driver.photo else None
 
     def get_flag(self, t):
         now = timezone.now()
