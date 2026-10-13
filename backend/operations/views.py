@@ -164,7 +164,8 @@ class DisplayScreenViewSet(OfficeScopedMixin, mixins.ListModelMixin, viewsets.Ge
 class DisplayTripsView(APIView):
     """
     Public trip board for a TV: GET /api/display/trips/?token=<screen token>. No staff login.
-    Returns only display-safe fields for trips out now, today's bookings not yet departed, and the next 7 days of bookings.
+    Returns display-safe fields for trips out now, today's bookings not yet departed, trips returned today,
+    and the next 7 days of bookings. Cancelled trips are never sent.
     """
     authentication_classes = []  # token in the URL, not a session: no CSRF, no user
     permission_classes = [AllowAny]
@@ -190,10 +191,12 @@ class DisplayTripsView(APIView):
         if screen.office_id:
             trips = trips.filter(vehicle__office=screen.office_id)
 
-        # The board shows what is still active: on a trip now (whenever it left) and today's bookings not yet gone.
+        # On a trip now (whenever it left), today's bookings not yet gone, and trips that returned today
+        # (shown as a subordinate "Completed today" strip). Cancelled trips are never sent.
         today_trips = trips.filter(
             Q(status=Trip.Status.DISPATCHED)
             | Q(status=Trip.Status.SCHEDULED, scheduled_departure__gte=day_start, scheduled_departure__lt=day_end)
+            | Q(status=Trip.Status.COMPLETED, returned_at__gte=day_start, returned_at__lt=day_end)
         ).order_by(Coalesce('departed_at', 'scheduled_departure'))
         upcoming = trips.filter(status=Trip.Status.SCHEDULED, scheduled_departure__gte=day_end,
                                 scheduled_departure__lt=day_end + timedelta(days=self.UPCOMING_DAYS)

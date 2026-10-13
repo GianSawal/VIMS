@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
-import { CalendarDays, Car, Clock, MapPin, MonitorOff, Navigation, RefreshCw, TriangleAlert, WifiOff } from 'lucide-react'
+import { CalendarDays, Car, CircleCheck, Clock, MapPin, MonitorOff, Navigation, RefreshCw, TriangleAlert, WifiOff } from 'lucide-react'
 import { api } from '../../api'
 import { initials } from '../../components/filters'
 
@@ -9,8 +9,8 @@ import { initials } from '../../components/filters'
  * Lobby TV trip board: /display?token=<screen token>. No staff login; the token is created in Django admin
  * (Operations > Display screens) and revoked by unticking "is active".
  *
- * Shows only what is still active: vehicles on a trip now and today's bookings that haven't left (the API
- * leaves out returned and cancelled trips). Drawn on a fixed 1920x1080 stage scaled to the screen, so Full HD,
+ * Shows vehicles on the road now, today's bookings not yet gone, and a subordinate "Completed today" strip
+ * (the API leaves cancelled trips out). Drawn on a fixed 1920x1080 stage scaled to the screen, so Full HD,
  * 4K and smaller TVs all show the same layout.
  */
 
@@ -18,8 +18,8 @@ const W = 1920
 const H = 1080
 const REFRESH_MS = 60_000
 const PAGE_MS = 12_000
-const CARDS = 4 // 2 x 2; with 1-2 trips the cards grow to fill the board
-const AGENDA_ROWS = 5
+const AGENDA_ROWS = 6
+const COMPLETED_SHOWN = 6
 const FONT = 'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap'
 const NAVY = '#0a1033'
 
@@ -33,8 +33,8 @@ const sameDay = (a, b) => a.toDateString() === b.toDateString()
 const when = (v, now) => (!v ? '' : sameDay(new Date(v), now) ? t(v) : `${shortDay.format(new Date(v))}, ${t(v)}`)
 
 /** 135 -> "2h 15m", 50 -> "50 min", 1600 -> "1d 2h" */
-function span(minutes) {
-  const m = Math.max(0, Math.round(minutes))
+function span(mins) {
+  const m = Math.max(0, Math.round(mins))
   if (m < 60) return `${m} min`
   const h = Math.floor(m / 60)
   if (h >= 24) return `${Math.floor(h / 24)}d ${h % 24}h`
@@ -103,16 +103,23 @@ export default function TripDisplay() {
     enabled: !!token,
   })
 
-  // On the road first (longest out first), then today's departures by time. Finished trips are never sent.
-  const active = (q.data?.today ?? []).filter((r) => r.status === 'DISPATCHED' || r.status === 'SCHEDULED')
+  const rows = q.data?.today ?? []
+  // On the road first (longest out first), then today's departures by time.
+  const active = rows.filter((r) => r.status === 'DISPATCHED' || r.status === 'SCHEDULED')
     .sort((a, b) => (a.status === b.status ? 0 : a.status === 'DISPATCHED' ? -1 : 1)
       || new Date(a.departed_at ?? a.scheduled_departure) - new Date(b.departed_at ?? b.scheduled_departure))
+  const completed = rows.filter((r) => r.status === 'COMPLETED')
+    .sort((a, b) => new Date(b.returned_at) - new Date(a.returned_at))
   const upcoming = q.data?.upcoming ?? []
   const onRoad = active.filter((r) => r.status === 'DISPATCHED').length
   const late = active.filter((r) => r.flag).length
-  const [page, pages] = usePager(active.length, CARDS)
-  const cards = active.slice(page * CARDS, (page + 1) * CARDS)
-  const big = active.length <= 2
+
+  // Content-driven layout: one trip is a wide featured card; a few stack; many use a 2-column grid and page.
+  const featured = active.length === 1
+  const cols = active.length >= 4 ? 2 : 1
+  const perPage = featured ? 1 : cols === 2 ? 4 : 3
+  const [page, pages] = usePager(active.length, perPage)
+  const shown = active.slice(page * perPage, (page + 1) * perPage)
   const offline = q.isError && !!q.data
 
   if (!token || q.error?.response?.status === 403) {
@@ -160,12 +167,13 @@ export default function TripDisplay() {
         </div>
       )}
 
-      <main className="grid min-h-0 flex-1 grid-cols-[1fr_500px] gap-7 px-12 py-7">
-        {/* Active trips */}
+      <main className="grid min-h-0 flex-1 grid-cols-[1fr_480px] gap-8 px-12 py-7">
+        {/* Active trips + completed strip */}
         <section className="flex min-h-0 flex-col" aria-labelledby="active-title">
-          <div className="mb-4 flex items-center gap-4">
+          <div className="mb-5 flex items-center gap-4">
             <h2 id="active-title" className="text-[30px] font-bold tracking-tight" style={{ color: NAVY }}>Active Trips</h2>
-            <span className="text-[20px] font-medium text-slate-500">On the road and leaving today</span>
+            <span className="rounded-full bg-white px-3 py-0.5 text-[18px] font-semibold text-slate-600 ring-1 ring-slate-200 tabular-nums">{active.length}</span>
+            <span className="text-[19px] font-medium text-slate-400">On the road and leaving today</span>
             {pages > 1 && (
               <span className="ml-auto flex items-center gap-2" aria-label={`Page ${page + 1} of ${pages}`}>
                 {Array.from({ length: pages }, (_, i) => <span key={i} className={`h-2 rounded-full transition-all duration-300 ${i === page ? 'w-8 bg-brand' : 'w-2 bg-slate-300'}`} />)}
@@ -174,14 +182,14 @@ export default function TripDisplay() {
           </div>
 
           {q.isLoading ? (
-            <div className="grid flex-1 grid-cols-2 grid-rows-2 gap-5">
-              {[...Array(4)].map((_, i) => <div key={i} className="rounded-3xl bg-white/70 ring-1 ring-slate-200 motion-safe:animate-pulse" />)}
+            <div className="space-y-5">
+              {[...Array(3)].map((_, i) => <div key={i} className="h-[180px] rounded-3xl bg-white/70 ring-1 ring-slate-200 motion-safe:animate-pulse" />)}
             </div>
           ) : active.length === 0 ? (
             <Empty next={upcoming[0]} now={now} />
           ) : (
-            <div key={page} className={`grid min-h-0 flex-1 grid-cols-2 gap-5 motion-safe:animate-[vrs-in_.5s_ease-out] ${big ? 'grid-rows-1' : 'grid-rows-2'}`}>
-              {cards.map((r) => <TripCard key={r.ticket_number} r={r} now={now} big={big} />)}
+            <div key={page} className={`grid items-start gap-5 motion-safe:animate-[vrs-in_.5s_ease-out] ${cols === 2 ? 'grid-cols-2' : 'grid-cols-1'}`}>
+              {shown.map((r) => <TripCard key={r.ticket_number} r={r} now={now} featured={featured} wide={cols === 1} />)}
             </div>
           )}
 
@@ -190,6 +198,8 @@ export default function TripDisplay() {
               <div key={page} className="h-full origin-left bg-brand/60" style={{ animation: `vrs-page ${PAGE_MS}ms linear` }} />
             </div>
           )}
+
+          {completed.length > 0 && <CompletedToday trips={completed} now={now} />}
         </section>
 
         <aside className="flex min-h-0 flex-col gap-6">
@@ -198,24 +208,25 @@ export default function TripDisplay() {
             <dl className="divide-y divide-slate-100">
               <Stat icon={Navigation} label="On the road" value={onRoad} tone="bg-blue-50 text-brand" />
               <Stat icon={Clock} label="Leaving later today" value={active.length - onRoad} tone="bg-amber-50 text-amber-700" />
+              <Stat icon={CircleCheck} label="Returned today" value={completed.length} tone="bg-emerald-50 text-emerald-700" />
               <Stat icon={TriangleAlert} label="Running late" value={late} tone={late ? 'bg-red-50 text-red-700' : 'bg-slate-100 text-slate-400'} alert={late > 0} />
             </dl>
           </section>
 
-          <section className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-3xl bg-white ring-1 ring-slate-200" aria-labelledby="next-title">
+          <section className="flex min-h-0 flex-col overflow-hidden rounded-3xl bg-white ring-1 ring-slate-200" aria-labelledby="next-title">
             <div className="flex items-center gap-3 px-6 pt-6 pb-3">
               <CalendarDays size={24} className="text-brand" aria-hidden="true" />
               <h2 id="next-title" className="text-[22px] font-bold tracking-tight" style={{ color: NAVY }}>Next 7 Days</h2>
               <span className="ml-auto rounded-full bg-slate-100 px-3 py-0.5 text-[16px] font-semibold text-slate-600 tabular-nums">{upcoming.length} booked</span>
             </div>
             {upcoming.length === 0 ? (
-              <div className="mx-6 mb-6 flex flex-1 flex-col items-center justify-center rounded-2xl border border-dashed border-slate-200 text-center">
-                <CalendarDays size={40} strokeWidth={1.5} className="text-slate-300" aria-hidden="true" />
-                <p className="mt-3 text-[22px] font-semibold text-slate-600">No upcoming bookings</p>
-                <p className="mt-1 text-[17px] text-slate-400">New schedules appear here automatically.</p>
+              <div className="mx-6 mb-6 flex flex-col items-center justify-center rounded-2xl border border-dashed border-slate-200 py-10 text-center">
+                <CalendarDays size={38} strokeWidth={1.5} className="text-slate-300" aria-hidden="true" />
+                <p className="mt-3 text-[21px] font-semibold text-slate-600">No upcoming bookings</p>
+                <p className="mt-1 text-[16px] text-slate-400">New schedules appear here automatically.</p>
               </div>
             ) : (
-              <ul className="min-h-0 flex-1 overflow-hidden px-3 pb-3">
+              <ul className="overflow-hidden px-3 pb-3">
                 {upcoming.slice(0, AGENDA_ROWS).map((r) => <AgendaRow key={r.ticket_number} r={r} now={now} />)}
                 {upcoming.length > AGENDA_ROWS && <li className="px-3 pt-2 text-[17px] font-medium text-slate-500">+{upcoming.length - AGENDA_ROWS} more this week</li>}
               </ul>
@@ -237,8 +248,12 @@ export default function TripDisplay() {
   )
 }
 
-/** One active trip: vehicle and driver (same look as the Trips list), status and time, destination. */
-function TripCard({ r, now, big }) {
+/**
+ * Horizontal trip card: vehicle image, then plate / model / driver, destination (wraps), and the status +
+ * departure time on the right. `featured` = the single-trip hero (bigger image and type). Height is driven
+ * by content; cards are never stretched to fill the board.
+ */
+function TripCard({ r, now, featured, wide }) {
   const [label, pill, accent] = statusOf(r)
   const out = r.status === 'DISPATCHED'
   const late = !!r.flag
@@ -247,80 +262,113 @@ function TripCard({ r, now, big }) {
     ? (r.flag === 'OVERDUE' ? `${span(minutes(r.scheduled_return, now))} overdue` : `On the road ${span(minutes(r.departed_at, now))}`)
     : (r.flag === 'DELAYED' ? `${span(minutes(r.scheduled_departure, now))} past schedule` : `Leaves in ${span(minutes(now, r.scheduled_departure))}`)
   const back = r.scheduled_return && r.flag !== 'OVERDUE' ? `${out ? 'Expected back' : 'Back by'} ${when(r.scheduled_return, now)}` : null
-  // Progress from departure to expected return (only when a return time was planned).
   const progress = out && r.scheduled_return
     ? Math.min(1, Math.max(0, minutes(r.departed_at, now) / Math.max(1, minutes(r.departed_at, r.scheduled_return)))) : null
 
-  const status = (
-    <span className={`inline-flex items-center gap-2 rounded-full px-3.5 py-1 text-[17px] font-semibold ring-1 ${pill}`}>
-      <span className={`h-2 w-2 rounded-full ${accent}`} aria-hidden="true" /> {label}
-    </span>
-  )
-  const clock = (
-    <div>
-      <div className="text-[14px] font-semibold tracking-[0.12em] text-slate-400 uppercase">
-        {verb}{!sameDay(new Date(time), now) && <span className="text-slate-600"> · {shortDay.format(new Date(time))}</span>}
-      </div>
-      <div className={`leading-none font-bold tracking-tight whitespace-nowrap tabular-nums ${big ? 'text-[48px]' : 'text-[40px]'} ${late ? 'text-red-700' : ''}`} style={late ? undefined : { color: NAVY }}>{t(time)}</div>
-    </div>
-  )
-  const subLine = <div className={`text-[18px] whitespace-nowrap ${late ? 'font-semibold text-red-700' : 'text-slate-500'}`}>{sub}</div>
-
   return (
-    <article className={`relative flex min-h-0 flex-col overflow-hidden rounded-3xl bg-white ring-1 ${late ? 'ring-red-200' : 'ring-slate-200'}`}>
-      <span className={`absolute inset-x-0 top-0 h-1.5 ${accent}`} aria-hidden="true" />
+    <article className={`relative flex min-w-0 overflow-hidden rounded-3xl bg-white ring-1 ${late ? 'ring-red-200' : 'ring-slate-200'}`}>
+      <span className={`w-2 shrink-0 ${accent}`} aria-hidden="true" />
 
-      {big ? (
-        <div className="px-8 pt-8">
-          <VehicleDriver r={r} big />
-          <div className="mt-7 flex items-end gap-6 rounded-2xl bg-slate-50 px-6 py-4">
-            <div className="mr-auto space-y-2">{status}{clock}</div>
-            <div className="pb-1 text-right">{subLine}</div>
+      <VehicleImage r={r} className={featured ? 'w-[360px]' : 'w-[220px]'} />
+
+      <div className={`flex min-w-0 flex-1 flex-col ${featured ? 'gap-4 p-7' : 'gap-2.5 p-5'}`}>
+        {/* Plate + model, status */}
+        <div className="flex items-start gap-4">
+          <div className="min-w-0">
+            <div className={`leading-none font-bold tracking-wide ${featured ? 'text-[46px]' : 'text-[32px]'}`} style={{ color: NAVY }}>{r.plate_number}</div>
+            <div className={`mt-1.5 text-slate-500 ${featured ? 'text-[22px]' : 'text-[18px]'}`}>{r.vehicle_label}</div>
           </div>
+          <span className={`ml-auto inline-flex shrink-0 items-center gap-2 rounded-full px-4 py-1.5 font-semibold ring-1 ${pill} ${featured ? 'text-[19px]' : 'text-[17px]'}`}>
+            <span className={`h-2.5 w-2.5 rounded-full ${accent}`} aria-hidden="true" /> {label}
+          </span>
         </div>
-      ) : (
-        <div className="flex items-start gap-5 px-6 pt-6">
-          <VehicleDriver r={r} />
-          <div className="ml-auto flex shrink-0 flex-col items-end gap-2 text-right">{status}{clock}{subLine}</div>
+
+        {/* Destination (hero, wraps) */}
+        <div className="flex min-w-0 items-start gap-2.5">
+          <MapPin size={featured ? 30 : 24} className="mt-1 shrink-0 text-gold" aria-hidden="true" />
+          <p className={`leading-[1.15] font-bold tracking-tight ${featured ? 'line-clamp-4 text-[38px]' : 'line-clamp-2 text-[25px]'}`} style={{ color: NAVY }}>{r.destination}</p>
         </div>
+
+        {/* Driver + departure time. Wide cards place them on one row; narrow (2-col) cards stack them so
+            driver names and times never get squeezed. */}
+        {wide ? (
+          <div className="mt-auto flex items-end gap-4 border-t border-slate-100 pt-3.5">
+            <div className="flex min-w-0 items-center gap-3">
+              <Avatar name={r.driver_name} src={r.driver_photo_url} size={featured ? 52 : 44} />
+              <div className="min-w-0">
+                <div className="text-[13px] font-semibold tracking-[0.1em] text-slate-400 uppercase">Driver</div>
+                <div className={`font-semibold text-slate-800 ${featured ? 'text-[24px]' : 'text-[20px]'}`}>{r.driver_name}</div>
+              </div>
+            </div>
+            <div className="ml-auto text-right">
+              <div className="text-[13px] font-semibold tracking-[0.1em] text-slate-400 uppercase">
+                {verb}{!sameDay(new Date(time), now) && <span className="text-slate-600"> · {shortDay.format(new Date(time))}</span>}
+              </div>
+              <div className={`leading-none font-bold tracking-tight whitespace-nowrap tabular-nums ${featured ? 'text-[44px]' : 'text-[34px]'} ${late ? 'text-red-700' : ''}`} style={late ? undefined : { color: NAVY }}>{t(time)}</div>
+              <div className={`mt-1 whitespace-nowrap ${featured ? 'text-[18px]' : 'text-[16px]'} ${late ? 'font-semibold text-red-700' : 'text-slate-500'}`}>{sub}{back && !late ? ` · ${back}` : ''}</div>
+            </div>
+          </div>
+        ) : (
+          <div className="mt-3 border-t border-slate-100 pt-3">
+            <div className="flex items-center gap-2.5">
+              <Avatar name={r.driver_name} src={r.driver_photo_url} size={40} />
+              <span className="min-w-0 flex-1 truncate text-[19px] font-semibold text-slate-800" title={r.driver_name}>{r.driver_name}</span>
+            </div>
+            <div className="mt-2.5 flex items-baseline gap-2.5">
+              <span className="text-[12px] font-semibold tracking-[0.08em] text-slate-400 uppercase">{verb}</span>
+              <span className={`text-[28px] leading-none font-bold tabular-nums ${late ? 'text-red-700' : ''}`} style={late ? undefined : { color: NAVY }}>{t(time)}</span>
+              <span className={`ml-auto text-right text-[16px] ${late ? 'font-semibold text-red-700' : 'text-slate-500'}`}>{sub}</span>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {progress != null && (
+        <span className="absolute inset-x-0 bottom-0 h-1.5 bg-slate-100" aria-hidden="true">
+          <span className={`block h-full ${accent}`} style={{ width: `${progress * 100}%` }} />
+        </span>
       )}
-
-      {/* Destination */}
-      <div className={`mt-5 flex min-h-0 flex-1 items-start gap-3 border-t border-slate-100 ${big ? 'px-8 pt-6' : 'px-6 pt-4'}`}>
-        <MapPin size={big ? 30 : 26} className="mt-1 shrink-0 text-gold" aria-hidden="true" />
-        <div className="min-w-0">
-          <p className={`line-clamp-2 leading-[1.15] font-bold tracking-tight ${big ? 'text-[36px]' : r.destination.length > 50 ? 'text-[23px]' : 'text-[27px]'}`} style={{ color: NAVY }} title={r.destination}>
-            {r.destination}
-          </p>
-          {back && <p className={`mt-1.5 text-slate-500 ${big ? 'text-[22px]' : 'text-[18px]'}`}>{back}</p>}
-        </div>
-      </div>
-
-      {/* always reserve the bar's height so cards line up */}
-      <div className={`h-1.5 ${progress != null ? 'bg-slate-100' : ''}`} aria-hidden="true">
-        {progress != null && <div className={`h-full ${accent}`} style={{ width: `${progress * 100}%` }} />}
-      </div>
     </article>
   )
 }
 
-/** Vehicle photo (whole, fitted on white), plate, model, and the driver with their photo, like the Trips list. */
-function VehicleDriver({ r, big }) {
+/** Completed-today trips: a compact, subordinate strip under the active cards. Plate · destination · return time. */
+function CompletedToday({ trips, now }) {
   return (
-    <div className="flex min-w-0 items-center gap-5">
-      <div className={`aspect-[4/3] shrink-0 overflow-hidden rounded-xl border border-slate-200 ${r.vehicle_photo_url ? 'bg-white' : 'bg-slate-100'} ${big ? 'w-[240px]' : 'w-[150px]'}`}>
-        {r.vehicle_photo_url
-          ? <img src={r.vehicle_photo_url} alt={`${r.vehicle_label} ${r.plate_number}`} className="h-full w-full object-contain" />
-          : <div className="flex h-full items-center justify-center text-slate-400"><Car className="h-1/2 w-1/2" strokeWidth={1.25} aria-hidden="true" /></div>}
+    <section className="mt-6" aria-labelledby="done-title">
+      <div className="mb-3 flex items-center gap-3">
+        <CircleCheck size={22} className="text-emerald-600" aria-hidden="true" />
+        <h2 id="done-title" className="text-[20px] font-bold tracking-tight text-slate-600">Completed Today</h2>
+        <span className="text-[17px] font-medium text-slate-400 tabular-nums">{trips.length}</span>
       </div>
-      <div className="min-w-0">
-        <div className={`leading-none font-bold tracking-wide whitespace-nowrap ${big ? 'text-[40px]' : 'text-[28px]'}`} style={{ color: NAVY }}>{r.plate_number}</div>
-        <div className={`mt-1.5 truncate text-slate-500 ${big ? 'text-[22px]' : 'text-[17px]'}`}>{r.vehicle_label}</div>
-        <div className="mt-3 flex min-w-0 items-center gap-2.5">
-          <Avatar name={r.driver_name} src={r.driver_photo_url} size={big ? 44 : 32} />
-          <span className={`truncate font-medium text-slate-700 ${big ? 'text-[22px]' : 'text-[17px]'}`}>{r.driver_name}</span>
-        </div>
+      <div className="grid grid-cols-2 gap-3">
+        {trips.slice(0, COMPLETED_SHOWN).map((r) => (
+          <div key={r.ticket_number} className="flex items-center gap-3 rounded-xl bg-white/70 px-4 py-2.5 ring-1 ring-slate-200">
+            <Plate small>{r.plate_number}</Plate>
+            <span className="min-w-0 flex-1 truncate text-[18px] text-slate-600" title={r.destination}>{r.destination}</span>
+            <span className="shrink-0 text-[17px] font-semibold text-slate-500 tabular-nums">Back {when(r.returned_at, now)}</span>
+          </div>
+        ))}
+        {trips.length > COMPLETED_SHOWN && (
+          <div className="flex items-center px-4 py-2.5 text-[17px] font-medium text-slate-400">+{trips.length - COMPLETED_SHOWN} more returned today</div>
+        )}
       </div>
+    </section>
+  )
+}
+
+/** Whole vehicle photo, fitted (not cropped) on white. */
+function VehicleImage({ r, className }) {
+  return (
+    <div className={`shrink-0 self-stretch overflow-hidden bg-white ${className}`}>
+      {r.vehicle_photo_url
+        ? <img src={r.vehicle_photo_url} alt={`${r.vehicle_label} ${r.plate_number}`} className="h-full w-full object-contain p-2" />
+        : (
+          <div className="flex h-full flex-col items-center justify-center bg-slate-50 text-slate-300">
+            <Car size={56} strokeWidth={1.25} aria-hidden="true" />
+            <span className="mt-1 text-[15px] font-medium text-slate-400">{r.vehicle_label}</span>
+          </div>
+        )}
     </div>
   )
 }
@@ -333,9 +381,9 @@ function Avatar({ name, src, size }) {
 }
 
 /** Plate tag: white plate, thin dark border, spaced letters. */
-function Plate({ children, big, small }) {
+function Plate({ children, small }) {
   return (
-    <span className={`inline-block rounded-md border-[1.5px] border-slate-700 bg-white font-semibold tracking-[0.14em] text-slate-800 ${small ? 'px-1.5 text-[15px] leading-6' : big ? 'px-3 py-0.5 text-[24px]' : 'px-2.5 py-0.5 text-[20px]'}`}>
+    <span className={`inline-block shrink-0 rounded-md border-[1.5px] border-slate-700 bg-white font-semibold tracking-[0.14em] text-slate-800 ${small ? 'px-1.5 text-[15px] leading-6' : 'px-2.5 py-0.5 text-[20px]'}`}>
       {children}
     </span>
   )
@@ -343,10 +391,10 @@ function Plate({ children, big, small }) {
 
 function Stat({ icon: Icon, label, value, tone, alert }) {
   return (
-    <div className="flex items-center gap-4 py-3.5">
+    <div className="flex items-center gap-4 py-3">
       <span className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl ${tone}`}><Icon size={24} aria-hidden="true" /></span>
       <dt className="mr-auto text-[20px] font-medium text-slate-600">{label}</dt>
-      <dd className={`text-[44px] leading-none font-bold tracking-tight tabular-nums ${alert ? 'text-red-700' : ''}`} style={alert ? undefined : { color: NAVY }}>{value}</dd>
+      <dd className={`text-[42px] leading-none font-bold tracking-tight tabular-nums ${alert ? 'text-red-700' : ''}`} style={alert ? undefined : { color: NAVY }}>{value}</dd>
     </div>
   )
 }
@@ -374,7 +422,7 @@ function AgendaRow({ r, now }) {
 
 function Empty({ next, now }) {
   return (
-    <div className="flex flex-1 flex-col items-center justify-center rounded-3xl bg-white ring-1 ring-slate-200">
+    <div className="flex flex-col items-center justify-center rounded-3xl bg-white py-20 ring-1 ring-slate-200">
       <span className="flex h-24 w-24 items-center justify-center rounded-3xl bg-slate-100 text-slate-400"><Car size={48} strokeWidth={1.5} aria-hidden="true" /></span>
       <p className="mt-6 text-[36px] font-bold" style={{ color: NAVY }}>All vehicles are at the motor pool</p>
       <p className="mt-2 text-[22px] text-slate-500">No trips on the road and no more departures today.</p>

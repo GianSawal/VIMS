@@ -288,7 +288,7 @@ correctly and preserves history.
 -   [x] Read-only schedule API for the display (on the road now, today's departures not yet gone, next 7 days; vehicle and driver photos), office-filtered (`GET /api/display/trips/?token=`; next 7 days)
 -   [x] Display access without a staff login: dedicated read-only display account or revocable display token (`DisplayScreen` in Django admin; untick "is active" to revoke; staff open or copy the links from Trips → TV board)
 -   [x] Full-screen TV route (e.g. `/display`) with DOLE branding, large high-contrast text, live date and clock
--   [x] Columns: time, vehicle/plate, driver, destination, status (active-trips board: only vehicles on the road and today's departures — returned/cancelled are not sent; cards with the whole vehicle photo, driver photo, plate, destination, time out / expected back and a trip progress bar; "Today" counts; next 7 days with a Tomorrow badge)
+-   [x] Columns: time, vehicle/plate, driver, destination, status (active-trips board: content-sized cards — one trip is a wide featured card, a few stack full-width, four+ use a paged 2x2 grid; whole vehicle photo, driver photo, plate, destination that wraps, time out / expected back, progress bar; subordinate "Completed Today" strip; "Today" counts; next 7 days with a Tomorrow badge; cancelled trips never sent)
 -   [x] Status shown in words and color: Scheduled, Departed/On trip, Returned, Delayed, Cancelled
 -   [x] Highlight delayed departures and overdue returns (15-minute grace)
 -   [x] Auto-refresh (about every 60 seconds) with no interaction needed

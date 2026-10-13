@@ -258,11 +258,14 @@ def test_staff_can_list_tv_links_by_office(fo1, fo2):
     assert as_role('Fleet Administrator').post('/api/display-screens/', {'name': 'x'}).status_code == 405  # manage in admin
 
 
-def test_display_shows_only_active_trips(vehicle, driver, fo1):
+def test_display_shows_active_and_returned_today_not_cancelled(vehicle, driver, fo1):
     now = timezone.now()
-    Trip.objects.create(ticket_number='BACK-1', status='COMPLETED', vehicle=vehicle, driver=driver, origin='RO',
-                        destination='Done', purpose='x', departed_at=now - timedelta(hours=3), returned_at=now - timedelta(minutes=5),
-                        odometer_start=1, odometer_end=20)
+    returned = Trip.objects.create(ticket_number='BACK-1', status='COMPLETED', vehicle=vehicle, driver=driver, origin='RO',
+                                   destination='Done', purpose='x', departed_at=now - timedelta(hours=3), returned_at=now - timedelta(minutes=5),
+                                   odometer_start=1, odometer_end=20)
+    Trip.objects.create(ticket_number='OLD-1', status='COMPLETED', vehicle=make_vehicle(fo1, 'OLD 1'), driver=make_driver(fo1, 'Ol', 'L-7'),
+                        origin='RO', destination='Yesterday', purpose='x', departed_at=now - timedelta(days=2),
+                        returned_at=now - timedelta(days=1, hours=20), odometer_start=1, odometer_end=20)  # returned before today
     cancelled = make_scheduled(make_vehicle(fo1, 'CXL 1'), make_driver(fo1, 'Cx', 'L-9'), now + timedelta(minutes=30))
     cancelled.status = 'CANCELLED'
     cancelled.save()
@@ -270,5 +273,6 @@ def test_display_shows_only_active_trips(vehicle, driver, fo1):
     if timezone.localtime(booked.scheduled_departure).date() != TODAY:
         pytest.skip('just before midnight; the booking falls on tomorrow')
     rows = display(DisplayScreen.objects.create(name='Lobby').token).json()['today']
-    assert [r['ticket_number'] for r in rows] == [booked.ticket_number]  # returned and cancelled are not shown
+    # the booking and today's returned trip show; cancelled and trips returned before today do not
+    assert {r['ticket_number'] for r in rows} == {booked.ticket_number, returned.ticket_number}
     assert rows[0]['driver_photo_url'] is None
