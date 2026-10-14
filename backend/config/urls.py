@@ -10,7 +10,8 @@ from fleet.document_views import DocumentViewSet
 from fleet.driver_views import DriverViewSet
 from fleet.views import VehicleViewSet
 from maintenance.views import CategoryViewSet, MaintenanceRecordViewSet, ScheduleViewSet
-from operations.views import DisplayScreenViewSet, DisplayTripsView, FuelRecordViewSet, MapsView, TripViewSet
+from operations.views import (DisplayScreenViewSet, DisplayTripsView, FuelRecordViewSet, MapsView,
+                              RFIDAccountViewSet, TollTransactionViewSet, TripViewSet)
 
 router = DefaultRouter()
 router.register('offices', OfficeViewSet)
@@ -21,6 +22,8 @@ router.register('documents', DocumentViewSet)
 router.register('trips', TripViewSet)
 router.register('display-screens', DisplayScreenViewSet)
 router.register('fuel-records', FuelRecordViewSet)
+router.register('rfid-accounts', RFIDAccountViewSet)
+router.register('toll-transactions', TollTransactionViewSet)
 router.register('maintenance-categories', CategoryViewSet)
 router.register('maintenance-schedules', ScheduleViewSet)
 router.register('maintenance', MaintenanceRecordViewSet)

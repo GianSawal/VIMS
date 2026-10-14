@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import {
-  Bell, Building2, Car, ClipboardList, FileText, Fuel, IdCard, KeyRound, LayoutDashboard, LogOut, Menu,
+  Bell, Building2, Car, ClipboardList, CreditCard, FileText, Fuel, IdCard, KeyRound, LayoutDashboard, LogOut, Menu,
   Route as RouteIcon, ScrollText, Users, Wrench, X,
 } from 'lucide-react'
 import { useCan, useLogout, useMe } from './auth'
@@ -15,6 +15,7 @@ const nav = [
   ['/fuel', 'Fuel', Fuel, 'operations.view_fuelrecord'],
   ['/maintenance', 'Maintenance', Wrench, 'maintenance.view_maintenancerecord'],
   ['/documents', 'Documents', FileText, 'fleet.view_vehicledocument'],
+  ['/rfid', 'RFID / Toll', CreditCard, 'operations.view_rfidaccount'],
   ['/reports', 'Reports', ClipboardList, 'fleet.view_vehicle'],
   ['/notifications', 'Notifications', Bell, null],
   ['/admin/users', 'Users', Users, 'accounts.view_user'],

@@ -21,6 +21,8 @@ import MaintenanceList from './pages/maintenance/MaintenanceList'
 import MaintenanceDetail from './pages/maintenance/MaintenanceDetail'
 import DocumentList from './pages/documents/DocumentList'
 import DocumentDetail from './pages/documents/DocumentDetail'
+import RfidList from './pages/rfid/RfidList'
+import RfidDetail from './pages/rfid/RfidDetail'
 
 // Each route gets a real page as its phase is built; Pending marks what's not built yet.
 const pending = [
@@ -67,6 +69,10 @@ export default function App() {
           <Route element={<RequirePerm perm="fleet.view_vehicledocument" />}>
             <Route path="documents" element={<DocumentList />} />
             <Route path="documents/:id" element={<DocumentDetail />} />
+          </Route>
+          <Route element={<RequirePerm perm="operations.view_rfidaccount" />}>
+            <Route path="rfid" element={<RfidList />} />
+            <Route path="rfid/accounts/:id" element={<RfidDetail />} />
           </Route>
           <Route element={<RequirePerm perm="accounts.view_office" />}>
             <Route path="admin/offices" element={<Offices />} />

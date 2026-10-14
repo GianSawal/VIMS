@@ -7,7 +7,7 @@ from accounts.models import Office
 from fleet.models import Driver, Vehicle
 
 from . import fuel
-from .models import DisplayScreen, FuelRecord, Trip
+from .models import DisplayScreen, FuelRecord, RFIDAccount, TollTransaction, Trip
 
 DESCRIPTIVE = ['requesting_office', 'passengers', 'origin', 'destination', 'purpose', 'remarks',
                'estimated_distance_km', 'estimated_duration_min', 'origin_lat', 'origin_lng', 'destination_lat',
@@ -250,3 +250,83 @@ class FuelRecordSerializer(serializers.ModelSerializer):
         kml = fuel.km_per_liter(r) if hasattr(r, 'prev_full_odometer') else None
         self.get_usual_km_per_liter(r)
         return fuel.is_unusual(kml, self.context['avg_cache'][r.vehicle_id])
+
+
+# ---------------------------------------------------------------- RFID / toll (Phase 10)
+
+class RFIDAccountSerializer(serializers.ModelSerializer):
+    """
+    RFID / toll account. The account number is masked for anyone who cannot change the account
+    (operations/toll.py). No third-party passwords are stored.
+    """
+    provider_display = serializers.CharField(source='get_provider_display', read_only=True)
+    masked_account = serializers.SerializerMethodField()
+    vehicle = serializers.PrimaryKeyRelatedField(queryset=Vehicle.objects.all(), allow_null=True, required=False)
+    plate_number = serializers.CharField(source='vehicle.plate_number', read_only=True, default=None)
+    vehicle_label = serializers.SerializerMethodField()
+    vehicle_photo_url = serializers.SerializerMethodField()
+    office_code = serializers.CharField(source='vehicle.office.code', read_only=True, default=None)
+    transaction_count = serializers.IntegerField(read_only=True, default=0)
+
+    class Meta:
+        model = RFIDAccount
+        fields = ['id', 'provider', 'provider_display', 'account_number', 'masked_account', 'vehicle',
+                  'plate_number', 'vehicle_label', 'vehicle_photo_url', 'office_code', 'is_active', 'balance',
+                  'remarks', 'transaction_count', 'created_at', 'updated_at']
+        read_only_fields = ['created_at', 'updated_at']
+
+    def get_masked_account(self, a):
+        from . import toll
+        return toll.mask_account(a.account_number)
+
+    def get_vehicle_label(self, a):
+        return f'{a.vehicle.make} {a.vehicle.model}' if a.vehicle else None
+
+    def get_vehicle_photo_url(self, a):
+        return a.vehicle.photo.url if a.vehicle and a.vehicle.photo else None
+
+    def to_representation(self, instance):
+        from . import toll
+        data = super().to_representation(instance)
+        request = self.context.get('request')
+        if not (request and toll.can_see_full(request.user)):
+            data['account_number'] = data['masked_account']  # hide the full number from view-only users
+        return data
+
+
+class TollTransactionSerializer(serializers.ModelSerializer):
+    account = serializers.PrimaryKeyRelatedField(queryset=RFIDAccount.objects.all())
+    provider_display = serializers.CharField(source='account.get_provider_display', read_only=True)
+    account_masked = serializers.SerializerMethodField()
+    vehicle = serializers.PrimaryKeyRelatedField(queryset=Vehicle.objects.all())
+    plate_number = serializers.CharField(source='vehicle.plate_number', read_only=True)
+    vehicle_label = serializers.SerializerMethodField()
+    vehicle_photo_url = serializers.SerializerMethodField()
+    office_code = serializers.CharField(source='vehicle.office.code', read_only=True)
+    trip = serializers.PrimaryKeyRelatedField(queryset=Trip.objects.all(), allow_null=True, required=False)
+    trip_ticket = serializers.CharField(source='trip.ticket_number', read_only=True, default=None)
+    running_balance = serializers.DecimalField(max_digits=14, decimal_places=2, read_only=True, required=False)
+
+    class Meta:
+        model = TollTransaction
+        fields = ['id', 'account', 'provider_display', 'account_masked', 'vehicle', 'plate_number', 'vehicle_label',
+                  'vehicle_photo_url', 'office_code', 'trip', 'trip_ticket', 'transacted_at', 'description',
+                  'credit', 'debit', 'running_balance', 'reference_number', 'created_at', 'updated_at']
+        read_only_fields = ['created_at', 'updated_at']
+        extra_kwargs = {'credit': {'min_value': 0, 'required': False}, 'debit': {'min_value': 0, 'required': False}}
+
+    def get_account_masked(self, x):
+        from . import toll
+        return f'{x.account.get_provider_display()} {toll.mask_account(x.account.account_number)}'
+
+    def get_vehicle_label(self, x):
+        return f'{x.vehicle.make} {x.vehicle.model}'
+
+    def get_vehicle_photo_url(self, x):
+        return x.vehicle.photo.url if x.vehicle.photo else None
+
+    def validate_reference_number(self, v):
+        return v.strip().upper()
+
+    def validate_description(self, v):
+        return ' '.join(v.split())

@@ -392,18 +392,18 @@ expiration alerts are accurate.
 
 # Phase 10 --- RFID / Toll Module
 
--   [ ] RFID provider/reference records
--   [ ] Assign RFID account to vehicle
--   [ ] Mask sensitive information
--   [ ] Do not store plaintext third-party passwords
--   [ ] Toll transaction CRUD
--   [ ] Link toll transaction to trip where applicable
--   [ ] Credit/debit fields
--   [ ] Balance logic if required
--   [ ] Toll transaction history
--   [ ] Vehicle RFID/toll tab
--   [ ] Filters
--   [ ] Tests
+-   [x] RFID provider/reference records (Easytrip / Autosweep / Other; `/api/rfid-accounts/`)
+-   [x] Assign RFID account to vehicle (or leave unassigned in the motor pool)
+-   [x] Mask sensitive information (account number shown as "•••• 1234" unless you can change the account, incl. in audit logs)
+-   [x] Do not store plaintext third-party passwords (no password field at all; spec 5.8)
+-   [x] Toll transaction CRUD (`/api/toll-transactions/`, no DELETE)
+-   [x] Link toll transaction to trip where applicable (optional, must match the vehicle)
+-   [x] Credit/debit fields (a transaction is a load or a charge, never both; non-negative)
+-   [x] Balance logic if required (running balance = cumulative credit - debit; recorded balance kept per account)
+-   [x] Toll transaction history (per account with running balance; per vehicle; global list)
+-   [x] Vehicle RFID/toll tab (accounts + toll history)
+-   [x] Filters (provider, office, status, unassigned; toll: kind, date range, account, vehicle; search)
+-   [x] Tests (`operations/test_toll.py`; masking, credit/debit rules, running balance, scope, no delete)
 
 **Phase gate:** RFID/toll history is usable without exposing sensitive
 credentials.

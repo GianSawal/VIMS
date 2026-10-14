@@ -20,11 +20,12 @@ from fleet.attachments_api import AttachmentsMixin
 
 from . import fuel as fuel_service
 from . import maps
+from . import toll as toll_service
 from . import trips as trip_service
-from .models import DisplayScreen, FuelRecord, Trip
+from .models import DisplayScreen, FuelRecord, RFIDAccount, TollTransaction, Trip
 from .serializers import (DESCRIPTIVE, CancelSerializer, CompleteSerializer, DispatchScheduledSerializer,
-                          DispatchSerializer, DisplayScreenSerializer, DisplayTripSerializer, FuelRecordSerializer, RescheduleSerializer, ScheduleSerializer,
-                          TripSerializer)
+                          DispatchSerializer, DisplayScreenSerializer, DisplayTripSerializer, FuelRecordSerializer, RescheduleSerializer,
+                          RFIDAccountSerializer, ScheduleSerializer, TollTransactionSerializer, TripSerializer)
 
 CAN_CHANGE_TRIP = [require('operations.change_trip'), PasswordChangeNotRequired]
 CAN_ADD_TRIP = [require('operations.add_trip'), PasswordChangeNotRequired]
@@ -387,3 +388,144 @@ class MapsView(APIView):
             return Response(maps.route(s.validated_data['origin'], s.validated_data['destination']))
         except maps.MapsError as e:
             return Response({'detail': str(e)}, status=status.HTTP_502_BAD_GATEWAY)
+
+
+# ---------------------------------------------------------------- RFID / toll (Phase 10)
+
+def _money(v):
+    return str(Decimal(str(v or 0)).quantize(Decimal('0.01')))  # same shape on MySQL and SQLite
+
+
+RFID_AUDITED = ['provider', 'account_number', 'vehicle', 'is_active', 'balance', 'remarks']
+TOLL_AUDITED = ['account', 'vehicle', 'trip', 'transacted_at', 'description', 'credit', 'debit', 'reference_number']
+
+
+def rfid_snapshot(a):
+    snap = {f: str(getattr(a, f'{f}_id' if f == 'vehicle' else f) or '') for f in RFID_AUDITED}
+    snap['account_number'] = toll_service.mask_account(a.account_number)  # never log the full number
+    return snap
+
+
+def toll_snapshot(x):
+    return {f: str(getattr(x, f'{f}_id' if f in ('account', 'vehicle', 'trip') else f) or '') for f in TOLL_AUDITED}
+
+
+class RFIDAccountFilter(filters.FilterSet):
+    office = filters.NumberFilter(field_name='vehicle__office')
+    unassigned = filters.BooleanFilter(field_name='vehicle', lookup_expr='isnull')
+
+    class Meta:
+        model = RFIDAccount
+        fields = ['provider', 'is_active', 'vehicle']
+
+
+class RFIDAccountViewSet(OfficeScopedMixin, mixins.ListModelMixin, mixins.RetrieveModelMixin,
+                         mixins.CreateModelMixin, mixins.UpdateModelMixin, viewsets.GenericViewSet):
+    """
+    RFID / toll accounts (Easytrip, Autosweep). The account number is masked for view-only users and no
+    third-party password is stored. Assign to a vehicle or leave unassigned. No DELETE: deactivate instead.
+    """
+    queryset = RFIDAccount.objects.select_related('vehicle', 'vehicle__office')
+    serializer_class = RFIDAccountSerializer
+    office_field = 'vehicle__office'
+    filterset_class = RFIDAccountFilter
+    search_fields = ['account_number', 'remarks', 'vehicle__plate_number']
+    ordering_fields = ['provider', 'is_active', 'balance']
+
+    def get_queryset(self):
+        qs = self.queryset  # unassigned accounts belong to no office; show them to everyone who may view
+        user = self.request.user
+        if not user.has_perm('accounts.view_all_offices'):
+            qs = qs.filter(Q(vehicle__office__in=user.offices.all()) | Q(vehicle__isnull=True))
+        if self.action in ('list', 'retrieve'):
+            qs = qs.annotate(transaction_count=Count('transactions', distinct=True)).order_by('-is_active', 'provider', 'account_number')
+        return qs
+
+    def _respond(self, account, code=status.HTTP_200_OK):
+        fresh = self.queryset.filter(pk=account.pk).annotate(transaction_count=Count('transactions', distinct=True)).get()
+        return Response(self.get_serializer(fresh).data, status=code)
+
+    def create(self, request, *args, **kwargs):
+        s = self.get_serializer(data=request.data)
+        s.is_valid(raise_exception=True)
+        account = toll_service.save_account(user=request.user, data=dict(s.validated_data))
+        log(request, 'create', account, f'Added RFID account {account.get_provider_display()} {toll_service.mask_account(account.account_number)}',
+            {'after': rfid_snapshot(account)})
+        return self._respond(account, status.HTTP_201_CREATED)
+
+    def update(self, request, *args, **kwargs):
+        instance = self.get_object()
+        s = self.get_serializer(instance, data=request.data, partial=kwargs.get('partial', False))
+        s.is_valid(raise_exception=True)
+        before = rfid_snapshot(instance)
+        account = toll_service.save_account(user=request.user, instance=instance, data=dict(s.validated_data))
+        changes = diff(before, rfid_snapshot(account))
+        if changes:
+            log(request, 'update', account, f'Updated RFID account {account.get_provider_display()} {toll_service.mask_account(account.account_number)}', changes)
+        return self._respond(account)
+
+    @action(detail=True, methods=['get'])
+    def transactions(self, request, pk=None):
+        """This account's toll transactions, newest first, each with the running balance (credit - debit)."""
+        account = self.get_object()
+        txns = list(account.transactions.select_related('vehicle', 'trip'))
+        rows = toll_service.with_running_balance(txns)
+        data = TollTransactionSerializer(rows, many=True, context=self.get_serializer_context()).data
+        credit = sum((x.credit for x in txns), Decimal('0'))
+        debit = sum((x.debit for x in txns), Decimal('0'))
+        return Response({'results': data, 'credit': _money(credit), 'debit': _money(debit), 'net': _money(credit - debit)})
+
+
+class TollFilter(filters.FilterSet):
+    office = filters.NumberFilter(field_name='vehicle__office')
+    provider = filters.CharFilter(field_name='account__provider')
+    date_from = filters.DateTimeFilter(field_name='transacted_at', lookup_expr='gte')
+    date_to = filters.DateTimeFilter(field_name='transacted_at', lookup_expr='lte')
+    kind = filters.ChoiceFilter(method='by_kind', choices=[('credit', 'Load'), ('debit', 'Charge')])
+
+    class Meta:
+        model = TollTransaction
+        fields = ['account', 'vehicle', 'trip']
+
+    def by_kind(self, qs, name, value):
+        return qs.filter(credit__gt=0) if value == 'credit' else qs.filter(debit__gt=0)
+
+
+class TollTransactionViewSet(OfficeScopedMixin, mixins.ListModelMixin, mixins.RetrieveModelMixin,
+                             mixins.CreateModelMixin, mixins.UpdateModelMixin, viewsets.GenericViewSet):
+    """Toll / RFID transactions: a load (credit) or a charge (debit), optionally linked to a trip. No DELETE."""
+    queryset = TollTransaction.objects.select_related('account', 'vehicle', 'vehicle__office', 'trip')
+    serializer_class = TollTransactionSerializer
+    office_field = 'vehicle__office'
+    filterset_class = TollFilter
+    search_fields = ['description', 'reference_number', 'vehicle__plate_number', 'account__account_number']
+    ordering_fields = ['transacted_at', 'credit', 'debit']
+
+    def _respond(self, x, code=status.HTTP_200_OK):
+        return Response(self.get_serializer(self.queryset.get(pk=x.pk)).data, status=code)
+
+    def create(self, request, *args, **kwargs):
+        s = self.get_serializer(data=request.data)
+        s.is_valid(raise_exception=True)
+        x = toll_service.save_transaction(user=request.user, data=dict(s.validated_data))
+        log(request, 'create', x, f'Toll {"load" if x.credit else "charge"} for {x.vehicle.plate_number}: {x.description[:80]}',
+            {'after': toll_snapshot(x)})
+        return self._respond(x, status.HTTP_201_CREATED)
+
+    def update(self, request, *args, **kwargs):
+        instance = self.get_object()
+        s = self.get_serializer(instance, data=request.data, partial=kwargs.get('partial', False))
+        s.is_valid(raise_exception=True)
+        before = toll_snapshot(instance)
+        x = toll_service.save_transaction(user=request.user, instance=instance, data=dict(s.validated_data))
+        changes = diff(before, toll_snapshot(x))
+        if changes:
+            log(request, 'update', x, f'Updated toll transaction for {x.vehicle.plate_number}', changes)
+        return self._respond(x)
+
+    @action(detail=False, methods=['get'])
+    def summary(self, request):
+        """Loads, charges and their net for the same filters as the list (omit `kind` for the totals)."""
+        agg = self.filter_queryset(self.get_queryset()).order_by().aggregate(credit=Sum('credit'), debit=Sum('debit'), n=Count('id'))
+        credit, debit = Decimal(str(agg['credit'] or 0)), Decimal(str(agg['debit'] or 0))
+        return Response({'total': agg['n'], 'credit': _money(credit), 'debit': _money(debit), 'net': _money(credit - debit)})

@@ -15,6 +15,7 @@ import { NotFound } from '../Errors'
 import { TripStatusBadge } from '../trips/common'
 import AssignmentsTab from './AssignmentsTab'
 import DocumentsTab from './DocumentsTab'
+import RfidTab from './RfidTab'
 import FuelTab from './FuelTab'
 import MaintenanceTab from './MaintenanceTab'
 import TripsTab from './TripsTab'
@@ -28,7 +29,7 @@ const TABS = [
   ['fuel', 'Fuel'],
   ['maintenance', 'Maintenance'],
   ['documents', 'Documents'],
-  ['rfid', 'RFID / Toll', 10],
+  ['rfid', 'RFID / Toll'],
   ['activity', 'Activity', 14],
 ]
 
@@ -152,6 +153,7 @@ export default function VehicleProfile() {
           : tab === 'fuel' ? <FuelTab v={v} />
           : tab === 'maintenance' ? <MaintenanceTab v={v} />
           : tab === 'documents' ? <DocumentsTab v={v} />
+          : tab === 'rfid' ? <RfidTab v={v} />
           : (
             <div className="rounded-xl border border-dashed border-slate-300 bg-white p-10 text-center text-slate-500">
               {TABS.find(([k]) => k === tab)?.[1] ?? 'This section'} arrives in Phase {TABS.find(([k]) => k === tab)?.[2]}.
