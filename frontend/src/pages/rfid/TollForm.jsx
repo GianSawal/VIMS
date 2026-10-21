@@ -28,6 +28,9 @@ export default function TollForm({ txn, account, vehicle, trip, onClose, onSaved
   })
 
   const chosenAccount = accounts.data?.results.find((a) => String(a.id) === watch('account'))
+  const fixedVehicle = vehicle?.id ?? trip?.vehicle ?? null // opened from a vehicle tab or trip ticket
+  const pickable = (accounts.data?.results ?? []).filter((a) => (a.is_active || String(a.id) === watch('account'))
+    && (fixedVehicle == null || a.vehicle == null || a.vehicle === fixedVehicle))
   const lockedVehicle = chosenAccount?.vehicle ?? null // an assigned account fixes the vehicle
   const vehicleId = lockedVehicle ? String(lockedVehicle) : watch('vehicle')
   const trips = useList('/trips/', vehicleId ? { vehicle: vehicleId, page_size: 50 } : {})
@@ -59,23 +62,37 @@ export default function TollForm({ txn, account, vehicle, trip, onClose, onSaved
     <form noValidate className="space-y-4" onSubmit={handleSubmit(submit)}>
       {error && <div role="alert" className="rounded-md bg-red-50 px-3 py-2 text-sm text-danger">{error}</div>}
 
-      <Field label="Account *" htmlFor="toll-account" error={errors.account?.message}>
-        <select id="toll-account" className={inputClass} {...register('account', { required: 'Choose an account' })} disabled={!!account}>
-          <option value="">Select an account…</option>
-          {accounts.data?.results.filter((a) => a.is_active || String(a.id) === watch('account')).map((a) => (
-            <option key={a.id} value={a.id}>{providerLabel[a.provider]} {a.masked_account}{a.plate_number ? ` · ${a.plate_number}` : ' · unassigned'}</option>
-          ))}
-        </select>
-      </Field>
+      {account ? (
+        <div>
+          <span className="mb-1 block text-sm font-medium">Account</span>
+          <input type="hidden" {...register('account')} />
+          <div className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm">{providerLabel[account.provider]} {account.masked_account}</div>
+        </div>
+      ) : (
+        <Field label="Account *" htmlFor="toll-account" error={errors.account?.message}>
+          <select id="toll-account" className={inputClass} {...register('account', { required: 'Choose an account' })}>
+            <option value="">Select an account…</option>
+            {pickable.map((a) => (
+              <option key={a.id} value={a.id}>{providerLabel[a.provider]} {a.masked_account}{a.plate_number ? ` · ${a.plate_number}` : ' · unassigned'}</option>
+            ))}
+          </select>
+        </Field>
+      )}
 
       {lockedVehicle ? (
         <div>
           <span className="mb-1 block text-sm font-medium">Vehicle</span>
           <div className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm">{chosenAccount.plate_number} · {chosenAccount.vehicle_label} <span className="text-slate-400">(from the account)</span></div>
         </div>
+      ) : vehicle ? (
+        <div>
+          <span className="mb-1 block text-sm font-medium">Vehicle</span>
+          <input type="hidden" {...register('vehicle')} />
+          <div className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm">{vehicle.plate_number}{vehicle.make ? ` · ${vehicle.make} ${vehicle.model}` : ''}</div>
+        </div>
       ) : (
         <Field label="Vehicle *" htmlFor="toll-vehicle" error={errors.vehicle?.message}>
-          <select id="toll-vehicle" className={inputClass} {...register('vehicle', { required: !lockedVehicle && 'Choose a vehicle' })} disabled={!!vehicle}>
+          <select id="toll-vehicle" className={inputClass} {...register('vehicle', { required: 'Choose a vehicle' })}>
             <option value="">Select a vehicle…</option>
             {vehicles.data?.results.map((x) => <option key={x.id} value={x.id}>{x.plate_number} · {x.make} {x.model}</option>)}
           </select>
