@@ -148,14 +148,30 @@ export default function FuelList() {
   const delta = !f.date_from && !f.date_to && trend.length >= 2 ? change(trend.at(-1).value, trend.at(-2).value) : null
 
   const showOffice = me?.view_all_offices || (me?.offices.length ?? 0) > 1
+
+  // Quick month picker: fills date_from/date_to with the chosen month's first and last day.
+  const monthOptions = []
+  for (let d = new Date(new Date().getFullYear(), new Date().getMonth(), 1), i = 0; i < 18; i++, d.setMonth(d.getMonth() - 1)) {
+    monthOptions.push({ value: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`, label: monthLong.format(d) })
+  }
+  const monthBounds = (ym) => { const [y, m] = ym.split('-').map(Number); return [`${ym}-01`, `${ym}-${String(new Date(y, m, 0).getDate()).padStart(2, '0')}`] }
+  const selectedMonth = (() => { if (!f.date_from || !f.date_to) return ''; const ym = f.date_from.slice(0, 7); const [a, b] = monthBounds(ym); return f.date_from === a && f.date_to === b ? ym : '' })()
+  const monthLabel = selectedMonth ? (monthOptions.find((o) => o.value === selectedMonth)?.label ?? selectedMonth) : null
+  const setMonth = (ym) => setParams((prev) => {
+    const next = new URLSearchParams(prev)
+    if (ym) { const [a, b] = monthBounds(ym); next.set('date_from', a); next.set('date_to', b) } else { next.delete('date_from'); next.delete('date_to') }
+    next.delete('page')
+    return next
+  }, { replace: true })
+
   const chips = [
     f.search && ['search', `Search: “${f.search}”`],
     f.office && ['office', `Office: ${offices.data?.results.find((o) => String(o.id) === f.office)?.code ?? f.office}`],
     f.fuel_type && ['fuel_type', `Fuel: ${fuelLabel[f.fuel_type]}`],
-    f.date_from && ['date_from', `From ${f.date_from}`],
-    f.date_to && ['date_to', `To ${f.date_to}`],
+    monthLabel ? ['month', `Month: ${monthLabel}`] : f.date_from && ['date_from', `From ${f.date_from}`],
+    !monthLabel && f.date_to && ['date_to', `To ${f.date_to}`],
   ].filter(Boolean)
-  const remove = (key) => { if (key === 'search') setSearch(''); set(key, '') }
+  const remove = (key) => { if (key === 'search') setSearch(''); if (key === 'month') setMonth(''); else set(key, '') }
   const clearAll = () => { setSearch(''); setParams(poLog ? { view: 'po' } : {}, { replace: true }) }
 
   const toolbar = (
@@ -170,6 +186,10 @@ export default function FuelList() {
       <select className={`${selectClass} w-36`} aria-label="Filter by fuel type" value={f.fuel_type ?? ''} onChange={(e) => set('fuel_type', e.target.value)}>
         <option value="">All fuel types</option>
         {FUELS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+      </select>
+      <select className={`${selectClass} w-40`} aria-label="Filter by month" value={selectedMonth} onChange={(e) => setMonth(e.target.value)}>
+        <option value="">Any month</option>
+        {monthOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
       </select>
       <label className="flex items-center gap-2 text-sm text-slate-600">From <input type="date" className={`${selectClass} w-40`} value={f.date_from ?? ''} onChange={(e) => set('date_from', e.target.value)} /></label>
       <label className="flex items-center gap-2 text-sm text-slate-600">To <input type="date" className={`${selectClass} w-40`} value={f.date_to ?? ''} onChange={(e) => set('date_to', e.target.value)} /></label>
