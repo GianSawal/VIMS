@@ -123,7 +123,7 @@ export default function TollForm({ txn, account, vehicle, trip, onClose, onSaved
         <>
           {/* Reload (optional) */}
           <fieldset className="rounded-lg border border-slate-200 p-4">
-            <legend className="flex items-center gap-1.5 px-1 text-sm font-semibold text-emerald-700"><ArrowUpCircle size={16} /> Reload <span className="font-normal text-slate-400">· optional</span></legend>
+            <legend className="flex items-center gap-1.5 px-1 text-sm font-semibold text-emerald-700"><ArrowUpCircle size={16} /> Reload</legend>
             <div className="grid gap-3 sm:grid-cols-2">
               <Field label="Load amount (₱)" htmlFor="load-amt">
                 <input id="load-amt" className={inputClass} inputMode="decimal" placeholder="0.00" {...register('load_amount')} />
@@ -150,7 +150,7 @@ export default function TollForm({ txn, account, vehicle, trip, onClose, onSaved
             </div>
             <Button variant="ghost" className="mt-2 px-2" onClick={() => append({ amount: '', description: '', reference_number: '' })}><Plus size={16} /> Add another toll</Button>
           </fieldset>
-          <p className="text-xs text-slate-500">Leave the reload blank for a tolls-only trip, or fill only the reload for a plain top-up. Each line is saved as its own transaction.</p>
+          <p className="text-xs text-slate-500">Fill the reload and the tolls that happened on this trip. Each line is saved as its own transaction.</p>
         </>
       ) : (
         <>
