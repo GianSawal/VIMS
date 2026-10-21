@@ -1,6 +1,7 @@
 from datetime import datetime, time, timedelta
 from decimal import Decimal
 
+from django.db import transaction as db_transaction
 from django.db.models import Count, Q, Sum
 from django.db.models.functions import Coalesce, TruncMonth
 from django.utils import timezone
@@ -533,6 +534,35 @@ class TollTransactionViewSet(OfficeScopedMixin, mixins.ListModelMixin, mixins.Re
         if changes:
             log(request, 'update', x, f'Updated toll transaction for {x.vehicle.plate_number}', changes)
         return self._respond(x)
+
+    @action(detail=False, methods=['post'])
+    def batch(self, request):
+        """Record several transactions from one trip at once (e.g. a reload plus the tolls), each saved as its
+        own row, all or nothing. Body: {account, vehicle, trip?, transacted_at, items:[{kind, amount, description, reference_number}]}."""
+        shared = {k: request.data.get(k) for k in ('account', 'vehicle', 'transacted_at')}
+        shared['trip'] = request.data.get('trip') or None
+        items = request.data.get('items')
+        if not isinstance(items, list) or not items:
+            return Response({'items': ['Add at least one load or charge.']}, status=status.HTTP_400_BAD_REQUEST)
+        payloads = []
+        for i, it in enumerate(items):
+            amt = it.get('amount')
+            payload = {**shared, 'description': it.get('description', ''), 'reference_number': it.get('reference_number', ''),
+                       'credit': amt if it.get('kind') == 'credit' else '0', 'debit': amt if it.get('kind') == 'debit' else '0'}
+            s = self.get_serializer(data=payload)
+            if not s.is_valid():
+                return Response({'items': {i: s.errors}}, status=status.HTTP_400_BAD_REQUEST)
+            payloads.append(dict(s.validated_data))
+        with db_transaction.atomic():
+            created = [toll_service.save_transaction(user=request.user, data=p) for p in payloads]
+        first = created[0]
+        loads = sum(1 for x in created if x.credit)
+        charges = len(created) - loads
+        parts = ', '.join(p for p in [f'{loads} load(s)' if loads else '', f'{charges} toll charge(s)' if charges else ''] if p)
+        log(request, 'create', first, f'Recorded {parts} for {first.vehicle.plate_number}' + (f' on {first.trip.ticket_number}' if first.trip_id else ''),
+            {'after': {'transactions': len(created), 'loads': loads, 'charges': charges}})
+        data = self.get_serializer(self.queryset.filter(pk__in=[x.pk for x in created]), many=True).data
+        return Response({'results': data, 'count': len(created)}, status=status.HTTP_201_CREATED)
 
     @action(detail=False, methods=['get'])
     def summary(self, request):

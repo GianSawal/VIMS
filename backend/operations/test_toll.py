@@ -135,3 +135,27 @@ def test_trip_ticket_shows_toll_and_account_live_balance(fo1):
     # the account's live balance = loads - charges
     assert c.get(f'/api/rfid-accounts/{acc.pk}/').json()['current_balance'] == '830.00'
     assert c.get(f'/api/rfid-accounts/{acc.pk}/transactions/').json()['current_balance'] == '830.00'
+
+
+def test_batch_records_load_and_charges_as_separate_rows(fo1):
+    v = make_vehicle(fo1, 'BAT 1')
+    c = as_role('Fleet Administrator')
+    acc = RFIDAccount.objects.create(provider='EASYTRIP', account_number='E-BAT', vehicle=v)
+    now = timezone.now().isoformat()
+    r = c.post('/api/toll-transactions/batch/', {
+        'account': acc.pk, 'vehicle': v.pk, 'transacted_at': now, 'items': [
+            {'kind': 'credit', 'amount': '1000', 'description': 'Reload', 'reference_number': 'rl1'},
+            {'kind': 'debit', 'amount': '78', 'description': 'NLEX Balintawak'},
+            {'kind': 'debit', 'amount': '92', 'description': 'NLEX Bocaue'},
+        ]}, format='json')
+    assert r.status_code == 201, r.json()
+    assert r.json()['count'] == 3
+    assert TollTransaction.objects.filter(account=acc).count() == 3  # three separate rows, not one merged
+    assert c.get(f'/api/rfid-accounts/{acc.pk}/').json()['current_balance'] == '830.00'
+    # all-or-nothing: a bad item (both or neither) rolls the whole batch back
+    bad = c.post('/api/toll-transactions/batch/', {'account': acc.pk, 'vehicle': v.pk, 'transacted_at': now,
+                 'items': [{'kind': 'credit', 'amount': '500', 'description': 'ok'}, {'kind': 'debit', 'amount': '0', 'description': 'bad'}]}, format='json')
+    assert bad.status_code == 400
+    assert TollTransaction.objects.filter(account=acc).count() == 3  # nothing added
+    # empty items rejected
+    assert c.post('/api/toll-transactions/batch/', {'account': acc.pk, 'vehicle': v.pk, 'transacted_at': now, 'items': []}, format='json').status_code == 400

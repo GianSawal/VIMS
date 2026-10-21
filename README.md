@@ -105,6 +105,7 @@ Django session in an HttpOnly cookie plus CSRF token. The SPA calls `GET /api/au
 | `/api/rfid-accounts/` | CRUD (no delete) | Easytrip/Autosweep accounts; `?provider= &is_active= &vehicle= &unassigned=true &office= &search=`; account number masked unless you have `change_rfidaccount`; no passwords stored |
 | `/api/rfid-accounts/{id}/transactions/` | GET | that account's toll transactions with a running balance, plus load/charge/net totals and the current balance |
 | `/api/trips/{id}/` | GET | the ticket includes a `toll` summary (loads, charges, net) for transactions linked to it |
+| `/api/toll-transactions/batch/` | POST `{account, vehicle, trip?, transacted_at, items:[{kind, amount, description, reference_number}]}` | records a reload and/or several tolls from one trip as separate rows, all-or-nothing |
 | `/api/toll-transactions/` | CRUD (no delete) | loads (credit) / charges (debit), optional trip link; `?account= &vehicle= &trip= &provider= &kind=credit\|debit &date_from= &date_to= &office= &search=`; `summary/` |
 | `/api/drivers/` | CRUD (no delete) | `?search= &office= &is_active= &license_status=VALID\|EXPIRING\|EXPIRED` |
 | `/api/drivers/{id}/photo/` | POST (multipart `photo`) / DELETE | needs `fleet.change_driver`; same rules as vehicle photos |
