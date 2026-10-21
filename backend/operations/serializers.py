@@ -1,4 +1,7 @@
 from datetime import timedelta
+from decimal import Decimal
+
+from django.db.models import Sum
 
 from django.utils import timezone
 from rest_framework import serializers
@@ -39,6 +42,7 @@ class TripSerializer(serializers.ModelSerializer):
     requesting_office_name = serializers.CharField(source='requesting_office.name', read_only=True, default=None)
     status_display = serializers.CharField(source='get_status_display', read_only=True)
     schedule_day = serializers.SerializerMethodField(help_text='For scheduled trips: TODAY, UPCOMING or MISSED.')
+    toll = serializers.SerializerMethodField(help_text='RFID/toll on this ticket: loads, charges and net.')
 
     class Meta:
         model = Trip
@@ -46,7 +50,7 @@ class TripSerializer(serializers.ModelSerializer):
                   'driver_name', 'requesting_office', 'requesting_office_name', 'passengers', 'origin', 'destination',
                   'purpose', 'scheduled_departure', 'scheduled_return', 'schedule_day', 'departed_at', 'returned_at',
                   'odometer_start', 'odometer_end', 'distance_km', 'estimated_distance_km', 'estimated_duration_min',
-                  'origin_lat', 'origin_lng', 'destination_lat', 'destination_lng', 'route_geometry', 'status', 'status_display', 'remarks',
+                  'origin_lat', 'origin_lng', 'destination_lat', 'destination_lng', 'route_geometry', 'status', 'status_display', 'toll', 'remarks',
                   'created_at', 'updated_at']
         read_only_fields = [f for f in fields if f not in DESCRIPTIVE]
 
@@ -67,6 +71,15 @@ class TripSerializer(serializers.ModelSerializer):
             return None
         day, today = timezone.localtime(t.scheduled_departure).date(), timezone.localdate()
         return 'TODAY' if day == today else 'UPCOMING' if day > today else 'MISSED'
+
+    def get_toll(self, t):
+        count = getattr(t, 'toll_count', None)
+        if count is None:
+            return None  # only annotated on list/retrieve
+        q2 = lambda v: str(Decimal(v or 0).quantize(Decimal('0.01')))
+        charges = getattr(t, 'toll_charges', None) or 0
+        loads = getattr(t, 'toll_credits', None) or 0
+        return {'count': count, 'charges': q2(charges), 'loads': q2(loads), 'net': q2(Decimal(loads) - Decimal(charges))}
 
 
 class DispatchSerializer(serializers.Serializer):
@@ -267,17 +280,27 @@ class RFIDAccountSerializer(serializers.ModelSerializer):
     vehicle_photo_url = serializers.SerializerMethodField()
     office_code = serializers.CharField(source='vehicle.office.code', read_only=True, default=None)
     transaction_count = serializers.IntegerField(read_only=True, default=0)
+    current_balance = serializers.SerializerMethodField(help_text='Live balance = total loads (credit) - total charges (debit).')
 
     class Meta:
         model = RFIDAccount
         fields = ['id', 'provider', 'provider_display', 'account_number', 'masked_account', 'vehicle',
                   'plate_number', 'vehicle_label', 'vehicle_photo_url', 'office_code', 'is_active', 'balance',
-                  'remarks', 'transaction_count', 'created_at', 'updated_at']
+                  'remarks', 'transaction_count', 'current_balance', 'created_at', 'updated_at']
         read_only_fields = ['created_at', 'updated_at']
 
     def get_masked_account(self, a):
         from . import toll
         return toll.mask_account(a.account_number)
+
+    def get_current_balance(self, a):
+        credit = getattr(a, 'credit_sum', None)
+        if credit is None:  # not annotated (e.g. single-object create response): fall back to a query
+            agg = a.transactions.aggregate(c=Sum('credit'), d=Sum('debit'))
+            credit, debit = agg['c'] or 0, agg['d'] or 0
+        else:
+            debit = getattr(a, 'debit_sum', None) or 0
+        return str((Decimal(credit) - Decimal(debit)).quantize(Decimal('0.01')))
 
     def get_vehicle_label(self, a):
         return f'{a.vehicle.make} {a.vehicle.model}' if a.vehicle else None

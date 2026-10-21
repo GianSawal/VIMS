@@ -38,8 +38,8 @@ export default function RfidTab({ v }) {
                   </div>
                   <div className="mt-2 font-mono text-lg font-semibold tracking-wider text-ink">{a.account_number}</div>
                   <div className="mt-2 flex items-baseline justify-between text-sm">
-                    <span className="text-slate-500">Recorded balance</span>
-                    <span className="font-semibold tabular-nums">{a.balance != null ? formatPeso(a.balance) : '—'}</span>
+                    <span className="text-slate-500">Balance</span>
+                    <span className="font-semibold tabular-nums">{formatPeso(a.current_balance)}</span>
                   </div>
                 </Link>
               ))}

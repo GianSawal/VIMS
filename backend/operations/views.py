@@ -61,6 +61,13 @@ class TripViewSet(AttachmentsMixin, OfficeScopedMixin, mixins.ListModelMixin, mi
     search_fields = ['ticket_number', 'vehicle__plate_number', 'driver__full_name', 'origin', 'destination', 'purpose']
     ordering_fields = ['departed_at', 'scheduled_departure', 'returned_at', 'distance_km', 'ticket_number']
 
+    def get_queryset(self):
+        qs = super().get_queryset()
+        if self.action in ('list', 'retrieve'):
+            qs = qs.annotate(toll_count=Count('toll_transactions', distinct=True),
+                             toll_charges=Sum('toll_transactions__debit'), toll_credits=Sum('toll_transactions__credit'))
+        return qs
+
     def create(self, request, *args, **kwargs):
         s = DispatchSerializer(data=request.data)
         s.is_valid(raise_exception=True)
@@ -438,11 +445,14 @@ class RFIDAccountViewSet(OfficeScopedMixin, mixins.ListModelMixin, mixins.Retrie
         if not user.has_perm('accounts.view_all_offices'):
             qs = qs.filter(Q(vehicle__office__in=user.offices.all()) | Q(vehicle__isnull=True))
         if self.action in ('list', 'retrieve'):
-            qs = qs.annotate(transaction_count=Count('transactions', distinct=True)).order_by('-is_active', 'provider', 'account_number')
+            qs = qs.annotate(transaction_count=Count('transactions', distinct=True),
+                             credit_sum=Sum('transactions__credit'), debit_sum=Sum('transactions__debit')).order_by('-is_active', 'provider', 'account_number')
         return qs
 
     def _respond(self, account, code=status.HTTP_200_OK):
-        fresh = self.queryset.filter(pk=account.pk).annotate(transaction_count=Count('transactions', distinct=True)).get()
+        fresh = self.queryset.filter(pk=account.pk).annotate(
+            transaction_count=Count('transactions', distinct=True),
+            credit_sum=Sum('transactions__credit'), debit_sum=Sum('transactions__debit')).get()
         return Response(self.get_serializer(fresh).data, status=code)
 
     def create(self, request, *args, **kwargs):
@@ -473,7 +483,8 @@ class RFIDAccountViewSet(OfficeScopedMixin, mixins.ListModelMixin, mixins.Retrie
         data = TollTransactionSerializer(rows, many=True, context=self.get_serializer_context()).data
         credit = sum((x.credit for x in txns), Decimal('0'))
         debit = sum((x.debit for x in txns), Decimal('0'))
-        return Response({'results': data, 'credit': _money(credit), 'debit': _money(debit), 'net': _money(credit - debit)})
+        return Response({'results': data, 'credit': _money(credit), 'debit': _money(debit),
+                         'net': _money(credit - debit), 'current_balance': _money(credit - debit)})
 
 
 class TollFilter(filters.FilterSet):

@@ -54,8 +54,8 @@ export default function RfidDetail() {
       <div className="mb-5 grid gap-4 sm:grid-cols-4">
         <Metric icon={ArrowUpCircle} tint="bg-emerald-50 text-emerald-700" label="Total loads" value={tx.data ? formatPeso(tx.data.credit) : '…'} />
         <Metric icon={ArrowDownCircle} tint="bg-red-50 text-danger" label="Total charges" value={tx.data ? formatPeso(tx.data.debit) : '…'} />
-        <Metric icon={Scale} tint="bg-brand-light text-brand" label="Net (loads − charges)" value={tx.data ? formatPeso(tx.data.net) : '…'} />
-        <Metric icon={Scale} tint="bg-slate-100 text-slate-600" label="Recorded balance" value={a.balance != null ? formatPeso(a.balance) : '—'} hint="From the provider portal" />
+        <Metric icon={Scale} tint="bg-brand-light text-brand" label="Current balance" value={formatPeso(a.current_balance)} hint="Loads − charges" />
+        <Metric icon={Scale} tint="bg-slate-100 text-slate-600" label="Portal balance" value={a.balance != null ? formatPeso(a.balance) : '—'} hint="Recorded from the portal" />
       </div>
 
       {a.remarks && <div className="mb-5 rounded-xl border border-slate-200 bg-white p-4 text-sm whitespace-pre-line text-slate-700"><span className="mb-1 block text-xs text-slate-500">Remarks</span>{a.remarks}</div>}

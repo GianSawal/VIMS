@@ -9,8 +9,9 @@ from rest_framework.test import APIClient
 
 from accounts.models import Office
 from audit.models import AuditLog
+from fleet.test_drivers import make_driver
 from fleet.test_vehicles import as_role, make_vehicle
-from operations.models import RFIDAccount, TollTransaction
+from operations.models import RFIDAccount, TollTransaction, Trip
 
 pytestmark = pytest.mark.django_db
 
@@ -116,3 +117,21 @@ def test_no_delete_and_field_user_cannot_add_account(fo1):
     fou = as_role('Field Office User', offices=[fo1])
     assert fou.post('/api/rfid-accounts/', account(vehicle=v.pk), format='json').status_code == 403  # view only
     assert fou.post('/api/toll-transactions/', txn(acc.pk, v.pk, credit='10'), format='json').status_code == 201  # may add toll
+
+
+def test_trip_ticket_shows_toll_and_account_live_balance(fo1):
+    v = make_vehicle(fo1, 'TRP 1', current_odometer=1000)
+    c = as_role('Fleet Administrator')
+    acc = RFIDAccount.objects.create(provider='EASYTRIP', account_number='E-TRIP', vehicle=v)
+    trip = Trip.objects.create(ticket_number='T-TOLL-1', status='DISPATCHED', vehicle=v, driver=make_driver(fo1, 'Dan', 'L-1'),
+                               origin='RO', destination='NLEX', purpose='x', departed_at=timezone.now(), odometer_start=1000)
+    c.post('/api/toll-transactions/', txn(acc.pk, v.pk, credit='1000'), format='json')  # load, not on the trip
+    c.post('/api/toll-transactions/', txn(acc.pk, v.pk, debit='78', trip=trip.pk), format='json')
+    c.post('/api/toll-transactions/', txn(acc.pk, v.pk, debit='92', trip=trip.pk), format='json')
+    # the trip ticket shows the toll charged on it
+    t = c.get(f'/api/trips/{trip.pk}/').json()
+    assert t['toll'] == {'count': 2, 'charges': '170.00', 'loads': '0.00', 'net': '-170.00'}
+    assert c.get('/api/toll-transactions/', {'trip': trip.pk}).json()['count'] == 2
+    # the account's live balance = loads - charges
+    assert c.get(f'/api/rfid-accounts/{acc.pk}/').json()['current_balance'] == '830.00'
+    assert c.get(f'/api/rfid-accounts/{acc.pk}/transactions/').json()['current_balance'] == '830.00'

@@ -27,7 +27,12 @@ export function accountColumns({ withVehicle = true } = {}) {
     ...(withVehicle ? [{ key: 'vehicle', label: 'Vehicle', render: (a) => (a.vehicle
       ? vehicleCell(a)
       : <span className="rounded-md bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-500">Unassigned</span>) }] : []),
-    { key: 'balance', label: 'Recorded balance', className: 'text-right', render: (a) => (a.balance != null ? <span className="font-semibold tabular-nums">{formatPeso(a.balance)}</span> : <span className="text-slate-400">—</span>) },
+    { key: 'balance', label: 'Balance', className: 'text-right', render: (a) => (
+      <div className="tabular-nums">
+        <div className="font-semibold">{formatPeso(a.current_balance)}</div>
+        {a.balance != null && <div className="text-xs text-slate-500">Portal {formatPeso(a.balance)}</div>}
+      </div>
+    ) },
     { key: 'txns', label: 'Transactions', className: 'text-right tabular-nums', render: (a) => a.transaction_count },
     { key: 'status', label: 'Status', render: (a) => <Badge tone={a.is_active ? 'green' : 'gray'} dot>{a.is_active ? 'Active' : 'Inactive'}</Badge> },
   ]

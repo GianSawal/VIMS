@@ -10,8 +10,8 @@ const FIELDS = ['account', 'vehicle', 'trip', 'transacted_at', 'kind', 'amount',
 const nowLocal = () => { const d = new Date(); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0, 16) }
 const amount = (v) => String(Number(String(v).replace(/,/g, '')))
 
-/** Record a toll load (credit) or charge (debit). `account`/`vehicle` pre-fill from the account or vehicle tab. */
-export default function TollForm({ txn, account, vehicle, onClose, onSaved }) {
+/** Record a toll load (credit) or charge (debit). `account`/`vehicle`/`trip` pre-fill from where it's opened. */
+export default function TollForm({ txn, account, vehicle, trip, onClose, onSaved }) {
   const isNew = !txn
   const qc = useQueryClient()
   const toast = useToast()
@@ -23,8 +23,8 @@ export default function TollForm({ txn, account, vehicle, onClose, onSaved }) {
       ? { account: String(txn.account), vehicle: String(txn.vehicle), trip: txn.trip ? String(txn.trip) : '',
           transacted_at: txn.transacted_at?.slice(0, 16), kind: Number(txn.credit) > 0 ? 'credit' : 'debit',
           amount: String(Number(txn.credit) > 0 ? txn.credit : txn.debit), description: txn.description, reference_number: txn.reference_number }
-      : { account: account ? String(account.id) : '', vehicle: vehicle ? String(vehicle.id) : (account?.vehicle ? String(account.vehicle) : ''),
-          trip: '', transacted_at: nowLocal(), kind: 'debit', amount: '', description: '', reference_number: '' },
+      : { account: account ? String(account.id) : '', vehicle: vehicle ? String(vehicle.id) : (trip?.vehicle ? String(trip.vehicle) : (account?.vehicle ? String(account.vehicle) : '')),
+          trip: trip ? String(trip.id) : '', transacted_at: nowLocal(), kind: 'debit', amount: '', description: '', reference_number: '' },
   })
 
   const chosenAccount = accounts.data?.results.find((a) => String(a.id) === watch('account'))
@@ -113,7 +113,12 @@ export default function TollForm({ txn, account, vehicle, onClose, onSaved }) {
         <input id="toll-desc" className={inputClass} {...register('description', { required: 'Describe the transaction' })} />
       </Field>
 
-      {vehicleId && (trips.data?.results.length ?? 0) > 0 && (
+      {trip ? (
+        <div>
+          <span className="mb-1 block text-sm font-medium">Trip</span>
+          <div className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm">{trip.ticket_number}{trip.destination ? ` · ${trip.destination}` : ''} <span className="text-slate-400">(linked to this ticket)</span></div>
+        </div>
+      ) : vehicleId && (trips.data?.results.length ?? 0) > 0 && (
         <Field label="Link to a trip" htmlFor="toll-trip" error={errors.trip?.message} hint="Optional. Attach this toll to one of the vehicle's trips.">
           <select id="toll-trip" className={inputClass} {...register('trip')}>
             <option value="">Not linked</option>

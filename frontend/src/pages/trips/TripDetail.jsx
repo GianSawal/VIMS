@@ -4,7 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { Link, useParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowDown, ExternalLink, CalendarClock, CalendarX, Check, CircleCheck, Clock, Gauge, MapPin, Navigation, Pencil, Repeat, Users, X, XCircle } from 'lucide-react'
+import { ArrowDown, ExternalLink, CalendarClock, CalendarX, Check, CircleCheck, Clock, CreditCard, Gauge, MapPin, Navigation, Pencil, Plus, Repeat, Users, X, XCircle } from 'lucide-react'
 import { api, applyFieldErrors, errorMessage, invalidatePrefix, useList } from '../../api'
 import { useCan } from '../../auth'
 import Attachments from '../../components/Attachments'
@@ -17,7 +17,9 @@ import { NotFound } from '../Errors'
 import { useAllOffices } from '../admin/Offices'
 import { bookingLabel, fromLocalInput, km, toLocalInput, tripDuration, TripStatusBadge } from './common'
 import { useAvailability } from './DispatchForm'
-import { odometerField, parseKm, VehiclePhoto } from '../vehicles/common'
+import { formatPeso, odometerField, parseKm, VehiclePhoto } from '../vehicles/common'
+import { isLoad } from '../rfid/common'
+import TollForm from '../rfid/TollForm'
 import { Avatar } from '../../components/filters'
 
 export default function TripDetail() {
@@ -25,6 +27,7 @@ export default function TripDetail() {
   const can = useCan()
   const [dialog, setDialog] = useState(null) // 'complete' | 'cancel' | 'edit'
   const query = useQuery({ queryKey: ['/trips/', id], queryFn: () => api.get(`/trips/${id}/`).then((r) => r.data) })
+  const tollTxns = useList('/toll-transactions/', { trip: id })
   const t = query.data
 
   if (query.isLoading) return <div className="animate-pulse space-y-3"><div className="h-8 w-56 rounded bg-slate-200" /><div className="h-56 rounded-xl bg-slate-200" /></div>
@@ -155,6 +158,7 @@ export default function TripDetail() {
               <Item label="Requesting office" value={t.requesting_office_name ?? '—'} />
             </dl>
           </Card>
+          <TollCard t={t} txns={tollTxns.data?.results ?? []} canAdd={can('operations.add_tolltransaction')} onRecord={() => setDialog('toll')} />
           <Card title="Passengers" icon={Users}>
             {t.passengers ? <p className="text-sm whitespace-pre-line">{t.passengers}</p> : <p className="text-sm text-slate-500">None recorded.</p>}
           </Card>
@@ -177,6 +181,10 @@ export default function TripDetail() {
       </Modal>
       <Modal open={dialog === 'edit'} onClose={() => setDialog(null)} title={`Edit ${t.ticket_number}`} wide>
         {dialog === 'edit' && <EditForm trip={t} onClose={() => setDialog(null)} />}
+      </Modal>
+      <Modal open={dialog === 'toll'} onClose={() => setDialog(null)} title={`Record toll: ${t.ticket_number}`} wide>
+        {dialog === 'toll' && <TollForm trip={{ id: t.id, vehicle: t.vehicle, ticket_number: t.ticket_number, destination: t.destination }}
+          vehicle={{ id: t.vehicle, plate_number: t.plate_number, make: '', model: t.vehicle_label }} onClose={() => setDialog(null)} />}
       </Modal>
     </div>
   )
@@ -369,6 +377,34 @@ function EditForm({ trip, onClose }) {
         <Button type="submit" disabled={save.isPending}>{save.isPending ? 'Saving…' : 'Save'}</Button>
       </div>
     </form>
+  )
+}
+
+function TollCard({ t, txns, canAdd, onRecord }) {
+  const charges = t.toll?.charges
+  return (
+    <Card title="Toll & RFID" icon={CreditCard}>
+      {t.toll && t.toll.count > 0 ? (
+        <>
+          <div className="flex items-baseline justify-between">
+            <span className="text-sm text-slate-500">Toll charged on this trip</span>
+            <span className="text-xl font-bold text-danger tabular-nums">{formatPeso(charges)}</span>
+          </div>
+          <ul className="mt-2 divide-y divide-slate-100 text-sm">
+            {txns.map((x) => (
+              <li key={x.id} className="flex items-center justify-between gap-2 py-2">
+                <span className="min-w-0">
+                  <span className="block truncate">{x.description}</span>
+                  <span className="block text-xs text-slate-500">{formatDateTime(x.transacted_at)} · {x.account_masked}</span>
+                </span>
+                <span className={`shrink-0 font-semibold tabular-nums ${isLoad(x) ? 'text-emerald-700' : 'text-danger'}`}>{isLoad(x) ? '+' : '−'}{formatPeso(isLoad(x) ? x.credit : x.debit)}</span>
+              </li>
+            ))}
+          </ul>
+        </>
+      ) : <p className="text-sm text-slate-500">No toll recorded for this trip yet.</p>}
+      {canAdd && t.status !== 'CANCELLED' && <Button variant="secondary" className="mt-3 w-full" onClick={onRecord}><Plus size={16} /> Record toll</Button>}
+    </Card>
   )
 }
 
