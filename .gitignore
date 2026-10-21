@@ -20,3 +20,6 @@ dist/
 Thumbs.db
 .vscode/
 .idea/
+
+# Local data workbooks (migration sources) — not for git
+DATA/
