@@ -1,4 +1,5 @@
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
+import { motion } from 'motion/react'
 import {
   Ban, Car, CircleCheck, FileText, Fuel, IdCard, Navigation, PackageX, Route as RouteIcon, ShieldCheck,
   TriangleAlert, Wrench,
@@ -90,7 +91,9 @@ export default function Dashboard() {
       ) : query.isLoading ? (
         <div className="space-y-4"><Skeleton className="h-36" /><Skeleton className="h-56" /><Skeleton className="h-72" /></div>
       ) : (
-        <div className="space-y-6">
+        // Fades in over the skeleton, and dims while an office/month change is loading (useList keeps the old data on screen).
+        <motion.div className="space-y-6" aria-busy={query.isPlaceholderData}
+          initial={{ opacity: 0 }} animate={{ opacity: query.isPlaceholderData ? 0.6 : 1 }} transition={{ duration: 0.2, ease: 'easeOut' }}>
           {d.vehicles && <FleetStatus v={d.vehicles} office={office} />}
 
           {attention && (
@@ -129,7 +132,7 @@ export default function Dashboard() {
           )}
 
           <Activity items={d.activity} />
-        </div>
+        </motion.div>
       )}
     </div>
   )
@@ -170,7 +173,7 @@ function StatusBar({ byStatus, total, height = 'h-3', office, officeId }) {
       {total > 0 && STATUSES.filter(([s]) => byStatus[s]).map(([s, label, , color]) => (
         <Link key={s} to={href('/vehicles', { status: s }, officeId ?? office)} style={{ width: `${(byStatus[s] / total) * 100}%` }}
           title={`${label}: ${byStatus[s]} of ${total}`} aria-label={`${label}: ${byStatus[s]} of ${total}`}
-          className={`${color} h-full transition-opacity first:rounded-l-full last:rounded-r-full hover:opacity-80`} />
+          className={`${color} h-full transition-opacity motion-safe:transition-[width,opacity] motion-safe:duration-300 ease-out first:rounded-l-full last:rounded-r-full hover:opacity-80`} />
       ))}
     </div>
   )
@@ -178,6 +181,7 @@ function StatusBar({ byStatus, total, height = 'h-3', office, officeId }) {
 
 // Donut of the fleet by status: one arc per non-zero status with a small gap between arcs, total in the middle.
 // Arcs navigate on click (mouse); the legend beside it carries the same links for keyboard users.
+// Dash values go in style (not attributes) so a filter change transitions the arcs instead of jumping.
 function StatusDonut({ byStatus, total, office }) {
   const navigate = useNavigate()
   const r = 42
@@ -194,8 +198,8 @@ function StatusDonut({ byStatus, total, office }) {
           const len = (byStatus[s] / total) * c
           const arc = (
             <circle key={s} cx="50" cy="50" r={r} fill="none" stroke={stroke} strokeWidth="12"
-              strokeDasharray={`${Math.max(len - gap, 0.5)} ${c}`} strokeDashoffset={-offset}
-              className="cursor-pointer transition-opacity hover:opacity-80"
+              style={{ strokeDasharray: `${Math.max(len - gap, 0.5)} ${c}`, strokeDashoffset: -offset }}
+              className="cursor-pointer transition-opacity hover:opacity-80 motion-safe:transition-[stroke-dasharray,stroke-dashoffset,opacity] motion-safe:duration-300 ease-out"
               onClick={() => navigate(href('/vehicles', { status: s }, office))}>
               <title>{`${label}: ${byStatus[s]} of ${total} (${Math.round((byStatus[s] / total) * 100)}%)`}</title>
             </circle>
@@ -398,7 +402,7 @@ function Utilization({ u, office, from, to }) {
         <span className="text-sm text-slate-500">of vehicles used ({u.vehicles_used} of {u.operable})</span>
       </div>
       <div className="mb-3 h-2 rounded-full bg-slate-100" aria-hidden="true">
-        <div className="h-2 rounded-full bg-chart" style={{ width: `${u.rate ?? 0}%` }} />
+        <div className="h-2 rounded-full bg-chart ease-out motion-safe:transition-[width] motion-safe:duration-300" style={{ width: `${u.rate ?? 0}%` }} />
       </div>
       <MiniStats stats={[
         [num.format(u.trips), 'Trips', done], [formatKm(u.distance_km), 'Driven'],

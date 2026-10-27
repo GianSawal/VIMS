@@ -77,7 +77,7 @@ export function TimeBars({ data, format, valueLabel, height = 'h-56' }) {
                     <li key={d.key} tabIndex={0} aria-label={`${d.label}: ${format(d.value)}`}
                       className="group relative flex h-full flex-1 cursor-default items-end justify-center outline-none">
                       <span className="absolute inset-0 rounded-sm group-hover:bg-slate-100/70 group-focus-visible:bg-slate-100/70" aria-hidden="true" />
-                      <span className="relative w-full max-w-7 rounded-t bg-chart transition-opacity group-hover:opacity-85"
+                      <span className="relative w-full max-w-7 rounded-t bg-chart transition-opacity ease-out group-hover:opacity-85 motion-safe:transition-[height,opacity] motion-safe:duration-300"
                         style={{ height: `${Math.max(pct, d.value > 0 ? 1 : 0)}%` }} aria-hidden="true" />
                       {labelled && (
                         <span className="absolute -translate-y-1 text-[11px] font-semibold whitespace-nowrap text-ink tabular-nums" style={{ bottom: `${pct}%` }} aria-hidden="true">
@@ -122,7 +122,7 @@ export function RankBars({ items }) {
           </div>
           <div className="ml-6 flex items-center gap-2">
             <div className="h-2 flex-1 rounded-full bg-slate-100" aria-hidden="true">
-              <div className="h-2 rounded-full bg-chart" style={{ width: `${max ? (it.value / max) * 100 : 0}%` }} />
+              <div className="h-2 rounded-full bg-chart ease-out motion-safe:transition-[width] motion-safe:duration-300" style={{ width: `${max ? (it.value / max) * 100 : 0}%` }} />
             </div>
             <span className="w-24 shrink-0 text-right text-xs text-slate-500 tabular-nums">{it.detail}</span>
           </div>
