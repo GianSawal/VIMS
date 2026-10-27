@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
-import { CalendarClock, CalendarPlus, CircleCheck, CircleSlash, Clock, MapPin, Milestone, Monitor, Navigation, Plus, Route as RouteIcon } from 'lucide-react'
+import { CalendarClock, CalendarDays, CalendarPlus, CircleCheck, CircleSlash, Clock, List, MapPin, Milestone, Monitor, Navigation, Plus, Route as RouteIcon } from 'lucide-react'
 import { useList } from '../../api'
 import { useCan, useMe } from '../../auth'
 import DataTable from '../../components/DataTable'
@@ -10,6 +10,7 @@ import { Button, Modal, PageHeader } from '../../components/ui'
 import { useAllOffices } from '../admin/Offices'
 import { VehiclePhoto } from '../vehicles/common'
 import DispatchForm from './DispatchForm'
+import TripCalendar from './TripCalendar'
 import TvScreens from './TvScreens'
 import { CompleteForm, DispatchScheduledForm } from './TripDetail'
 import { km, shortDateTime, TRIP_STATUSES, tripDuration, tripStatusLabel, TripStatusBadge } from './common'
@@ -263,6 +264,10 @@ export default function TripList() {
   const remove = (key) => { if (key === 'search') setSearch(''); set(key, '') }
   const clearAll = () => { setSearch(''); setParams({}, { replace: true }) }
 
+  const calendar = f.status === 'SCHEDULED' && f.view !== 'list' // the month replaces the date range
+  // Opening the calendar scrolls it to the top so the whole month fits on screen.
+  const viewToggle = useRef(null)
+  useEffect(() => { if (calendar) viewToggle.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }) }, [calendar])
   const toolbar = (
     <Toolbar chips={chips} onRemove={remove} onClear={clearAll}>
       <SearchBox id="trip-search" label="Search trips" placeholder="Search ticket, plate, driver, destination…" value={search} onChange={setSearch} />
@@ -272,6 +277,7 @@ export default function TripList() {
           {offices.data?.results.map((o) => <option key={o.id} value={o.id}>{o.code} - {o.name}</option>)}
         </select>
       )}
+      {!calendar && <>
       <div role="group" aria-label="Date range" className="flex overflow-hidden rounded-md border border-slate-300 text-sm">
         {presets.map(([label, from, to]) => {
           const on = f.date_from === from && f.date_to === to
@@ -289,6 +295,7 @@ export default function TripList() {
       <label className="flex items-center gap-2 text-sm text-slate-600">
         To <input type="date" className={`${selectClass} w-40`} value={f.date_to ?? ''} onChange={(e) => set('date_to', e.target.value)} />
       </label>
+      </>}
     </Toolbar>
   )
 
@@ -319,12 +326,26 @@ export default function TripList() {
         </div>
       </CardGrid>
 
-      <LeavingToday canChange={can('operations.change_trip')} />
-      <OpenTrips canChange={can('operations.change_trip')} onViewAll={() => set('status', 'DISPATCHED')} />
+      {!calendar && <>
+        <LeavingToday canChange={can('operations.change_trip')} />
+        <OpenTrips canChange={can('operations.change_trip')} onViewAll={() => set('status', 'DISPATCHED')} />
+      </>}
 
-      <DataTable columns={tripColumns()} query={query} page={page} onPage={(p) => set('page', String(p))} toolbar={toolbar}
-        onRowClick={(t) => navigate(`/trips/${t.id}`)}
-        empty={chips.length ? 'No trips match these filters.' : 'No trips yet.'} />
+      {f.status === 'SCHEDULED' && (
+        <div ref={viewToggle} role="group" aria-label="Scheduled view" className="mb-2 flex w-fit overflow-hidden rounded-md border border-slate-300 text-sm">
+          {[['', CalendarDays, 'Calendar'], ['list', List, 'List']].map(([value, Icon, label]) => (
+            <button key={label} type="button" aria-pressed={(f.view ?? '') === value} onClick={() => set('view', value)}
+              className={`flex h-9 items-center gap-1.5 border-r border-slate-300 px-3 last:border-r-0 ${(f.view ?? '') === value ? 'bg-brand text-white' : 'bg-white text-slate-700 hover:bg-slate-50'}`}>
+              <Icon size={15} aria-hidden="true" />{label}
+            </button>
+          ))}
+        </div>
+      )}
+      {calendar
+        ? <TripCalendar month={f.month} onMonth={(m) => set('month', m)} filters={{ search: f.search, office: f.office }} toolbar={toolbar} />
+        : <DataTable columns={tripColumns()} query={query} page={page} onPage={(p) => set('page', String(p))} toolbar={toolbar}
+          onRowClick={(t) => navigate(`/trips/${t.id}`)}
+          empty={chips.length ? 'No trips match these filters.' : 'No trips yet.'} />}
 
       <Modal open={tv} onClose={() => setTv(false)} title="TV trip board" wide>
         {tv && <TvScreens />}

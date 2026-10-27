@@ -11,8 +11,9 @@ const MAX_MB = 5 // matches VEHICLE_PHOTO_MAX_BYTES default; the server enforces
 /**
  * Upload / change / remove the photo of a record served by fleet/photos.py (POST/DELETE {basePath}/photo/).
  * current: what to show when no new file is picked (photo or placeholder). frame: classes for the preview box.
+ * compact: change/remove become small round buttons on the photo's corner (profile headers).
  */
-export default function PhotoUpload({ basePath, detailKey, listPrefix, photoUrl, canChange, noun, current, frame = 'aspect-[4/3]' }) {
+export default function PhotoUpload({ basePath, detailKey, listPrefix, photoUrl, canChange, noun, current, frame = 'aspect-[4/3]', compact = false }) {
   const qc = useQueryClient()
   const toast = useToast()
   const input = useRef(null)
@@ -59,11 +60,27 @@ export default function PhotoUpload({ basePath, detailKey, listPrefix, photoUrl,
     setPreview(URL.createObjectURL(f))
   }
 
+  const corner = 'flex h-9 w-9 items-center justify-center rounded-full bg-white shadow-md ring-1 ring-slate-200 hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-brand'
   return (
     <div>
-      {preview
-        ? <div className={`${frame} overflow-hidden rounded-md bg-white ring-2 ring-gold`}><img src={preview} alt="Preview of the new photo" className="h-full w-full object-contain" /></div>
-        : current}
+      <div className="relative">
+        {preview
+          ? <div className={`${frame} overflow-hidden rounded-md bg-white ring-2 ring-gold`}><img src={preview} alt="Preview of the new photo" className="h-full w-full object-contain" /></div>
+          : current}
+        {compact && canChange && !file && (
+          <div className="absolute -right-2 -bottom-2 flex gap-1">
+            {photoUrl && (
+              <button type="button" className={`${corner} text-danger`} onClick={() => setConfirmRemove(true)} aria-label="Remove photo" title="Remove photo">
+                <Trash2 size={15} />
+              </button>
+            )}
+            <button type="button" className={`${corner} text-brand`} onClick={() => input.current.click()}
+              aria-label={photoUrl ? 'Change photo' : 'Upload photo'} title={`${photoUrl ? 'Change' : 'Upload'} photo (JPEG, PNG or WebP, up to ${MAX_MB} MB)`}>
+              <ImagePlus size={15} />
+            </button>
+          </div>
+        )}
+      </div>
 
       {error && <p role="alert" className="mt-2 text-sm text-danger">{error}</p>}
       {upload.isPending && (
@@ -72,9 +89,9 @@ export default function PhotoUpload({ basePath, detailKey, listPrefix, photoUrl,
         </div>
       )}
 
-      {canChange && (
+      {canChange && <input ref={input} type="file" accept={ACCEPT.join(',')} className="hidden" onChange={pick} aria-label={`Choose ${noun} photo`} />}
+      {canChange && (file || !compact) && (
         <div className="mt-3 flex flex-wrap gap-2">
-          <input ref={input} type="file" accept={ACCEPT.join(',')} className="hidden" onChange={pick} aria-label={`Choose ${noun} photo`} />
           {file ? (
             <>
               <Button onClick={() => upload.mutate()} disabled={upload.isPending}><Upload size={16} /> {upload.isPending ? `Uploading ${progress}%` : 'Save photo'}</Button>
@@ -90,7 +107,7 @@ export default function PhotoUpload({ basePath, detailKey, listPrefix, photoUrl,
           )}
         </div>
       )}
-      {canChange && !file && <p className="mt-2 text-xs text-slate-500">JPEG, PNG or WebP, up to {MAX_MB} MB.</p>}
+      {canChange && !file && !compact && <p className="mt-2 text-xs text-slate-500">JPEG, PNG or WebP, up to {MAX_MB} MB.</p>}
 
       <ConfirmDialog open={confirmRemove} title="Remove photo" message={`The ${noun} photo will be deleted. This is recorded in the audit trail.`}
         confirmLabel="Remove" danger busy={remove.isPending} onConfirm={() => remove.mutate()} onClose={() => setConfirmRemove(false)} />

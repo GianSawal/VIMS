@@ -40,20 +40,23 @@ export default function DriverProfile() {
 
       {/* Header card */}
       <section className="mb-4 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-        <div className="h-16 bg-gradient-to-r from-brand to-brand-dark" aria-hidden="true" />
-        <div className="flex flex-col gap-5 px-6 pb-6 sm:flex-row">
-          <div className="-mt-10 w-36 shrink-0">
-            <PhotoUpload basePath={`/drivers/${d.id}`} detailKey={['/drivers/', id]} listPrefix="/drivers/"
+        <div className="relative h-24 overflow-hidden bg-gradient-to-r from-brand to-brand-dark" aria-hidden="true">
+          <div className="absolute -top-8 right-24 h-32 w-32 rotate-12 bg-white/10 [clip-path:polygon(50%_0,100%_100%,0_100%)]" />
+          <div className="absolute -bottom-10 right-4 h-24 w-24 -rotate-12 bg-gold/25 [clip-path:polygon(50%_0,100%_100%,0_100%)]" />
+        </div>
+        <div className="flex flex-col gap-7 px-8 pb-7 sm:flex-row sm:items-end">
+          <div className="relative z-10 -mt-14 w-36 shrink-0">
+            <PhotoUpload basePath={`/drivers/${d.id}`} detailKey={['/drivers/', id]} listPrefix="/drivers/" compact
               photoUrl={d.photo_url} noun="driver" frame="aspect-square" canChange={canChange}
               current={d.photo_url
-                ? <img src={d.photo_url} alt={`Photo of ${d.full_name}`} className="aspect-square w-full rounded-xl object-cover ring-4 ring-white shadow-md" />
-                : <div className="flex aspect-square items-center justify-center rounded-xl bg-brand-light text-5xl font-bold text-brand ring-4 ring-white shadow-md" role="img" aria-label="No photo">{initials(d.full_name)}</div>} />
+                ? <img src={d.photo_url} alt={`Photo of ${d.full_name}`} className="aspect-square w-full rounded-2xl bg-white object-cover border-4 border-white shadow-[0_0_0_1px_var(--color-slate-300),0_4px_12px_rgb(0_0_0/0.12)]" />
+                : <div className="flex aspect-square items-center justify-center rounded-2xl bg-brand-light text-5xl font-bold text-brand border-4 border-white shadow-[0_0_0_1px_var(--color-slate-300),0_4px_12px_rgb(0_0_0/0.12)]" role="img" aria-label="No photo">{initials(d.full_name)}</div>} />
           </div>
-          <div className="min-w-0 flex-1 pt-3">
+          <div className="min-w-0 flex-1 pt-5">
             <div className="flex flex-wrap items-start gap-3">
-              <div className="mr-auto">
-                <h1 className="text-2xl font-bold text-ink">{d.full_name}</h1>
-                <div className="mt-1.5 flex flex-wrap gap-2">
+              <div className="mr-auto min-w-0">
+                <h1 className="text-2xl leading-tight font-bold text-ink">{d.full_name}</h1>
+                <div className="mt-3 flex flex-wrap gap-2">
                   <Badge tone={d.is_active ? 'green' : 'gray'} dot>{d.is_active ? 'Active driver' : 'Inactive'}</Badge>
                   <LicenseBadge status={d.license_status} />
                   <Badge tone="blue">{d.license_type_display} license</Badge>
@@ -61,10 +64,11 @@ export default function DriverProfile() {
               </div>
               {canChange && <Button variant="secondary" onClick={() => setEditing(true)}><Pencil size={16} /> Edit</Button>}
             </div>
-            <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-3">
-              <Meta icon={IdCard} label="Employee no." value={d.employee_number ?? 'Not recorded'} />
+            <dl className="mt-5 flex flex-wrap gap-3">
+              <Meta icon={IdCard} label="Employee no." value={d.employee_number ?? 'Not recorded'} mono />
               <Meta icon={Building2} label="Office" value={d.office_name} />
-              <Meta icon={Phone} label="Contact" value={d.contact_number || 'Not recorded'} />
+              <Meta icon={Phone} label="Contact" value={d.contact_number
+                ? <a href={`tel:${d.contact_number}`} className="hover:text-brand hover:underline">{d.contact_number}</a> : 'Not recorded'} />
             </dl>
           </div>
         </div>
@@ -165,11 +169,14 @@ function History({ driverId }) {
   )
 }
 
-function Meta({ icon: Icon, label, value }) {
+function Meta({ icon: Icon, label, value, mono }) {
   return (
-    <div className="flex items-start gap-2">
-      <Icon size={16} className="mt-0.5 shrink-0 text-slate-400" aria-hidden="true" />
-      <div className="min-w-0"><dt className="text-xs text-slate-500">{label}</dt><dd className="truncate font-medium">{value}</dd></div>
+    <div className="flex min-w-0 items-center gap-3 rounded-lg border border-slate-200 bg-slate-50 py-2 pr-5 pl-2">
+      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-white text-brand ring-1 ring-slate-200"><Icon size={16} aria-hidden="true" /></span>
+      <div className="min-w-0">
+        <dt className="mb-0.5 text-[11px] leading-tight text-slate-500">{label}</dt>
+        <dd className={`truncate text-sm leading-snug font-semibold text-ink ${mono ? 'font-mono' : ''}`}>{value}</dd>
+      </div>
     </div>
   )
 }
