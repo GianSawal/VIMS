@@ -280,7 +280,7 @@ correctly and preserves history.
 -   [x] "Scheduled" trip status: book a vehicle and driver for a future date/time (no odometer at booking)
 -   [x] Prevent double-booking a vehicle or driver in overlapping schedules (no expected return = holds the rest of that day; "Dispatch now" is also blocked inside someone's booking; forms show booked vehicles/drivers as unavailable)
 -   [x] Dispatch a scheduled trip (scheduled → dispatched) and cancel/reschedule it (dispatch only on the scheduled day, entering the current odometer; missed bookings must be rescheduled)
--   [x] Schedule calendar/list view in the Trips page (Scheduled status card, "Leaving today" board; calendar view not built)
+-   [x] Schedule calendar/list view in the Trips page (Scheduled status card, "Leaving today" board; Calendar/List toggle under the Scheduled card: month grid of bookings, missed ones in red, month in the URL; added 2026-10-27)
 -   [x] Audit scheduling, rescheduling and cancellation
 
 ## Display
@@ -412,22 +412,22 @@ credentials.
 
 # Phase 11 --- Notifications
 
--   [ ] Notification model/API
--   [ ] Notification bell
--   [ ] Notification list
--   [ ] Read/unread state
--   [ ] Mark all as read
--   [ ] Document-expiration notifications
--   [ ] Driver-license notifications
--   [ ] Maintenance-due notifications
--   [ ] Maintenance-overdue notifications
--   [ ] Prevent duplicate threshold alerts
--   [ ] Scheduled notification generation
--   [ ] Role/office targeting
--   [ ] Tests
+-   [x] Notification model/API (`/api/notifications/`: list own, `unread-count`, `read`, `read-all`, `dismiss`; recipients see only their own, no DELETE)
+-   [x] Notification bell (unread count badge on the sidebar Notifications item; polls every 60s)
+-   [x] Notification list (`/notifications` page: All / Unread, click opens the related record, per-item dismiss)
+-   [x] Read/unread state (`read_at`; click-to-read; unread styled)
+-   [x] Mark all as read
+-   [x] Document-expiration notifications (bands 60/30/15/7/expired, reusing `fleet/documents.py`; LTO and GSIS/insurance get their own type)
+-   [x] Driver-license notifications (expiring ≤60 days / expired, reusing `Driver.license_status`)
+-   [x] Maintenance-due notifications (due soon, reusing `maintenance/service.py schedule_state`)
+-   [x] Maintenance-overdue notifications
+-   [x] Prevent duplicate threshold alerts (unique `(recipient, dedupe_key)` + `bulk_create(ignore_conflicts)`; a new band is a new key, so one alert per threshold)
+-   [x] Scheduled notification generation (`manage.py run_notifications`, idempotent; hook up to cron/Task Scheduler at deployment — Phase 18)
+-   [x] Role/office targeting (`recipients_for_office`: the office's users + anyone with `view_all_offices`)
+-   [x] Tests (`notifications/test_notifications.py`: targeting, idempotency, per-band, API scope, 401)
 
 **Phase gate:** Scheduled processing reliably generates the correct
-alert once per configured event/threshold.
+alert once per configured event/threshold. — met; `run_notifications` is idempotent. Cron/Task Scheduler wiring deferred to deployment (Phase 18).
 
 ------------------------------------------------------------------------
 

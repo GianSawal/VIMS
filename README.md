@@ -45,6 +45,7 @@ pip install -r requirements.txt
 copy .env.example .env          # then set SECRET_KEY and DATABASE_URL
 python manage.py migrate
 python manage.py seed_reference  # role groups + maintenance categories (idempotent)
+python manage.py run_notifications  # generate expiry/due alerts (idempotent; run daily via cron/Task Scheduler)
 python manage.py createsuperuser
 python manage.py runserver      # http://127.0.0.1:8000
 pytest                          # tests
@@ -112,6 +113,7 @@ Django session in an HttpOnly cookie plus CSRF token. The SPA calls `GET /api/au
 | `/api/drivers/{id}/assignments/` | GET | the driver's vehicle history |
 | `/api/drivers/{id}/attachments/` | GET / POST multipart `file`, `description` · `DELETE …/attachments/{att_id}/` | PDF/JPEG/PNG/WebP ≤ `ATTACHMENT_MAX_BYTES`; changes need `fleet.change_driver` |
 | `/api/vehicles/{id}/photo/` | POST (multipart `photo`) / DELETE | needs `fleet.manage_vehicle_photo`; JPEG/PNG/WebP ≤ `VEHICLE_PHOTO_MAX_BYTES` |
+| `/api/notifications/` | GET (own only, not dismissed) | `?type= &read_at__isnull=true`; `unread-count/`; POST `{id}/read/`, `read-all/`, `{id}/dismiss/` |
 
 Unauthenticated requests get **401**; authenticated but not permitted get **403**; records outside the user's
 offices get **404**. Users flagged `must_change_password` get 403 everywhere except me/change-password/logout.

@@ -10,6 +10,7 @@ from fleet.document_views import DocumentViewSet
 from fleet.driver_views import DriverViewSet
 from fleet.views import VehicleViewSet
 from maintenance.views import CategoryViewSet, MaintenanceRecordViewSet, ScheduleViewSet
+from notifications.api import NotificationViewSet
 from operations.views import (DisplayScreenViewSet, DisplayTripsView, FuelRecordViewSet, MapsView,
                               RFIDAccountViewSet, TollTransactionViewSet, TripViewSet)
 
@@ -27,6 +28,7 @@ router.register('toll-transactions', TollTransactionViewSet)
 router.register('maintenance-categories', CategoryViewSet)
 router.register('maintenance-schedules', ScheduleViewSet)
 router.register('maintenance', MaintenanceRecordViewSet)
+router.register('notifications', NotificationViewSet, basename='notification')
 
 urlpatterns = [
     path('admin/', admin.site.urls),

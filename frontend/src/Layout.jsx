@@ -5,6 +5,7 @@ import {
   Route as RouteIcon, ScrollText, Users, Wrench, X,
 } from 'lucide-react'
 import { useCan, useLogout, useMe } from './auth'
+import { useUnreadCount } from './notifications'
 
 // [path, label, icon, permission needed to see it (null = everyone)]
 const nav = [
@@ -27,6 +28,7 @@ export default function Layout() {
   const { data: me } = useMe()
   const can = useCan()
   const logout = useLogout()
+  const { data: unread = 0 } = useUnreadCount()
   const navigate = useNavigate()
   const [open, setOpen] = useState(false)
 
@@ -38,7 +40,7 @@ export default function Layout() {
   return (
     <div className="min-h-screen lg:flex">
       <aside
-        className={`fixed inset-y-0 left-0 z-30 w-60 transform overflow-y-auto border-r border-slate-200 bg-white transition-transform lg:sticky lg:top-0 lg:h-screen lg:shrink-0 lg:translate-x-0 ${open ? 'translate-x-0' : '-translate-x-full'}`}
+        className={`fixed inset-y-0 left-0 z-30 flex w-60 transform flex-col overflow-y-auto border-r border-slate-200 bg-white transition-transform lg:sticky lg:top-0 lg:h-screen lg:shrink-0 lg:translate-x-0 ${open ? 'translate-x-0' : '-translate-x-full'}`}
       >
         <div className="flex items-center gap-3 border-b border-slate-200 px-4 py-4">
           <img src="/dole-logo.png" alt="DOLE logo" className="h-12 w-12 object-contain" />
@@ -50,7 +52,7 @@ export default function Layout() {
             <X size={20} />
           </button>
         </div>
-        <nav className="space-y-1 p-3" aria-label="Main">
+        <nav className="flex-1 space-y-1 p-3" aria-label="Main">
           {nav.filter(([, , , perm]) => !perm || can(perm)).map(([to, label, Icon]) => (
             <NavLink
               key={to}
@@ -66,30 +68,38 @@ export default function Layout() {
             >
               <Icon size={20} aria-hidden="true" />
               {label}
+              {to === '/notifications' && unread > 0 && (
+                <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-accent px-1.5 text-xs font-bold text-white">
+                  {unread > 99 ? '99+' : unread}
+                </span>
+              )}
             </NavLink>
           ))}
         </nav>
+
+        <div className="mt-auto border-t border-slate-200 p-3">
+          <div className="px-3 py-2 leading-tight">
+            <div className="font-medium">{me?.first_name || me?.username}</div>
+            <div className="text-xs text-slate-500">{me?.role ?? 'No role assigned'}</div>
+          </div>
+          <NavLink to="/change-password" onClick={() => setOpen(false)}
+            className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-[15px] font-medium text-slate-600 hover:bg-slate-100">
+            <KeyRound size={20} aria-hidden="true" /> Password
+          </NavLink>
+          <button onClick={onLogout}
+            className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-[15px] font-medium text-slate-600 hover:bg-slate-100 hover:text-danger">
+            <LogOut size={20} aria-hidden="true" /> Logout
+          </button>
+        </div>
       </aside>
 
       {open && <div className="fixed inset-0 z-20 bg-black/30 lg:hidden" onClick={() => setOpen(false)} />}
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex items-center gap-3 border-b border-slate-200 bg-white px-4 py-3">
-          <button className="lg:hidden" onClick={() => setOpen(true)} aria-label="Open menu">
+        <header className="flex items-center gap-3 border-b border-slate-200 bg-white px-4 py-3 lg:hidden">
+          <button onClick={() => setOpen(true)} aria-label="Open menu">
             <Menu size={22} />
           </button>
-          <div className="ml-auto flex items-center gap-4 text-sm">
-            <span className="text-right leading-tight">
-              <span className="block font-medium">{me?.first_name || me?.username}</span>
-              <span className="block text-xs text-slate-500">{me?.role ?? 'No role assigned'}</span>
-            </span>
-            <NavLink to="/change-password" className="flex items-center gap-1 text-slate-600 hover:text-brand">
-              <KeyRound size={16} aria-hidden="true" /> <span className="hidden sm:inline">Password</span>
-            </NavLink>
-            <button onClick={onLogout} className="flex items-center gap-1 text-slate-600 hover:text-danger">
-              <LogOut size={16} aria-hidden="true" /> Logout
-            </button>
-          </div>
         </header>
         <main className="flex-1 p-4 lg:p-6">
           <Outlet />
