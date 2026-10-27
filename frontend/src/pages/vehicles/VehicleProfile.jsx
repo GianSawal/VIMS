@@ -9,7 +9,7 @@ import { useCan } from '../../auth'
 import DateChip from '../../components/DateChip'
 import { initials } from '../../components/filters'
 import PhotoUpload from '../../components/PhotoUpload'
-import { Button, ConfirmDialog, formatDateTime } from '../../components/ui'
+import { Button, ConfirmDialog, formatDateTime, inputBase } from '../../components/ui'
 import { useToast } from '../../components/toast'
 import { NotFound } from '../Errors'
 import { TripStatusBadge } from '../trips/common'
@@ -42,10 +42,12 @@ export default function VehicleProfile() {
   const [params, setParams] = useSearchParams()
   const tab = params.get('tab') ?? 'overview'
   const [confirm, setConfirm] = useState(false)
+  const [month, setMonth] = useState('')  // '' = all time, else 'YYYY-MM'
+  const range = month ? { date_from: `${month}-01`, date_to: monthEnd(month) } : {}
 
   const query = useQuery({ queryKey: ['/vehicles/', id], queryFn: () => api.get(`/vehicles/${id}/`).then((r) => r.data) })
-  const tripStats = useList('/trips/summary/', { vehicle: id })
-  const fuelStats = useList('/fuel-records/summary/', { vehicle: id })
+  const tripStats = useList('/trips/summary/', { vehicle: id, ...range })
+  const fuelStats = useList('/fuel-records/summary/', { vehicle: id, ...range })
   const fuelLatest = useList('/fuel-records/', { vehicle: id, page_size: 1 })
   const v = query.data
 
@@ -126,6 +128,11 @@ export default function VehicleProfile() {
       )}
 
       {/* KPI tiles */}
+      <div className="mb-2 flex items-center justify-end gap-2 text-sm">
+        <label htmlFor="kpi-month" className="text-slate-500">Trips &amp; fuel for</label>
+        <input id="kpi-month" type="month" value={month} onChange={(e) => setMonth(e.target.value)} className={`${inputBase} w-44`} />
+        {month && <button type="button" onClick={() => setMonth('')} className="text-brand hover:underline">All time</button>}
+      </div>
       <div className="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Kpi icon={Gauge} tint="bg-brand-light text-brand" label="Odometer" value={formatKm(v.current_odometer)} sub="Last recorded reading" />
         <Kpi icon={RouteIcon} tint="bg-green-50 text-green-700" label="Trips completed" value={trips ? trips.by_status.COMPLETED.toLocaleString('en-PH') : '…'}
@@ -175,6 +182,12 @@ export default function VehicleProfile() {
       />
     </div>
   )
+}
+
+// Last day of a 'YYYY-MM' month → 'YYYY-MM-DD'. new Date(y, m, 0) is day 0 of the next month = last of this one.
+function monthEnd(m) {
+  const [y, mo] = m.split('-').map(Number)
+  return `${m}-${String(new Date(y, mo, 0).getDate()).padStart(2, '0')}`
 }
 
 function Overview({ v, onGo }) {

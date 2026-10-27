@@ -23,7 +23,7 @@ const vehicleCell = (r) => (
 export function accountColumns({ withVehicle = true } = {}) {
   return [
     { key: 'provider', label: 'Provider', render: (a) => <ProviderBadge provider={a.provider} /> },
-    { key: 'account', label: 'Account number', render: (a) => <span className="font-mono text-sm tracking-wider">{a.account_number}</span> },
+    { key: 'account', label: 'Account number', render: (a) => <span className="inline-block rounded-md bg-brand-light px-2 py-1 font-mono text-sm font-semibold tracking-wider text-brand">{a.account_number}</span> },
     ...(withVehicle ? [{ key: 'vehicle', label: 'Vehicle', render: (a) => (a.vehicle
       ? vehicleCell(a)
       : <span className="rounded-md bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-500">Unassigned</span>) }] : []),

@@ -150,13 +150,9 @@ export default function FuelList() {
   const showOffice = me?.view_all_offices || (me?.offices.length ?? 0) > 1
 
   // Quick month picker: fills date_from/date_to with the chosen month's first and last day.
-  const monthOptions = []
-  for (let d = new Date(new Date().getFullYear(), new Date().getMonth(), 1), i = 0; i < 18; i++, d.setMonth(d.getMonth() - 1)) {
-    monthOptions.push({ value: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`, label: monthLong.format(d) })
-  }
   const monthBounds = (ym) => { const [y, m] = ym.split('-').map(Number); return [`${ym}-01`, `${ym}-${String(new Date(y, m, 0).getDate()).padStart(2, '0')}`] }
   const selectedMonth = (() => { if (!f.date_from || !f.date_to) return ''; const ym = f.date_from.slice(0, 7); const [a, b] = monthBounds(ym); return f.date_from === a && f.date_to === b ? ym : '' })()
-  const monthLabel = selectedMonth ? (monthOptions.find((o) => o.value === selectedMonth)?.label ?? selectedMonth) : null
+  const monthLabel = selectedMonth ? monthLong.format(new Date(Number(selectedMonth.slice(0, 4)), Number(selectedMonth.slice(5, 7)) - 1, 1)) : null
   const setMonth = (ym) => setParams((prev) => {
     const next = new URLSearchParams(prev)
     if (ym) { const [a, b] = monthBounds(ym); next.set('date_from', a); next.set('date_to', b) } else { next.delete('date_from'); next.delete('date_to') }
@@ -187,10 +183,7 @@ export default function FuelList() {
         <option value="">All fuel types</option>
         {FUELS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
       </select>
-      <select className={`${selectClass} w-40`} aria-label="Filter by month" value={selectedMonth} onChange={(e) => setMonth(e.target.value)}>
-        <option value="">Any month</option>
-        {monthOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-      </select>
+      <label className="flex items-center gap-2 text-sm text-slate-600">Month <input type="month" className={`${selectClass} w-40`} aria-label="Filter by month" value={selectedMonth} onChange={(e) => setMonth(e.target.value)} /></label>
       <label className="flex items-center gap-2 text-sm text-slate-600">From <input type="date" className={`${selectClass} w-40`} value={f.date_from ?? ''} onChange={(e) => set('date_from', e.target.value)} /></label>
       <label className="flex items-center gap-2 text-sm text-slate-600">To <input type="date" className={`${selectClass} w-40`} value={f.date_to ?? ''} onChange={(e) => set('date_to', e.target.value)} /></label>
     </Toolbar>
