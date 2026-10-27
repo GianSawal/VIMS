@@ -79,6 +79,8 @@ Django session in an HttpOnly cookie plus CSRF token. The SPA calls `GET /api/au
 | `/api/users/` | CRUD (no delete) | System Administrator only; `POST /api/users/{id}/reset-password/` |
 | `/api/offices/` | CRUD (no delete) | scoped to the user's offices |
 | `/api/dashboard/` | GET | `?office= &month=YYYY-MM`; vehicle status/office counts, LTO and GSIS/insurance renewals, maintenance due, driver licenses, fuel and maintenance cost (month + 6-month trend), utilization, recent activity. Office-scoped; each section only for users who may view that module |
+| `/api/reports/` | GET | Reports this user may run, with each one's filters (status choices, group-by options, required filters) |
+| `/api/reports/{slug}/` | GET | `?office= &vehicle= &driver= &status= &category= &group_by= &date_from= &date_to=`; JSON preview (first 1000 rows, `full=1` for all), or `export=csv\|xlsx\|pdf` to download (logged in the audit trail). 16 reports: vehicle master list, vehicle status, office fleet summary, vehicle history, assignment history, driver assignment, driver license expiration, LTO and GSIS/insurance expiration, fuel consumption / PO log / cost, maintenance history / expense, trip history, vehicle utilization |
 | `/api/vehicles/` | CRUD (no delete) | `?search= &status= &office= &vehicle_type= &is_archived=true &ordering=` |
 | `/api/vehicles/{id}/archive/` · `/reactivate/` | POST | needs `fleet.change_vehicle` |
 | `/api/vehicles/{id}/assignments/` | GET history / POST assign or reassign | POST needs `add` + `change` on `vehicleassignment`; ends the current assignment on the start date |

@@ -14,6 +14,7 @@ from maintenance.views import CategoryViewSet, MaintenanceRecordViewSet, Schedul
 from notifications.api import NotificationViewSet
 from operations.views import (DisplayScreenViewSet, DisplayTripsView, FuelRecordViewSet, MapsView,
                               RFIDAccountViewSet, TollTransactionViewSet, TripViewSet)
+from reports.views import ReportListView, ReportView
 
 router = DefaultRouter()
 router.register('offices', OfficeViewSet)
@@ -35,6 +36,8 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/auth/', include('accounts.urls')),
     path('api/dashboard/', DashboardView.as_view(), name='dashboard'),
+    path('api/reports/', ReportListView.as_view(), name='reports'),
+    path('api/reports/<slug:slug>/', ReportView.as_view(), name='report'),
     path('api/display/trips/', DisplayTripsView.as_view(), name='display-trips'),
     path('api/maps/<str:op>/', MapsView.as_view(), name='maps'),  # status | autocomplete | route
     path('api/', include(router.urls)),

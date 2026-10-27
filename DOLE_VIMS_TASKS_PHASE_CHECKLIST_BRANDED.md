@@ -461,33 +461,33 @@ permissions. — met; tests compare the dashboard with the list summary endpoint
 
 # Phase 13 --- Reports and Export
 
--   [ ] Vehicle Master List report
--   [ ] Vehicle History report
--   [ ] Assignment History report
--   [ ] Fuel Consumption report
--   [ ] Fuel PO report
--   [ ] Fuel Cost report
--   [ ] Maintenance History report
--   [ ] Maintenance Expense report
--   [ ] Trip History report
--   [ ] Vehicle Utilization report
--   [ ] LTO expiration report
--   [ ] GSIS/insurance expiration report
--   [ ] Driver assignment report
--   [ ] Driver license expiration report
--   [ ] Vehicle status report
--   [ ] Office Fleet Summary
--   [ ] Date-range filters
--   [ ] Office filters
--   [ ] Vehicle filters
--   [ ] Driver/status filters
--   [ ] Print view
--   [ ] PDF export
--   [ ] Excel/CSV export
--   [ ] Verify report totals
+-   [x] Vehicle Master List report
+-   [x] Vehicle History report (`vehicle-history`: assignments, documents, trips, fuel, maintenance in date order)
+-   [x] Assignment History report
+-   [x] Fuel Consumption report (est. km/L from full-tank windows only, labelled as an estimate)
+-   [x] Fuel PO report (fuel records with a PO number; no duplicate PO data)
+-   [x] Fuel Cost report (group by office, vehicle, month or fuel type)
+-   [x] Maintenance History report
+-   [x] Maintenance Expense report (completed jobs only; group by office, vehicle, category or month)
+-   [x] Trip History report
+-   [x] Vehicle Utilization report (days with a completed trip / days in period)
+-   [x] LTO expiration report
+-   [x] GSIS/insurance expiration report
+-   [x] Driver assignment report
+-   [x] Driver license expiration report
+-   [x] Vehicle status report (serviceable / unserviceable, counts per status)
+-   [x] Office Fleet Summary
+-   [x] Date-range filters (default this month for period reports)
+-   [x] Office filters
+-   [x] Vehicle filters
+-   [x] Driver/status filters
+-   [x] Print view (`/reports/:slug/print`, A4 landscape, opens the print dialog)
+-   [x] PDF export (reportlab, DOLE header and logo, repeated header row, page footer)
+-   [x] Excel/CSV export (openpyxl with numeric cells and formats; CSV UTF-8 with BOM); exports are audit-logged
+-   [x] Verify report totals (`reports/test_reports.py` compares totals with the fuel, maintenance, trip and vehicle summaries; every report and format tested)
 
 **Phase gate:** Client verifies that required official reports contain
-correct records and totals.
+correct records and totals. — pending client review; totals are checked against the list summaries in tests and the PDF layout was checked on the shared MySQL data.
 
 ------------------------------------------------------------------------
 
