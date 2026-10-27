@@ -142,6 +142,19 @@ Tokens are in `frontend/src/index.css` (`@theme`), used as Tailwind classes such
 | `gold` | `#FFC603` | Logo stars. Focus ring, highlights |
 | `ink` | `#2F2F2F` | Logo wordmark. Body text |
 
+## Deploy (Coolify, Docker Compose)
+
+`docker-compose.yaml` runs two containers: `backend` (Django + gunicorn; runs `migrate`, `seed_reference` and `collectstatic` on every start) and `web` (nginx: the built React app, `/api` and `/admin` proxied to Django, `/static` and `/media` from shared volumes). One origin, so session and CSRF cookies work as in dev.
+
+1. Coolify: New resource → your GitHub repo → build pack **Docker Compose**, file `docker-compose.yaml`.
+2. Set the domain on the **web** service (port 80). Coolify's proxy adds HTTPS.
+3. Environment variables: `SECRET_KEY`, `DATABASE_URL` (the Coolify MySQL; use its internal hostname if it runs on the same server), `ALLOWED_HOSTS` (domain only, e.g. `vrs.example.gov.ph`), `CSRF_TRUSTED_ORIGINS` (`https://vrs.example.gov.ph`), and the optional map keys. Plain HTTP only (no HTTPS on the domain): also `SECURE_SSL_REDIRECT=False` and `SECURE_COOKIES=False`, or login will not work.
+4. Deploy, then create the first admin from the backend container's terminal: `python manage.py createsuperuser`.
+5. Existing uploads: copy a local `backend/media/` into the `media` volume, e.g. `scp -r backend/media/. user@server:/tmp/vrs-media/` then on the server `docker cp /tmp/vrs-media/. <backend-container>:/app/media/`.
+6. Scheduled alerts: add a Coolify **Scheduled Task** on the `backend` service, command `python manage.py run_notifications`, daily (e.g. `0 6 * * *`).
+
+Back up the `media` volume together with the database. Uploads are served by nginx at their random-named URLs without a login check (same as dev).
+
 ## Git workflow
 
 - `main`: production-ready. `develop`: integration.

@@ -617,13 +617,13 @@ production deployment.
 
 -   [ ] Provision production server/environment
 -   [ ] Install/configure MySQL
--   [ ] Configure Django production environment
--   [ ] Configure React production build
--   [ ] Configure application server
--   [ ] Configure reverse proxy
+-   [ ] Configure Django production environment (docker-compose.yaml for Coolify written 2026-10-27, not yet deployed or built)
+-   [ ] Configure React production build (docker-compose.yaml for Coolify written 2026-10-27, not yet deployed or built)
+-   [ ] Configure application server (docker-compose.yaml for Coolify written 2026-10-27, not yet deployed or built)
+-   [ ] Configure reverse proxy (docker-compose.yaml for Coolify written 2026-10-27, not yet deployed or built)
 -   [ ] Configure domain/DNS
 -   [ ] Configure HTTPS
--   [ ] Configure persistent media storage
+-   [ ] Configure persistent media storage (docker-compose.yaml for Coolify written 2026-10-27, not yet deployed or built)
 -   [ ] Configure scheduled jobs
 -   [ ] Configure backups
 -   [ ] Configure log rotation

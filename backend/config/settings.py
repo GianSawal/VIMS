@@ -108,8 +108,8 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # --- Auth: Django session in an HttpOnly cookie + CSRF token for the SPA ---
 SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_AGE = env.int('SESSION_COOKIE_AGE', default=8 * 60 * 60)
-SESSION_COOKIE_SECURE = not DEBUG
-CSRF_COOKIE_SECURE = not DEBUG
+# SECURE_COOKIES=False only for a plain-HTTP deployment (no HTTPS on the domain); browsers drop secure cookies over HTTP.
+SESSION_COOKIE_SECURE = CSRF_COOKIE_SECURE = env.bool('SECURE_COOKIES', default=not DEBUG)
 SESSION_COOKIE_SAMESITE = 'Lax'
 CSRF_COOKIE_SAMESITE = 'Lax'
 
