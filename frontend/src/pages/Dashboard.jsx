@@ -1,4 +1,4 @@
-import { Link, useSearchParams } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import {
   Ban, Car, CircleCheck, FileText, Fuel, IdCard, Navigation, PackageX, Route as RouteIcon, ShieldCheck,
   TriangleAlert, Wrench,
@@ -18,12 +18,12 @@ import { formatDate, formatKm, formatPeso } from './vehicles/common'
 
 // Vehicle statuses in fleet-bar order: bar color (--color-st-*, validated), icon and label. Color never stands alone.
 const STATUSES = [
-  ['SERVICEABLE', 'Serviceable', CircleCheck, 'bg-st-good'],
-  ['IN_USE', 'In use', Navigation, 'bg-chart'],
-  ['UNDER_MAINTENANCE', 'Under maintenance', Wrench, 'bg-st-warn'],
-  ['FOR_REPAIR', 'For repair', TriangleAlert, 'bg-st-serious'],
-  ['UNSERVICEABLE', 'Unserviceable', Ban, 'bg-st-critical'],
-  ['DISPOSED', 'Disposed', PackageX, 'bg-slate-400'],
+  ['SERVICEABLE', 'Serviceable', CircleCheck, 'bg-st-good', 'var(--color-st-good)'],
+  ['IN_USE', 'In use', Navigation, 'bg-chart', 'var(--color-chart)'],
+  ['UNDER_MAINTENANCE', 'Under maintenance', Wrench, 'bg-st-warn', 'var(--color-st-warn)'],
+  ['FOR_REPAIR', 'For repair', TriangleAlert, 'bg-st-serious', 'var(--color-st-serious)'],
+  ['UNSERVICEABLE', 'Unserviceable', Ban, 'bg-st-critical', 'var(--color-st-critical)'],
+  ['DISPOSED', 'Disposed', PackageX, 'bg-slate-400', 'var(--color-slate-400)'],
 ]
 
 const monthShort = new Intl.DateTimeFormat('en-PH', { month: 'short' })
@@ -176,40 +176,78 @@ function StatusBar({ byStatus, total, height = 'h-3', office, officeId }) {
   )
 }
 
+// Donut of the fleet by status: one arc per non-zero status with a small gap between arcs, total in the middle.
+// Arcs navigate on click (mouse); the legend beside it carries the same links for keyboard users.
+function StatusDonut({ byStatus, total, office }) {
+  const navigate = useNavigate()
+  const r = 42
+  const c = 2 * Math.PI * r
+  const parts = STATUSES.filter(([s]) => byStatus[s])
+  const gap = parts.length > 1 ? 1.5 : 0
+  let offset = 0
+  return (
+    <div className="relative h-44 w-44 shrink-0">
+      <svg viewBox="0 0 100 100" className="h-full w-full -rotate-90" role="img"
+        aria-label={`Fleet by status: ${parts.map(([s, label]) => `${label} ${byStatus[s]}`).join(', ') || 'no vehicles'}`}>
+        <circle cx="50" cy="50" r={r} fill="none" stroke="var(--color-slate-100)" strokeWidth="12" />
+        {total > 0 && parts.map(([s, label, , , stroke]) => {
+          const len = (byStatus[s] / total) * c
+          const arc = (
+            <circle key={s} cx="50" cy="50" r={r} fill="none" stroke={stroke} strokeWidth="12"
+              strokeDasharray={`${Math.max(len - gap, 0.5)} ${c}`} strokeDashoffset={-offset}
+              className="cursor-pointer transition-opacity hover:opacity-80"
+              onClick={() => navigate(href('/vehicles', { status: s }, office))}>
+              <title>{`${label}: ${byStatus[s]} of ${total} (${Math.round((byStatus[s] / total) * 100)}%)`}</title>
+            </circle>
+          )
+          offset += len
+          return arc
+        })}
+      </svg>
+      <Link to={href('/vehicles', {}, office)} className="absolute inset-0 m-auto flex h-24 w-24 flex-col items-center justify-center rounded-full hover:text-brand">
+        <span className="text-3xl leading-none font-semibold text-ink tabular-nums">{num.format(total)}</span>
+        <span className="mt-1 text-xs text-slate-500">{total === 1 ? 'vehicle' : 'vehicles'}</span>
+      </Link>
+    </div>
+  )
+}
+
 function FleetStatus({ v, office }) {
   const s = v.by_status
   const operable = v.total - s.DISPOSED
   const available = operable ? Math.round(((s.SERVICEABLE + s.IN_USE) / operable) * 100) : null
+  const share = (n) => (v.total ? `${Math.round((n / v.total) * 100)}%` : '–')
   return (
     <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm" aria-labelledby="fleet-title">
-      <div className="mb-4 flex flex-wrap items-end gap-x-8 gap-y-2">
-        <div>
-          <h2 id="fleet-title" className="text-sm text-slate-500">Fleet</h2>
-          <Link to={href('/vehicles', {}, office)} className="text-3xl font-semibold text-ink tabular-nums hover:text-brand">
-            {plural(v.total, 'vehicle')}
-          </Link>
-        </div>
-        {available != null && (
-          <div>
-            <p className="text-sm text-slate-500">Available for use</p>
-            <p className="text-3xl font-semibold text-ink tabular-nums">{available}%</p>
-          </div>
-        )}
-        <p className="pb-1 text-xs text-slate-500">Serviceable or in use, out of all vehicles not disposed.</p>
+      <div className="mb-3 flex flex-wrap items-baseline gap-x-3">
+        <h2 id="fleet-title" className="font-semibold text-ink">Fleet status</h2>
+        <Link to={href('/vehicles', {}, office)} className="text-xs font-medium text-brand hover:underline">View vehicles</Link>
       </div>
-      <StatusBar byStatus={s} total={v.total} office={office} />
-      <ul className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-6">
-        {STATUSES.map(([status, label, Icon, color]) => (
-          <li key={status}>
-            <Link to={href('/vehicles', { status }, office)} className="flex items-center gap-2.5 rounded-lg px-2 py-1.5 hover:bg-slate-50">
-              <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${color}`} aria-hidden="true" />
-              <Icon size={15} className="shrink-0 text-slate-500" aria-hidden="true" />
-              <span className={`text-sm font-semibold tabular-nums ${s[status] ? 'text-ink' : 'text-slate-400'}`}>{num.format(s[status])}</span>
-              <span className="min-w-0 truncate text-sm text-slate-600">{label}</span>
-            </Link>
-          </li>
-        ))}
-      </ul>
+      <div className="flex flex-col items-center gap-6 sm:flex-row sm:items-center">
+        <StatusDonut byStatus={s} total={v.total} office={office} />
+        <div className="w-full min-w-0 flex-1">
+          {available != null && (
+            <div className="mb-3 flex flex-wrap items-baseline gap-x-3 border-b border-slate-100 pb-3">
+              <span className="text-2xl font-semibold text-ink tabular-nums">{available}%</span>
+              <span className="text-sm text-slate-600">available for use</span>
+              <span className="text-xs text-slate-500">Serviceable or in use, out of all vehicles not disposed.</span>
+            </div>
+          )}
+          <ul className="grid gap-x-6 gap-y-1 sm:grid-cols-2 xl:grid-cols-3">
+            {STATUSES.map(([status, label, Icon, color]) => (
+              <li key={status}>
+                <Link to={href('/vehicles', { status }, office)} className="flex items-center gap-2.5 rounded-lg px-2 py-1.5 hover:bg-slate-50">
+                  <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${color}`} aria-hidden="true" />
+                  <Icon size={15} className="shrink-0 text-slate-500" aria-hidden="true" />
+                  <span className="min-w-0 flex-1 truncate text-sm text-slate-600">{label}</span>
+                  <span className={`text-sm font-semibold tabular-nums ${s[status] ? 'text-ink' : 'text-slate-400'}`}>{num.format(s[status])}</span>
+                  <span className="w-10 text-right text-xs text-slate-500 tabular-nums">{share(s[status])}</span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
     </section>
   )
 }
