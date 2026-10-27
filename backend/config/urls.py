@@ -6,6 +6,7 @@ from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 from rest_framework.routers import DefaultRouter
 
 from accounts.views import OfficeViewSet, UserViewSet
+from dashboard.views import DashboardView
 from fleet.document_views import DocumentViewSet
 from fleet.driver_views import DriverViewSet
 from fleet.views import VehicleViewSet
@@ -33,6 +34,7 @@ router.register('notifications', NotificationViewSet, basename='notification')
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/auth/', include('accounts.urls')),
+    path('api/dashboard/', DashboardView.as_view(), name='dashboard'),
     path('api/display/trips/', DisplayTripsView.as_view(), name='display-trips'),
     path('api/maps/<str:op>/', MapsView.as_view(), name='maps'),  # status | autocomplete | route
     path('api/', include(router.urls)),

@@ -5,6 +5,7 @@ import Login from './pages/Login'
 import ChangePassword from './pages/ChangePassword'
 import Pending from './pages/Pending'
 import Notifications from './pages/Notifications'
+import Dashboard from './pages/Dashboard'
 import Offices from './pages/admin/Offices'
 import Users from './pages/admin/Users'
 import { Forbidden, NotFound } from './pages/Errors'
@@ -27,7 +28,6 @@ import RfidDetail from './pages/rfid/RfidDetail'
 
 // Each route gets a real page as its phase is built; Pending marks what's not built yet.
 const pending = [
-  ['dashboard', 'Dashboard', 12],
   ['reports', 'Reports', 13],
   ['audit-logs', 'Audit Logs', 14],
 ]
@@ -41,6 +41,7 @@ export default function App() {
         <Route element={<Layout />}>
           <Route index element={<Navigate to="/dashboard" replace />} />
           <Route path="change-password" element={<ChangePassword />} />
+          <Route path="dashboard" element={<Dashboard />} />
           <Route path="notifications" element={<Notifications />} />
           <Route element={<RequirePerm perm="accounts.view_user" />}>
             <Route path="admin/users" element={<Users />} />

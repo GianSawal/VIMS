@@ -78,6 +78,7 @@ Django session in an HttpOnly cookie plus CSRF token. The SPA calls `GET /api/au
 | `/api/auth/change-password/` | POST | `{current_password, new_password}` |
 | `/api/users/` | CRUD (no delete) | System Administrator only; `POST /api/users/{id}/reset-password/` |
 | `/api/offices/` | CRUD (no delete) | scoped to the user's offices |
+| `/api/dashboard/` | GET | `?office= &month=YYYY-MM`; vehicle status/office counts, LTO and GSIS/insurance renewals, maintenance due, driver licenses, fuel and maintenance cost (month + 6-month trend), utilization, recent activity. Office-scoped; each section only for users who may view that module |
 | `/api/vehicles/` | CRUD (no delete) | `?search= &status= &office= &vehicle_type= &is_archived=true &ordering=` |
 | `/api/vehicles/{id}/archive/` · `/reactivate/` | POST | needs `fleet.change_vehicle` |
 | `/api/vehicles/{id}/assignments/` | GET history / POST assign or reassign | POST needs `add` + `change` on `vehicleassignment`; ends the current assignment on the start date |

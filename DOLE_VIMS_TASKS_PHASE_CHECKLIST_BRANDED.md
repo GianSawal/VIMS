@@ -433,25 +433,29 @@ alert once per configured event/threshold. — met; `run_notifications` is idemp
 
 # Phase 12 --- Dashboard and Analytics
 
--   [ ] Total vehicle card
--   [ ] Serviceable count
--   [ ] In-use count
--   [ ] Under-maintenance count
--   [ ] Unserviceable count
--   [ ] Vehicle-by-office visualization
--   [ ] Upcoming renewal widget
--   [ ] Maintenance due widget
--   [ ] Recent activity
--   [ ] Fuel summary
--   [ ] Maintenance cost summary
--   [ ] Utilization summary
--   [ ] Dashboard filters if required
--   [ ] Cards link to filtered records
--   [ ] Office-scoped dashboard data
--   [ ] Performance optimization
+One endpoint, `GET /api/dashboard/?office=&month=` (`backend/dashboard/views.py`), page `/dashboard` (`pages/Dashboard.jsx`).
+
+-   [x] Total vehicle card (non-archived, same rule as the vehicle list)
+-   [x] Serviceable count
+-   [x] In-use count
+-   [x] Under-maintenance count
+-   [x] Unserviceable count (plus For repair)
+-   [x] Vehicle-by-office visualization (ranked bars, links to `/vehicles?office=`)
+-   [x] Upcoming renewal widget (LTO and GSIS/insurance: expired + within 60 days, soonest 5; reuses `fleet/documents.py` bands)
+-   [x] Maintenance due widget (overdue / due soon from `schedule_state`, soonest 5)
+-   [x] Driver license expiration widget (active drivers; expired / within 60 days)
+-   [x] Recent activity (latest 10 across vehicles, documents, fuel, maintenance and trips; built from the office-scoped records because the audit log has no office — revisit with the Phase 14 audit API)
+-   [x] Fuel summary (month cost, liters, fill-ups, vs previous month, 6-month trend)
+-   [x] Maintenance cost summary (completed work in the month by record date, open count, 6-month trend)
+-   [x] Utilization summary (completed trips, km, % of operable vehicles used, on a trip now, scheduled next 7 days, most-driven vehicles)
+-   [x] Dashboard filters if required (office for multi-office users, month; kept in the URL)
+-   [x] Cards link to filtered records (status, office, band/type, due, license status, month date range)
+-   [x] Office-scoped dashboard data (`scope_to_offices`; `?office=` outside the user's scope returns zeros; sections omitted without the module's view permission)
+-   [x] Performance optimization (one request, aggregate queries; test caps it at 40 queries; schedules still evaluated in Python like the schedule summary)
+-   [x] Tests (`dashboard/test_dashboard.py`: figures, parity with the list summaries, scope, permissions, filters, 401, query count)
 
 **Phase gate:** Dashboard figures match source records and user
-permissions.
+permissions. — met; tests compare the dashboard with the list summary endpoints and check office scope and per-module permissions. Checked on the shared MySQL data.
 
 ------------------------------------------------------------------------
 
