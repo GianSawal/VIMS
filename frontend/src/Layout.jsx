@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { NavLink, Outlet, useNavigate } from 'react-router-dom'
+import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
+import { AnimatePresence, motion } from 'motion/react'
 import {
   Bell, Building2, Car, ClipboardList, CreditCard, FileText, Fuel, IdCard, KeyRound, LayoutDashboard, LogOut, Menu,
   Route as RouteIcon, ScrollText, Users, Wrench, X,
@@ -31,6 +32,7 @@ export default function Layout() {
   const { data: unread = 0 } = useUnreadCount()
   const navigate = useNavigate()
   const [open, setOpen] = useState(false)
+  const { pathname } = useLocation()
 
   const onLogout = async () => {
     await logout()
@@ -93,7 +95,12 @@ export default function Layout() {
         </div>
       </aside>
 
-      {open && <div className="fixed inset-0 z-20 bg-black/30 lg:hidden" onClick={() => setOpen(false)} />}
+      <AnimatePresence>
+        {open && (
+          <motion.div className="fixed inset-0 z-20 bg-black/30 lg:hidden" onClick={() => setOpen(false)}
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} />
+        )}
+      </AnimatePresence>
 
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="flex items-center gap-3 border-b border-slate-200 bg-white px-4 py-3 lg:hidden">
@@ -102,7 +109,11 @@ export default function Layout() {
           </button>
         </header>
         <main className="flex-1 p-4 lg:p-6">
-          <Outlet />
+          {/* keyed on the path (not the query string) so filter changes don't replay the page entrance.
+              ponytail: enter only; an exit (AnimatePresence mode="wait") would delay every navigation */}
+          <motion.div key={pathname} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25, ease: 'easeOut' }}>
+            <Outlet />
+          </motion.div>
         </main>
       </div>
     </div>

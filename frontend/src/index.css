@@ -19,6 +19,12 @@
   --font-sans: "Inter", ui-sans-serif, system-ui, "Segoe UI", sans-serif;
 }
 
+/* Motion (the motion package) animates the dialog box; the native ::backdrop can only be reached from CSS. */
+@media (prefers-reduced-motion: no-preference) {
+  dialog[open]::backdrop { animation: backdrop-in 0.18s ease-out; }
+  @keyframes backdrop-in { from { opacity: 0 } }
+}
+
 body {
   @apply bg-slate-50 text-ink antialiased;
 }

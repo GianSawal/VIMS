@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react'
+import { AnimatePresence, motion } from 'motion/react'
 import { X } from 'lucide-react'
 
 const variants = {
@@ -12,7 +13,7 @@ export function Button({ variant = 'primary', className = '', ...props }) {
   return (
     <button
       type="button"
-      className={`inline-flex items-center justify-center gap-2 rounded-md px-3 py-2 text-sm font-medium disabled:opacity-60 ${variants[variant]} ${className}`}
+      className={`inline-flex items-center justify-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition active:scale-[.97] disabled:opacity-60 disabled:active:scale-100 ${variants[variant]} ${className}`}
       {...props}
     />
   )
@@ -63,31 +64,39 @@ export function PageHeader({ title, actions, children }) {
   )
 }
 
-// Native <dialog>: focus trap, Esc to close and backdrop come from the browser.
+// Native <dialog>: focus trap, Esc and backdrop come from the browser. The dialog itself is transparent;
+// the white box is a motion.div so it can animate out, and the dialog closes once that exit finishes.
 export function Modal({ open, onClose, title, children, wide = false }) {
   const ref = useRef(null)
   useEffect(() => {
     const d = ref.current
     if (open && !d.open) d.showModal()
-    if (!open && d.open) d.close()
   }, [open])
   return (
     <dialog
       ref={ref}
-      onClose={onClose}
-      className={`m-auto w-[calc(100%-2rem)] rounded-xl p-0 shadow-xl backdrop:bg-black/40 ${wide ? 'max-w-2xl' : 'max-w-md'}`}
+      onCancel={(e) => { e.preventDefault(); onClose() }} // Esc: run the exit animation instead of closing at once
+      className={`m-auto w-[calc(100%-2rem)] bg-transparent p-0 backdrop:bg-black/40 ${wide ? 'max-w-2xl' : 'max-w-md'}`}
     >
-      {open && (
-        <div>
-          <div className="flex items-center border-b border-slate-200 px-5 py-3">
-            <h2 className="font-semibold text-brand">{title}</h2>
-            <button className="ml-auto text-slate-500 hover:text-ink" onClick={onClose} aria-label="Close">
-              <X size={18} />
-            </button>
-          </div>
-          <div className="p-5">{children}</div>
-        </div>
-      )}
+      <AnimatePresence onExitComplete={() => ref.current?.close()}>
+        {open && (
+          <motion.div
+            className="rounded-xl bg-white shadow-xl"
+            initial={{ opacity: 0, y: 8, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 8, scale: 0.98 }}
+            transition={{ duration: 0.18, ease: 'easeOut' }}
+          >
+            <div className="flex items-center border-b border-slate-200 px-5 py-3">
+              <h2 className="font-semibold text-brand">{title}</h2>
+              <button className="ml-auto text-slate-500 hover:text-ink" onClick={onClose} aria-label="Close">
+                <X size={18} />
+              </button>
+            </div>
+            <div className="p-5">{children}</div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </dialog>
   )
 }

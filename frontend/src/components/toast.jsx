@@ -1,4 +1,5 @@
 import { createContext, useCallback, useContext, useState } from 'react'
+import { AnimatePresence, motion } from 'motion/react'
 import { CheckCircle2, XCircle } from 'lucide-react'
 
 const ToastContext = createContext(() => {})
@@ -16,14 +17,19 @@ export function ToastProvider({ children }) {
     <ToastContext.Provider value={toast}>
       {children}
       <div className="fixed right-4 bottom-4 z-50 space-y-2" role="status" aria-live="polite">
-        {toasts.map((t) => (
-          <div key={t.id} className="flex items-center gap-2 rounded-md border border-slate-200 bg-white px-4 py-3 text-sm shadow-lg">
-            {t.type === 'error'
-              ? <XCircle size={18} className="text-danger" aria-hidden="true" />
-              : <CheckCircle2 size={18} className="text-green-700" aria-hidden="true" />}
-            {t.message}
-          </div>
-        ))}
+        <AnimatePresence initial={false}>
+          {toasts.map((t) => (
+            <motion.div key={t.id} layout
+              initial={{ opacity: 0, x: 24 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 24 }}
+              transition={{ type: 'spring', duration: 0.35, bounce: 0.15 }}
+              className="flex items-center gap-2 rounded-md border border-slate-200 bg-white px-4 py-3 text-sm shadow-lg">
+              {t.type === 'error'
+                ? <XCircle size={18} className="text-danger" aria-hidden="true" />
+                : <CheckCircle2 size={18} className="text-green-700" aria-hidden="true" />}
+              {t.message}
+            </motion.div>
+          ))}
+        </AnimatePresence>
       </div>
     </ToastContext.Provider>
   )

@@ -61,6 +61,7 @@ MySQL-specific behavior (CHECK constraints, generated columns) was verified manu
 - Permission UI uses `useCan()` and `<RequirePerm>`; these are hints only, the API enforces the same permissions.
 - Reuse `components/ui.jsx` (Button, Field, Modal, ConfirmDialog, Badge), `components/DataTable.jsx` (takes a `toolbar` and `onRowClick`) and `components/filters.jsx` (Toolbar, SearchBox, StatCard/CardGrid, Avatar). List pages follow one pattern: status/role cards on top, a toolbar attached to the table card, filter chips. Use `inputBase` (no width) for filter controls and `inputClass` (full width) for form fields; mixing `inputClass` with `w-44` does not work because `w-full` wins. Money is Philippine pesos via `Intl.NumberFormat('en-PH')`.
 - Routes for unbuilt phases render `<Pending>` in `App.jsx`; replace the entry when building the phase.
+- Animation uses `motion` (Framer Motion, `import { motion, AnimatePresence } from 'motion/react'`). `<MotionConfig reducedMotion="user">` in `main.jsx` handles reduced motion. `Modal` keeps the native `<dialog>` open until its exit animation finishes.
 
 ## Branding
 
