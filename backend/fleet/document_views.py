@@ -113,9 +113,10 @@ class DocumentViewSet(OfficeScopedMixin, mixins.ListModelMixin, mixins.RetrieveM
     @action(detail=True, methods=['post'], permission_classes=CAN_CHANGE)
     def cancel(self, request, pk=None):
         """Cancel a wrongly entered current document (kept for the record, no longer alerts)."""
+        doc = self.get_object()  # office check before reading the input
         s = CancelSerializer(data=request.data)
         s.is_valid(raise_exception=True)
-        doc = documents.cancel(self.get_object(), reason=s.validated_data['reason'])
+        doc = documents.cancel(doc, reason=s.validated_data['reason'])
         log(request, 'document_cancel', doc, f'Cancelled {label(doc)}: {s.validated_data["reason"]}', {'status': ['Active', 'Cancelled']})
         return self._respond(doc)
 

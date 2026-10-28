@@ -53,6 +53,12 @@ MySQL-specific behavior (CHECK constraints, generated columns) was verified manu
 - Reports: `reports/catalog.py` registers each report with `@report` (perms, filters, status/group-by choices) and returns columns (with a `kind`), rows and totals; `reports/export.py` turns that one result into CSV, Excel (openpyxl) and PDF (reportlab), so every format shows the same figures. Totals follow the list summaries (completed maintenance only, ACTIVE documents, trips by departure date). Add a report there; the React page (`pages/reports/Reports.jsx`) renders whatever the API describes.
 - Migration: `dataimport/importer.py` (`SHEETS` defines the import workbook's columns and parsers, used for both the template and reading) and `manage.py import_workbook` (dry run unless `--commit`, backup + review report in `backend/import_runs/`, git-ignored). It writes models directly with `full_clean()` (not the live services), skips rows already imported, and only fills blank fields of existing vehicles/drivers. Rules and mapping: `docs/MIGRATION.md`.
 - `RFIDAccount` intentionally has no password field (spec: no plaintext third-party credentials).
+- Security (`docs/SECURITY.md`):
+  - `config/test_security.py` walks every endpoint in the OpenAPI schema. A new endpoint must answer 401 logged out and refuse users without a role, or be added on purpose to `PUBLIC`/`OWN` there. A new office-scoped viewset needs a record in the test's `far` fixture.
+  - In detail actions call `self.get_object()` before validating input, so the office check (404) comes first.
+  - Uploaded files are served by `config/media.py`, never by a static route: photos are public, documents and attachments follow the record's permission and office. A new `FileField` must be added there.
+  - Rate limits live in `accounts/throttles.py` and `DEFAULT_THROTTLE_RATES`.
+  - Log output passes through `config.log_filters.RedactSecrets`; still never log secrets on purpose.
 
 ## Frontend conventions
 

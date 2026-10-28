@@ -113,9 +113,9 @@ class MaintenanceRecordViewSet(AttachmentsMixin, OfficeScopedMixin, mixins.ListM
     @action(detail=True, methods=['post'], permission_classes=CAN_CHANGE)
     def status(self, request, pk=None):
         """Move the record forward (inspection, in progress, completed) or cancel it."""
+        record = self.get_object()  # office check before reading the input
         s = StatusChangeSerializer(data=request.data)
         s.is_valid(raise_exception=True)
-        record = self.get_object()
         old = record.get_status_display()
         record, notes = service.change_status(record, user=request.user, **s.validated_data)
         log(request, f'maintenance_{record.status.lower()}', record,

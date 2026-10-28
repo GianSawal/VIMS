@@ -72,10 +72,11 @@ Django session in an HttpOnly cookie plus CSRF token. The SPA calls `GET /api/au
 | Endpoint | Method | |
 |---|---|---|
 | `/api/auth/csrf/` | GET | sets `csrftoken` cookie |
-| `/api/auth/login/` | POST | `{username, password}`, rate-limited 10/min |
+| `/api/auth/login/` | POST | `{username, password}`, rate-limited 10/min per IP and 20 failures/hour per username |
 | `/api/auth/logout/` | POST | |
 | `/api/auth/me/` | GET | current user, role, offices, permissions |
-| `/api/auth/change-password/` | POST | `{current_password, new_password}` |
+| `/api/auth/change-password/` | POST | `{current_password, new_password}`, 10/hour per user |
+| `/media/<path>` | GET | uploaded files: photos public; documents and attachments need login, the record's view permission and office (else 401/403/404) |
 | `/api/users/` | CRUD (no delete) | System Administrator only; `POST /api/users/{id}/reset-password/` |
 | `/api/offices/` | CRUD (no delete) | scoped to the user's offices |
 | `/api/dashboard/` | GET | `?office= &month=YYYY-MM`; vehicle status/office counts, LTO and GSIS/insurance renewals, maintenance due, driver licenses, fuel and maintenance cost (month + 6-month trend), utilization, recent activity. Office-scoped; each section only for users who may view that module |
@@ -158,7 +159,7 @@ Tokens are in `frontend/src/index.css` (`@theme`), used as Tailwind classes such
 5. Existing uploads: copy a local `backend/media/` into the `media` volume, e.g. `scp -r backend/media/. user@server:/tmp/vrs-media/` then on the server `docker cp /tmp/vrs-media/. <backend-container>:/app/media/`.
 6. Scheduled alerts: add a Coolify **Scheduled Task** on the `backend` service, command `python manage.py run_notifications`, daily (e.g. `0 6 * * *`).
 
-Back up the `media` volume together with the database. Uploads are served by nginx at their random-named URLs without a login check (same as dev).
+Back up the `media` volume together with the database (encrypted, see [docs/SECURITY.md](docs/SECURITY.md)). Uploads go through Django's permission and office check, and nginx then sends the file (`X-Accel-Redirect` to its internal `/protected-media/`). Production settings, headers, rate limits, database account and the pre-release security checks: [docs/SECURITY.md](docs/SECURITY.md).
 
 ## Importing the old spreadsheet
 

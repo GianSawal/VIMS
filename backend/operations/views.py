@@ -115,9 +115,10 @@ class TripViewSet(AttachmentsMixin, OfficeScopedMixin, mixins.ListModelMixin, mi
 
     @action(detail=True, methods=['post'], permission_classes=CAN_CHANGE_TRIP)
     def reschedule(self, request, pk=None):
+        trip = self.get_object()  # office check before reading the input
         s = RescheduleSerializer(data=request.data)
         s.is_valid(raise_exception=True)
-        trip, before = trip_service.reschedule(self.get_object(), user=request.user, **s.validated_data)
+        trip, before = trip_service.reschedule(trip, user=request.user, **s.validated_data)
         after = {'vehicle': trip.vehicle.plate_number, 'driver': trip.driver.full_name,
                  'scheduled_departure': trip.scheduled_departure.isoformat(),
                  'scheduled_return': trip.scheduled_return.isoformat() if trip.scheduled_return else None}
@@ -127,9 +128,10 @@ class TripViewSet(AttachmentsMixin, OfficeScopedMixin, mixins.ListModelMixin, mi
     @action(detail=True, methods=['post'], url_path='dispatch', permission_classes=CAN_CHANGE_TRIP)
     def dispatch_scheduled(self, request, pk=None):
         """The vehicle leaves on a scheduled trip: only on the scheduled day, with the odometer read now."""
+        trip = self.get_object()
         s = DispatchScheduledSerializer(data=request.data)
         s.is_valid(raise_exception=True)
-        trip = trip_service.dispatch_scheduled(self.get_object(), **s.validated_data)
+        trip = trip_service.dispatch_scheduled(trip, **s.validated_data)
         log(request, 'trip_dispatch', trip,
             f'Dispatched scheduled trip {trip.ticket_number}: {trip.vehicle.plate_number} with {trip.driver.full_name}',
             {'odometer_start': [None, trip.odometer_start]})
@@ -137,9 +139,10 @@ class TripViewSet(AttachmentsMixin, OfficeScopedMixin, mixins.ListModelMixin, mi
 
     @action(detail=True, methods=['post'], permission_classes=CAN_CHANGE_TRIP)
     def complete(self, request, pk=None):
+        trip = self.get_object()
         s = CompleteSerializer(data=request.data)
         s.is_valid(raise_exception=True)
-        trip, previous = trip_service.complete(self.get_object(), **s.validated_data)
+        trip, previous = trip_service.complete(trip, **s.validated_data)
         log(request, 'trip_complete', trip,
             f'Completed trip {trip.ticket_number}: {trip.distance_km:,} km', {'odometer_end': [None, trip.odometer_end]})
         if trip.odometer_end != previous:
@@ -149,9 +152,10 @@ class TripViewSet(AttachmentsMixin, OfficeScopedMixin, mixins.ListModelMixin, mi
 
     @action(detail=True, methods=['post'], permission_classes=CAN_CHANGE_TRIP)
     def cancel(self, request, pk=None):
+        trip = self.get_object()
         s = CancelSerializer(data=request.data)
         s.is_valid(raise_exception=True)
-        trip = trip_service.cancel(self.get_object(), reason=s.validated_data['reason'])
+        trip = trip_service.cancel(trip, reason=s.validated_data['reason'])
         log(request, 'trip_cancel', trip, f'Cancelled trip {trip.ticket_number}: {s.validated_data["reason"]}')
         return Response(TripSerializer(trip).data)
 

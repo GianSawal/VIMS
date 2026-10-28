@@ -1,12 +1,12 @@
 from django.conf import settings
-from django.conf.urls.static import static
 from django.contrib import admin
-from django.urls import include, path
+from django.urls import include, path, re_path
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 from rest_framework.routers import DefaultRouter
 
 from accounts.views import OfficeViewSet, UserViewSet
 from audit.views import AuditLogViewSet
+from config.media import serve_media
 from dashboard.views import DashboardView
 from dataimport.views import ImportTemplateView, RecordsFormView
 from fleet.document_views import DocumentViewSet
@@ -48,7 +48,6 @@ urlpatterns = [
     path('api/', include(router.urls)),
     path('api/schema/', SpectacularAPIView.as_view(), name='schema'),
     path('api/docs/', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger'),
+    # Uploaded files, with the record's permission and office check (config/media.py), in every environment.
+    re_path(rf'^{settings.MEDIA_URL.strip("/")}/(?P<path>.+)$', serve_media, name='media'),
 ]
-
-if settings.DEBUG:
-    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

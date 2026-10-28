@@ -3,6 +3,7 @@ from pathlib import Path
 
 import environ
 import pymysql
+from django.core.exceptions import ImproperlyConfigured
 
 pymysql.install_as_MySQLdb()  # ponytail: pure-Python driver, swap to mysqlclient if perf matters
 
@@ -14,6 +15,9 @@ environ.Env.read_env(BASE_DIR / '.env')
 SECRET_KEY = env('SECRET_KEY')
 DEBUG = env('DEBUG')
 ALLOWED_HOSTS = env.list('ALLOWED_HOSTS', default=['localhost', '127.0.0.1'])
+
+if not DEBUG and (len(SECRET_KEY) < 50 or SECRET_KEY.startswith(('change-me', 'django-insecure'))):
+    raise ImproperlyConfigured('Production needs a long random SECRET_KEY in .env (see docs/SECURITY.md).')
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -73,6 +77,10 @@ DATABASES = {
 if 'mysql' in DATABASES['default']['ENGINE']:
     DATABASES['default'].setdefault('OPTIONS', {})['charset'] = 'utf8mb4'
 
+# Holds the rate-limit counters. With several gunicorn workers use a shared one, e.g. dbcache://vrs_cache
+# (then `manage.py createcachetable`); the default in-memory cache counts per process.
+CACHES = {'default': env.cache('CACHE_URL', default='locmemcache://')}
+
 AUTH_USER_MODEL = 'accounts.User'
 
 AUTH_PASSWORD_VALIDATORS = [
@@ -94,6 +102,9 @@ MEDIA_ROOT = env.path('MEDIA_ROOT', default=BASE_DIR / 'media')
 FILE_UPLOAD_MAX_MEMORY_SIZE = env.int('FILE_UPLOAD_MAX_BYTES', default=5 * 1024 * 1024)
 VEHICLE_PHOTO_MAX_BYTES = env.int('VEHICLE_PHOTO_MAX_BYTES', default=5 * 1024 * 1024)
 ATTACHMENT_MAX_BYTES = env.int('ATTACHMENT_MAX_BYTES', default=10 * 1024 * 1024)
+# Files go through config/media.py (permission + office check). With Nginx, set e.g. /protected-media/ (an `internal`
+# location aliased to MEDIA_ROOT) and Nginx sends the file after the check; empty = Django streams it.
+MEDIA_ACCEL_REDIRECT = env('MEDIA_ACCEL_REDIRECT', default='')
 # Trip map (place search + routing on OpenStreetMap data), server-side keys. Empty = maps turned off.
 # MAPS_PROVIDER: locationiq | geoapify (default: locationiq when its key is set).
 MAPS_PROVIDER = env('MAPS_PROVIDER', default='')
@@ -114,18 +125,25 @@ SESSION_COOKIE_AGE = env.int('SESSION_COOKIE_AGE', default=8 * 60 * 60)
 SESSION_COOKIE_SECURE = CSRF_COOKIE_SECURE = env.bool('SECURE_COOKIES', default=not DEBUG)
 SESSION_COOKIE_SAMESITE = 'Lax'
 CSRF_COOKIE_SAMESITE = 'Lax'
+CSRF_COOKIE_HTTPONLY = False  # the SPA reads csrftoken and sends it as X-CSRFToken; the session cookie stays HttpOnly
 
-CORS_ALLOWED_ORIGINS = env.list('CORS_ALLOWED_ORIGINS', default=['http://localhost:5173'])
+# Production serves the SPA and the API from one origin, so no cross-origin access is needed; never a wildcard.
+CORS_ALLOWED_ORIGINS = env.list('CORS_ALLOWED_ORIGINS', default=['http://localhost:5173'] if DEBUG else [])
 CORS_ALLOW_CREDENTIALS = True
 CSRF_TRUSTED_ORIGINS = env.list('CSRF_TRUSTED_ORIGINS', default=['http://localhost:5173'])
 # Where the React app is served; used for links built on the server (e.g. TV display links in the admin).
 FRONTEND_URL = env('FRONTEND_URL', default='http://localhost:5173').rstrip('/')
 
+# Security headers (SecurityMiddleware / XFrameOptionsMiddleware). The SPA's own headers come from Nginx.
+SECURE_CONTENT_TYPE_NOSNIFF = True
+SECURE_REFERRER_POLICY = 'same-origin'
+SECURE_CROSS_ORIGIN_OPENER_POLICY = 'same-origin'
+X_FRAME_OPTIONS = 'DENY'
 if not DEBUG:
     SECURE_SSL_REDIRECT = env.bool('SECURE_SSL_REDIRECT', default=True)
-    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
-    SECURE_HSTS_SECONDS = 31536000
-    SECURE_CONTENT_TYPE_NOSNIFF = True
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')  # Nginx must set it (and strip a client's own)
+    SECURE_HSTS_SECONDS = env.int('SECURE_HSTS_SECONDS', default=31536000)
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = env.bool('SECURE_HSTS_INCLUDE_SUBDOMAINS', default=False)
 
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': ['accounts.permissions.SessionAuth'],
@@ -140,7 +158,10 @@ REST_FRAMEWORK = {
     ],
     'DEFAULT_PAGINATION_CLASS': 'config.pagination.Pagination',
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
-    'DEFAULT_THROTTLE_RATES': {'login': '10/min', 'display': '120/min', 'maps': '120/min'},
+    # login: per client IP; login_user: per username tried, so spreading guesses over many IPs doesn't help;
+    # password: change-password attempts per user; export: report / workbook downloads per user.
+    'DEFAULT_THROTTLE_RATES': {'login': '10/min', 'login_user': '20/hour', 'password': '10/hour',
+                               'export': '30/min', 'display': '120/min', 'maps': '120/min'},
 }
 
 SPECTACULAR_SETTINGS = {
@@ -148,12 +169,14 @@ SPECTACULAR_SETTINGS = {
     'DESCRIPTION': 'DOLE Vehicle Records System',
     'VERSION': '1.0.0',
     'SERVE_INCLUDE_SCHEMA': False,
+    'SERVE_PERMISSIONS': ['rest_framework.permissions.IsAuthenticated'],  # the endpoint map is not public
 }
 
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
     'formatters': {'std': {'format': '{asctime} {levelname} {name}: {message}', 'style': '{'}},
-    'handlers': {'console': {'class': 'logging.StreamHandler', 'formatter': 'std'}},
+    'filters': {'redact': {'()': 'config.log_filters.RedactSecrets'}},
+    'handlers': {'console': {'class': 'logging.StreamHandler', 'formatter': 'std', 'filters': ['redact']}},
     'root': {'handlers': ['console'], 'level': env('LOG_LEVEL', default='INFO')},
 }

@@ -15,6 +15,9 @@ services:
       SECURE_SSL_REDIRECT: ${SECURE_SSL_REDIRECT:-True}
       SECURE_COOKIES: ${SECURE_COOKIES:-True}
       MEDIA_ROOT: /app/media
+      MEDIA_ACCEL_REDIRECT: /protected-media/   # nginx sends uploads after Django's permission check
+      CACHE_URL: ${CACHE_URL:-dbcache://vrs_cache}   # rate-limit counters shared by all gunicorn workers
+      SECURE_HSTS_SECONDS: ${SECURE_HSTS_SECONDS:-31536000}
       MAPS_PROVIDER: ${MAPS_PROVIDER:-locationiq}
       LOCATIONIQ_API_KEY: ${LOCATIONIQ_API_KEY:-}
       GEOAPIFY_API_KEY: ${GEOAPIFY_API_KEY:-}

@@ -557,27 +557,31 @@ and no production data is silently overwritten. — not yet: the "never overwrit
 
 # Phase 16 --- Security Hardening
 
--   [ ] HTTPS configuration
--   [ ] Production CORS allowlist
--   [ ] CSRF configuration
--   [ ] Secure cookie/token configuration
+Reference: `docs/SECURITY.md` (production settings, pre-release checks). Tests: `config/test_security.py`.
+
+-   [x] HTTPS configuration (TLS at Coolify's proxy; Django redirect, proxy SSL header, HSTS 1 year; subdomains/preload off on purpose)
+-   [x] Production CORS allowlist (own origin only, empty by default when `DEBUG=False`, never a wildcard)
+-   [x] CSRF configuration (token on every write, trusted origins, SameSite=Lax)
+-   [x] Secure cookie/token configuration (session HttpOnly + Secure + Lax, 8 h; TV board token random 64 chars, revocable)
 -   [x] Password policy (min 10 chars, common/numeric/similarity checks, forced change for new accounts)
--   [ ] Rate-limit sensitive endpoints (partial: login 10/min)
--   [ ] File extension/MIME validation (partial: vehicle photos done; documents/attachments pending)
--   [ ] File size limits (partial: vehicle photos `VEHICLE_PHOTO_MAX_BYTES`)
+-   [x] Rate-limit sensitive endpoints (login 10/min per IP + 20 failures/hour per username; change-password 10/hour; exports 30/min; display and maps 120/min; shared DB cache in production)
+-   [x] File extension/MIME validation (PDF header / Pillow decode for documents and attachments, image type must match the extension; photos re-named from their real format)
+-   [x] File size limits (`ATTACHMENT_MAX_BYTES` 10 MB, `VEHICLE_PHOTO_MAX_BYTES` 5 MB, nginx 15 MB)
 -   [x] Safe upload paths/file names
--   [ ] Authorization review for every endpoint
--   [ ] Office-scoping penetration tests
--   [ ] Remove secrets from repository/history (verified clean at first push; re-check before production)
--   [ ] Production `DEBUG=False`
--   [ ] Secure headers
--   [ ] Logging does not expose credentials/tokens
--   [ ] Database least-privilege account
--   [ ] Backup encryption/access policy where applicable
--   [ ] Dependency vulnerability review
+-   [x] Authorization review for every endpoint (schema-driven tests: 401 logged out, refused without a role, Viewer read-only, pending password change blocked, DELETE only for files; API docs need login)
+-   [x] Office-scoping penetration tests (Field Office User vs. another office on every scoped endpoint, action and file; object lookup now precedes input validation in trip/maintenance/document actions)
+-   [ ] Remove secrets from repository/history (no `.env` or keys ever committed, but `DATA/VEHICLE RECORD.xlsx` with 13 Easytrip USERNAME/PW pairs is in history (`54283df`, removed in `732f354`): change those passwords; optional history purge in `docs/SECURITY.md`)
+-   [x] Production `DEBUG=False` (compose; app refuses to start with a weak `SECRET_KEY` when not in debug)
+-   [x] Secure headers (Django: frame DENY, nosniff, referrer, COOP, HSTS; nginx: same + CSP and Permissions-Policy for the SPA)
+-   [x] Logging does not expose credentials/tokens (redaction filter on the console log, `sensitive_post_parameters`, audit masks RFID and never stores passwords)
+-   [x] Uploaded documents and attachments behind login, permission and office (`config/media.py`, nginx `X-Accel-Redirect`); photos public for the TV board
+-   [ ] Database least-privilege account (grants written in `docs/SECURITY.md`; to be applied on the production MySQL)
+-   [x] Backup encryption/access policy where applicable (`docs/SECURITY.md`; scheduling the encrypted backup is a deployment task)
+-   [x] Dependency vulnerability review (pip-audit clean; npm audit: zod upgraded to 4.6.7, now 0)
 
 **Phase gate:** Security checklist and permission tests pass before
-production deployment.
+production deployment. — permission tests pass; not met until the Easytrip passwords are changed and the
+least-privilege database account is in place.
 
 ------------------------------------------------------------------------
 

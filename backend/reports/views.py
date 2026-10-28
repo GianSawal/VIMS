@@ -17,6 +17,7 @@ from rest_framework.views import APIView
 
 from accounts.models import Office
 from accounts.permissions import scope_to_offices
+from accounts.throttles import ExportThrottle
 from audit import services as audit
 from fleet.models import Driver, Vehicle
 from maintenance.models import MaintenanceCategory
@@ -143,6 +144,9 @@ class ReportListView(APIView):
 
 
 class ReportView(APIView):
+    def get_throttles(self):
+        return [ExportThrottle()] if self.request.query_params.get('export') else []  # previews aren't limited
+
     def get(self, request, slug):
         rep = REPORTS.get(slug)
         if not rep:

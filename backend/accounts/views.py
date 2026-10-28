@@ -1,6 +1,7 @@
 from django.contrib.auth import authenticate, login, logout, update_session_auth_hash
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import ensure_csrf_cookie
+from django.views.decorators.debug import sensitive_post_parameters
 from rest_framework import mixins, serializers, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.permissions import AllowAny
@@ -14,6 +15,7 @@ from .models import Office, User
 from .permissions import ModelPermissions, OfficeScopedMixin, PasswordChangeNotRequired
 from .serializers import (ChangePasswordSerializer, MeSerializer, OfficeSerializer, PasswordSerializer,
                           UserSerializer)
+from .throttles import FailedLoginsPerUsername, PasswordChangeThrottle
 
 
 class LoginSerializer(serializers.Serializer):
@@ -30,18 +32,22 @@ class CsrfView(APIView):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
+@method_decorator(sensitive_post_parameters('password'), name='dispatch')
 class LoginView(APIView):
     permission_classes = [AllowAny]
     throttle_scope = 'login'
-    throttle_classes = [ScopedRateThrottle]
+    throttle_classes = [ScopedRateThrottle, FailedLoginsPerUsername]
 
     def post(self, request):
         s = LoginSerializer(data=request.data)
         s.is_valid(raise_exception=True)
         user = authenticate(request, **s.validated_data)
+        per_username = FailedLoginsPerUsername()
         if user is None:
-            log(request, 'login_failed', 'auth', f'Failed login for "{s.validated_data["username"]}"')
+            per_username.failed(request, self)
+            log(request, 'login_failed', 'auth', f'Failed login for "{s.validated_data["username"][:150]}"')
             return Response({'detail': 'Invalid username or password.'}, status=status.HTTP_400_BAD_REQUEST)
+        per_username.succeeded(request, self)
         login(request, user)
         log(request, 'login', user, f'{user.username} logged in', user=user)
         return Response(MeSerializer(user).data)
@@ -63,8 +69,10 @@ class MeView(APIView):
         return Response(MeSerializer(request.user).data)
 
 
+@method_decorator(sensitive_post_parameters('current_password', 'new_password'), name='dispatch')
 class ChangePasswordView(APIView):
     allow_pending_password_change = True
+    throttle_classes = [PasswordChangeThrottle]
 
     def post(self, request):
         user = request.user

@@ -7,6 +7,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
 
 from accounts.permissions import PasswordChangeNotRequired, require
+from accounts.throttles import ExportThrottle
 from audit import services as audit
 
 from .export import export_form
@@ -38,6 +39,7 @@ class RecordsFormView(APIView):
     """GET: the VEHICLE RECORD form filled with the system's records (?office=<id> for one office). Each section needs
     its own view permission and only the user's offices are included (export.export_form)."""
     permission_classes = [IsAuthenticated, require('fleet.view_vehicle'), PasswordChangeNotRequired]
+    throttle_classes = [ExportThrottle]
 
     def get(self, request):
         office = request.query_params.get('office') or None

@@ -80,6 +80,7 @@ class AttachmentSerializer(serializers.ModelSerializer):
 
 
 ATTACHMENT_TYPES = {'.pdf', '.jpg', '.jpeg', '.png', '.webp'}
+IMAGE_FORMATS = {'.jpg': 'JPEG', '.jpeg': 'JPEG', '.png': 'PNG', '.webp': 'WEBP'}  # extension -> Pillow format
 
 
 def check_upload(f):
@@ -92,10 +93,11 @@ def check_upload(f):
         raise serializers.ValidationError('Only PDF, JPEG, PNG or WebP files are allowed.')
     if ext == '.pdf':
         ok = f.read(5) == b'%PDF-'
-    else:  # trust the bytes, not the extension
+    else:  # trust the bytes, not the extension: a real image, of the type its name claims
         try:
-            Image.open(f).verify()
-            ok = True
+            img = Image.open(f)
+            img.verify()
+            ok = img.format == IMAGE_FORMATS[ext]
         except Exception:
             ok = False
     f.seek(0)
