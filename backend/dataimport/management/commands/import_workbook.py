@@ -43,7 +43,7 @@ class Command(BaseCommand):
             if Path(prepare[0]).resolve() == Path(prepare[1]).resolve():
                 raise CommandError('Write the prepared copy to a different file; the original is kept as it is.')
             notes = legacy.prepare(*prepare)
-            self.stdout.write(self.style.SUCCESS(f'Prepared copy written to {prepare[1]} (new columns highlighted).'))
+            self.stdout.write(self.style.SUCCESS(f'Prepared copy written to {prepare[1]} (new columns formatted like the existing ones).'))
             for n in notes:
                 self.stdout.write(f'  check: {n}')
             return

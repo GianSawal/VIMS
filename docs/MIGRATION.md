@@ -20,11 +20,12 @@ which the system deliberately does not copy. Instead, the data is copied into on
    fill-up, trip and toll transaction. Leave a sheet empty to skip it. For RO3's workbook
    (`DATA/VEHICLE RECORD.xlsx`, git-ignored) this is automatic, in three steps:
    1. `python manage.py import_workbook --prepare "../DATA/VEHICLE RECORD.xlsx" "../DATA/VEHICLE RECORD (to fill).xlsx"`
-      writes a copy with the columns the old sheets lack (see "Added columns" below), highlighted in yellow.
+      writes a copy with the columns the old sheets lack (see "Added columns" below), in the same format as
+      the existing columns (header colour, borders, date format, widths).
       The EasyTrip USERNAME / PW cells are blanked in the copy. The original is not changed.
-   2. Staff fill the highlighted cells in that copy, in the sheets they already know.
+   2. Staff fill the new columns in that copy, in the sheets they already know.
    3. `python manage.py import_workbook --convert "../DATA/VEHICLE RECORD (to fill).xlsx" import_runs/converted.xlsx`
-      The *Conversion notes* sheet lists what was inferred or left out, and how many highlighted cells are
+      The *Conversion notes* sheet lists what was inferred or left out, and how many new-column cells are
       still blank. Fill those and convert again before the dry run.
 5. **Dry run on staging** (a copy of the database, never production first):
    `python manage.py import_workbook filled.xlsx --user <your username>`

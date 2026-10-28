@@ -11,7 +11,7 @@ Old layout:
 Two steps:
 1. prepare(): copy the old workbook with the columns the import needs and the old sheets lack (NEW_* below),
    appended in empty columns only (the logs have balance formulas and merged cells), pre-filled where a guess is
-   possible and highlighted where staff must fill them in. The original file is not touched.
+   possible, formatted like the existing columns (LOOKS_LIKE). The original file is not touched.
 2. convert(): read the (prepared and filled) workbook into the standard import workbook. Blank new columns fall back
    to the old behaviour (guess or leave blank), so an unprepared workbook still converts.
 Everything inferred or left out is listed on the "Conversion notes" sheet.
@@ -19,10 +19,10 @@ The EasyTrip USERNAME / PW columns are never read (the system stores no third-pa
 the prepared copy, which gets passed around for filling in.
 """
 import re
+from copy import copy
 from datetime import date, datetime, time, timedelta
 
 from openpyxl import load_workbook
-from openpyxl.styles import Font, PatternFill
 from openpyxl.worksheet.datavalidation import DataValidation
 
 from fleet.models import Driver, Vehicle
@@ -52,7 +52,11 @@ NEW_DRIVER = ['LICENSE TYPE']                                           # RO3 dr
 FUEL_PRICE = 'PRICE/L'                                                  # vehicle sheets, column J (empty, next to FUEL LITERS)
 NEW_LOG = ['TIME OUT', 'TIME IN', 'ODO OUT', 'ODO IN']                  # vehicle sheets, after the log's last column
 PO_PRICE = 'UNIT PRICE'                                                 # Sheet20 PO log, after DRIVER
-TO_FILL = PatternFill('solid', fgColor='FFF2A8')
+# New column -> existing column whose format it copies (falls back to the column on its left).
+LOOKS_LIKE = {'FUEL TYPE': 'REMARKS', 'VEHICLE TYPE': 'REMARKS', 'START DATE': 'GSIS', 'LTO EXPIRY': 'GSIS',
+              'LICENSE TYPE': 'PLACE', FUEL_PRICE: 'FUEL LITERS', 'TIME OUT': 'DATE', 'TIME IN': 'DATE',
+              'ODO OUT': 'DEBIT', 'ODO IN': 'DEBIT', PO_PRICE: 'FUEL LITER'}
+TIME_COLUMNS, TIME_FORMAT = ('TIME OUT', 'TIME IN'), 'h:mm AM/PM'
 CREDENTIAL_COLUMNS = ['USERNAME', 'PW']  # RO3 EasyTrip logins: never read, and blanked in the prepared copy
 
 
@@ -147,32 +151,37 @@ def po_row(ws):
 # ---------------------------------------------------------------- step 1: add the missing columns
 
 def prepare(source, target):
-    """Write a copy of the old workbook with the NEW_* columns; returns notes for the person filling it in."""
+    """Write a copy of the old workbook with the NEW_* columns; returns notes for the person filling it in.
+    Each new column copies the look of an existing one (LOOKS_LIKE): header and every cell's font, fill, borders and
+    number format, and the column width, so the copy keeps the old sheets' format."""
     values = load_workbook(source, data_only=True)['RO3']  # for the guesses (VEHICLE is plain text, but be safe)
     wb = load_workbook(source)  # formulas kept
     notes = []
 
-    def add_header(ws, row, col, text):
-        cell = ws.cell(row, col, text)
-        cell.font, cell.fill = Font(bold=True), TO_FILL
-        ws.column_dimensions[cell.column_letter].width = max(ws.column_dimensions[cell.column_letter].width or 0, 14)
+    def add_column(ws, head, last, col, name, like_col):
+        for r in range(head + 1, last + 1):
+            if ws.cell(r, col).value not in (None, ''):
+                notes.append(f'{ws.title}!{ws.cell(r, col).coordinate} already had "{ws.cell(r, col).value}" '
+                             f'where the new {name} column goes; check it.')
+        for r in range(head, last + 1):
+            ws.cell(r, col)._style = copy(ws.cell(r, like_col)._style)
+            if r > head and name in TIME_COLUMNS:
+                ws.cell(r, col).number_format = TIME_FORMAT
+        ws.cell(head, col).value = name
+        src, dst = ws.cell(1, like_col).column_letter, ws.cell(1, col).column_letter
+        # Only columns without a width of their own: on RO3 the driver list shares columns with the vehicle list.
+        if dst not in ws.column_dimensions and src in ws.column_dimensions:
+            ws.column_dimensions[dst].width = ws.column_dimensions[src].width
 
-    def append_columns(ws, row, names, rows, fill_blank=lambda r, name: True):
-        """Add `names` after the last header of `row` (unless already there); highlight blanks on `rows`."""
-        cols = header_cols(ws, row)
-        start = max(c.column for c in ws[row] if c.value not in (None, '')) + 1  # not max(cols): headers can repeat
+    def append_columns(ws, head, last, names):
+        """Add `names` after the last header of row `head` (unless already there), styled for rows head..last."""
+        cols = header_cols(ws, head)
+        start = max(c.column for c in ws[head] if c.value not in (None, '')) + 1  # not max(cols): headers can repeat
         for name in names:
             if name not in cols:
-                for r in rows:
-                    if ws.cell(r, start).value not in (None, ''):
-                        notes.append(f'{ws.title}!{ws.cell(r, start).coordinate} already had "{ws.cell(r, start).value}" '
-                                     f'where the new {name} column goes; check it.')
-                add_header(ws, row, start, name)
+                add_column(ws, head, last, start, name, cols.get(LOOKS_LIKE[name], start - 1))
                 cols[name] = start
                 start += 1
-            for r in rows:
-                if ws.cell(r, cols[name]).value in (None, '') and fill_blank(r, name):
-                    ws.cell(r, cols[name]).fill = TO_FILL
         return cols
 
     def dropdown(ws, col, rows, choices):
@@ -185,26 +194,25 @@ def prepare(source, target):
     ro3 = wb['RO3']
     head, dhead = master_rows(ro3)
     pn = header_cols(ro3, head)['PN']
-    vrows = [r for r in range(head + 1, dhead or ro3.max_row + 1) if clean(ro3.cell(r, pn).value)]
+    vlast = (dhead - 1) if dhead else ro3.max_row
+    vrows = [r for r in range(head + 1, vlast + 1) if clean(ro3.cell(r, pn).value)]
     for name in CREDENTIAL_COLUMNS:  # the copy gets passed around: no plaintext EasyTrip logins in it
         col = header_cols(ro3, head).get(name)
         for r in vrows if col else []:
             ro3.cell(r, col).value = None
     desc_col = header_cols(ro3, head).get('VEHICLE')
-    cols = append_columns(ro3, head, NEW_MASTER, vrows)
+    cols = append_columns(ro3, head, vlast, NEW_MASTER)
     for r in vrows:
         desc = clean(values.cell(r, desc_col).value) if desc_col else ''
         for name, guess in (('FUEL TYPE', guess_fuel(desc)), ('VEHICLE TYPE', guess_type(desc))):
-            cell = ro3.cell(r, cols[name])
-            if cell.value in (None, '') and guess:
-                cell.value, cell.fill = guess, PatternFill()  # a guess to check, not a blank to fill
-        ro3.cell(r, cols['START DATE']).number_format = ro3.cell(r, cols['LTO EXPIRY']).number_format = 'yyyy-mm-dd'
+            if ro3.cell(r, cols[name]).value in (None, '') and guess:
+                ro3.cell(r, cols[name]).value = guess  # a guess for staff to check
     dropdown(ro3, cols['FUEL TYPE'], vrows, Vehicle.Fuel.choices)
     dropdown(ro3, cols['VEHICLE TYPE'], vrows, Vehicle.Type.choices)
     if dhead:
         name_col = header_cols(ro3, dhead)['DRIVER']
         drows = [r for r in range(dhead + 1, ro3.max_row + 1) if clean(ro3.cell(r, name_col).value)]
-        cols = append_columns(ro3, dhead, NEW_DRIVER, drows)
+        cols = append_columns(ro3, dhead, ro3.max_row, NEW_DRIVER)
         dropdown(ro3, cols['LICENSE TYPE'], drows, Driver.LicenseType.choices)
 
     for ws in wb.worksheets:
@@ -212,19 +220,19 @@ def prepare(source, target):
             continue
         mrow = maint_row(ws)
         if mrow:
-            if ws.cell(mrow, 10).value in (None, '', FUEL_PRICE):
-                add_header(ws, mrow, 10, FUEL_PRICE)
-                for r in range(mrow + 1, ws.max_row + 1):  # a price is needed on every fill-up (rows with liters)
-                    if to_num(ws.cell(r, 9).value) and ws.cell(r, 10).value in (None, ''):
-                        ws.cell(r, 10).fill = TO_FILL
+            liters = header_cols(ws, mrow).get(LOOKS_LIKE[FUEL_PRICE], 9)
+            if ws.cell(mrow, 10).value == FUEL_PRICE:
+                pass
+            elif ws.cell(mrow, 10).value in (None, ''):
+                add_column(ws, mrow, ws.max_row, 10, FUEL_PRICE, liters)  # J: the empty column next to FUEL LITERS
             else:
                 notes.append(f'{ws.title}!J{mrow} is not empty; {FUEL_PRICE} column not added.')
         lrow = log_row(ws)
         if lrow:
-            append_columns(ws, lrow, NEW_LOG, range(lrow + 1, ws.max_row + 1), fill_blank=lambda r, name: False)
+            append_columns(ws, lrow, ws.max_row, NEW_LOG)
     po = wb['Sheet20'] if 'Sheet20' in wb.sheetnames else None
     if po and po_row(po):
-        append_columns(po, po_row(po), [PO_PRICE], [])
+        append_columns(po, po_row(po), po.max_row, [PO_PRICE])
     wb.save(target)
     return notes
 

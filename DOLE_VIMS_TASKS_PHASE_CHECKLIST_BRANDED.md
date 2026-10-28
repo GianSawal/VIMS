@@ -522,7 +522,7 @@ RO3's source workbook (`DATA/VEHICLE RECORD.xlsx`, git-ignored) is converted int
 `import_workbook --convert` (`dataimport/legacy.py`, `test_legacy.py`). The values the old sheets lack now have
 columns in the old workbook itself: `import_workbook --prepare` writes `DATA/VEHICLE RECORD (to fill).xlsx` with
 FUEL TYPE / VEHICLE TYPE / START DATE / LTO EXPIRY (RO3), LICENSE TYPE (drivers), PRICE/L (fill-ups), TIME OUT / IN
-and ODO OUT / IN (trip log) and UNIT PRICE (PO log), highlighted for staff. Dry run so far (throwaway database):
+and ODO OUT / IN (trip log) and UNIT PRICE (PO log), formatted like the existing columns. Dry run so far (throwaway database):
 maintenance 46 and toll 601 rows clean. Waiting on staff to fill 253 prices, 19 start dates, 27 license types,
 17 LTO expiry dates, 4 fuel types, and trip times for the trips worth importing.
 
