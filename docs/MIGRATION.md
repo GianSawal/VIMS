@@ -16,7 +16,11 @@ which the system deliberately does not copy. Instead, the data is copied into on
    spell an office differently ("Tarlac FO"), add a row to the *Offices* sheet mapping that spelling to the
    office code.
 4. **Copy the old data into the template.** One row per vehicle, driver, assignment, document, maintenance job,
-   fill-up, trip and toll transaction. Leave a sheet empty to skip it.
+   fill-up, trip and toll transaction. Leave a sheet empty to skip it. For RO3's workbook
+   (`DATA/VEHICLE RECORD.xlsx`, git-ignored) this is automatic:
+   `python manage.py import_workbook --convert "../DATA/VEHICLE RECORD.xlsx" import_runs/converted.xlsx`
+   The *Conversion notes* sheet lists what was inferred or left out. Fill the blanks it names (see
+   "Still to fill in" below) before the dry run.
 5. **Dry run on staging** (a copy of the database, never production first):
    `python manage.py import_workbook filled.xlsx --user <your username>`
    Nothing is saved. The command prints a summary and writes
@@ -95,8 +99,31 @@ is available.
 | Toll | Provider *, Account number *, Plate number * | `RFIDAccount` (found or created by provider + number) and `TollTransaction.vehicle` |
 | | Transacted at *, Description *, Credit, Debit, Reference number, Ticket number | `TollTransaction.*` (`trip` linked by ticket) |
 
-### Old spreadsheet → template (fill in when the source workbook is available)
+### Old spreadsheet → template (`dataimport/legacy.py`)
+
+RO3's workbook has a master sheet `RO3` and one sheet per vehicle. Each vehicle sheet has three blocks side by
+side: maintenance (A–E), fuel and odometer readings (G–I), and the RFID / trip log (from column K; its columns are
+found by header name because the order differs between sheets).
 
 | Old sheet / column | Template sheet / column | Notes |
 |---|---|---|
-| | | |
+| RO3 PN | Vehicles: Plate number | Vehicle sheets are matched by their PLATE NO. cell, else by sheet name. |
+| RO3 VEHICLE | Make, Model, Variant | First word, second word, the rest (`TOYOTA` / `HIACE` / `COMMUTER 3.0 M/T`). |
+| RO3 VEHICLE | Vehicle type, Fuel type | Inferred: HiAce/L300/Travis = Van, Innova/Crosswind/Adventure/Revo/Sportivo = SUV; Diesel when the text says so or the model is sold only as diesel. Otherwise blank. |
+| RO3 COLOR, OFFICE, REMARKS | Color, Office, Status | Office spellings are mapped on the Offices sheet (`REGIONAL OFFICE` → R03, `TARLAC` → TAR, …). |
+| Vehicle sheet title | Vehicles: Remarks | Another plate number in the title (e.g. `SCD 2797`) is kept as "Other plate in the old sheet". |
+| Vehicle sheet ODO, "PMS (km)" | Current odometer | Highest reading on the sheet. |
+| RO3 PAR, DRIVER | Assignments: Accountable person, Driver name | The DRIVER column (`SURNAME, FIRST MIDDLE`) is matched to the driver list by surname + first name. |
+| RO3 GSIS | Documents: GSIS Insurance, Expiry date | |
+| RO3 LTO, Renew Date | Documents: LTO Registration, Issue date; Remarks "Renewal month" | |
+| RO3 EASYTRIP | Toll: Account number (provider Easytrip) | |
+| RO3 USERNAME, PW | — | **Never read.** The system stores no third-party credentials. |
+| RO3 driver list: DRIVER, LICENSE NUMBER, EXP.DATE, PLACE, MOBILE No. | Drivers: Full name, License number, License expiry date, Office, Contact number | |
+| Maintenance DATE, PR No., DESCRIPTION, SUPPLIER, COST | Maintenance: Date, Reference number, Description, Service provider, Parts cost | One COST column, so it all goes to parts cost. `Free` = 0 with a remark. Odometer from `PMS (1622)` / `PMS 1,287 KM`. Categories from words in the description. |
+| Fuel DATE, ODO, FUEL LITERS | Fuel: Date, Odometer, Liters | Only rows with liters. Rows with just an odometer are daily readings, used for the current odometer. |
+| Log DATE, TRIP TICKET No., DESCRIPTION, CREDIT, DEBIT | Toll: Transacted at, Reference number, Description, Credit, Debit | Date at 08:00, one minute apart per row, to keep the sheet order. Negative charges are made positive. "Toll" in CREDIT = a charge; "RELOAD" = a load (its amount sits in DEBIT); "Toll/Reload" = both, the load taken from the label or worked out from the BALANCE column. A balance before the first row becomes an "Opening balance" credit. Balances that don't add up are listed in the notes. |
+| Log PASSENGER, PLACE VISIT, PURPOSE | — | Not imported: no departure/return times or odometer readings, which a completed trip needs. Counted in the notes. |
+| Category dates under ENGINE…BODY, `Sheet20` | — | Last-service summary and an empty PO log; nothing to import. |
+
+**Still to fill in** (not in the old workbook): fuel unit price, assignment start date, driver license type,
+LTO registration expiry date, and fuel type for the vehicles left blank. The first dry run lists every one of them.

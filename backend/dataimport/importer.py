@@ -227,6 +227,9 @@ SHEETS = {
 }
 
 
+NOTES_SHEET = 'Conversion notes'  # written by legacy.convert for the reviewer; not imported
+
+
 def header(c):
     return c['key'].replace('_', ' ').capitalize() + (' *' if c['required'] else '')
 
@@ -279,7 +282,7 @@ def read_workbook(path):
     norm = lambda h: re.sub(r'[^a-z0-9]+', '_', str(h or '').lower()).strip('_')
     for name in wb.sheetnames:
         if name not in SHEETS:
-            if name != 'Instructions':
+            if name not in ('Instructions', NOTES_SHEET):
                 problems.append(Issue(name, 0, 'warning', '', 'Unknown sheet, ignored.'))
             continue
         rows = wb[name].iter_rows(values_only=True)

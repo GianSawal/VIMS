@@ -1,5 +1,6 @@
 """
 python manage.py import_workbook --template vrs-import-template.xlsx      # write the blank import workbook
+python manage.py import_workbook --convert "../DATA/VEHICLE RECORD.xlsx" filled.xlsx   # fill it from RO3's old workbook
 python manage.py import_workbook filled.xlsx --user admin                 # dry run: nothing saved, report written
 python manage.py import_workbook filled.xlsx --user admin --commit        # import for real
 
@@ -15,6 +16,7 @@ from django.utils import timezone
 
 from accounts.models import User
 from audit.models import AuditLog
+from dataimport import legacy
 from dataimport.importer import Importer, read_workbook, write_report, write_template
 
 RUNS_DIR = Path(settings.BASE_DIR) / 'import_runs'
@@ -26,11 +28,20 @@ class Command(BaseCommand):
     def add_arguments(self, parser):
         parser.add_argument('workbook', nargs='?', help='Filled import workbook (.xlsx)')
         parser.add_argument('--template', metavar='PATH', help='Write the blank import workbook to PATH and stop')
+        parser.add_argument('--convert', nargs=2, metavar=('OLD', 'OUT'),
+                            help="Convert RO3's old per-vehicle workbook OLD into a filled import workbook OUT and stop")
         parser.add_argument('--commit', action='store_true', help='Save the records (default: dry run, everything rolled back)')
         parser.add_argument('--user', help='Username recorded as creator of the imported records and in the audit log')
         parser.add_argument('--out', default=str(RUNS_DIR), help='Folder for the backup copy and the report')
 
-    def handle(self, *args, workbook=None, template=None, commit=False, user=None, out=None, **opts):
+    def handle(self, *args, workbook=None, template=None, convert=None, commit=False, user=None, out=None, **opts):
+        if convert:
+            counts, notes = legacy.convert(*convert)
+            self.stdout.write(self.style.SUCCESS(f'Converted {Path(convert[0]).name} -> {convert[1]}'))
+            for name, n in counts.items():
+                self.stdout.write(f'{name:<12} {n:>6} row(s)')
+            self.stdout.write(f'{len(notes)} note(s) on the "Conversion notes" sheet. Review the workbook, then dry-run it.')
+            return
         if template:
             write_template(template)
             self.stdout.write(self.style.SUCCESS(f'Template written to {template}'))

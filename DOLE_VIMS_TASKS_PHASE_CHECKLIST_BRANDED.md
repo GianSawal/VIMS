@@ -517,12 +517,15 @@ entity, and before/after values. — met; every entry stores user (plus username
 
 # Phase 15 --- Excel Data Migration
 
-Approach: the source workbook is not in the repo yet, so the migration uses a **standard import workbook**
-(`manage.py import_workbook --template`) that staff fill from the old sheets. Tooling is done and tested
-(`dataimport/test_import.py`); the items that need the real data stay open.
+Approach: the migration uses a **standard import workbook** (`manage.py import_workbook --template`).
+RO3's source workbook (`DATA/VEHICLE RECORD.xlsx`, git-ignored) is converted into it automatically with
+`import_workbook --convert` (`dataimport/legacy.py`, `test_legacy.py`). A dry run of the converted workbook on a
+throwaway database: maintenance 46 and toll 601 rows import cleanly. The rest wait only on values the old workbook
+doesn't have: fuel unit price (253 fill-ups), assignment start dates (19), driver license type (26), LTO expiry (16),
+and fuel type for 4 older vehicles. Trip lines are not importable (no times or odometer readings).
 
 -   [x] Make backup copy of source workbook (every run copies the input to `backend/import_runs/` before reading)
--   [ ] Create Excel-to-database field mapping (template column → DB field done in `docs/MIGRATION.md`; old-sheet → template table pending the source workbook)
+-   [x] Create Excel-to-database field mapping (`docs/MIGRATION.md`: old sheet → template → DB field; applied by `import_workbook --convert`)
 -   [x] Normalize office names (code, name ignoring case/punctuation/"DOLE", or an alias on the Offices sheet)
 -   [x] Normalize vehicle names (plates uppercased; `SAB 1234` / `SAB-1234` / `sab1234` match; identifiers uppercased, blank → NULL)
 -   [x] Normalize driver/accountable-person names (spaces/case/punctuation ignored; drivers matched by license then name; ambiguous → warning, never a duplicate silently)
@@ -530,16 +533,16 @@ Approach: the source workbook is not in the repo yet, so the migration uses a **
 -   [x] Identify malformed dates (several formats accepted; anything else fails the row)
 -   [x] Identify missing required fields (missing column skips the sheet; missing cell fails the row)
 -   [x] Build import command/script (`manage.py import_workbook`, dry run unless `--commit`, `--user` required to commit)
--   [ ] Import vehicle master records (supported and tested; pending the real data)
--   [ ] Import assignments (supported and tested; pending the real data)
--   [ ] Import maintenance history (supported and tested; completed/cancelled jobs only; pending the real data)
--   [ ] Import fuel history (supported and tested; pending the real data)
--   [ ] Import Fuel PO log (PO number column on the Fuel sheet; pending the real data)
--   [ ] Import trip/toll data where reliable (supported and tested; pending the real data)
--   [ ] Import LTO/GSIS information (Documents sheet, history → superseded; pending the real data)
+-   [ ] Import vehicle master records (21 converted; 4 need a fuel type; staging import pending)
+-   [ ] Import assignments (19 converted; need start dates)
+-   [ ] Import maintenance history (46 converted, clean in the dry run; staging import pending)
+-   [ ] Import fuel history (253 converted; need unit prices, the old sheets record liters only)
+-   [ ] Import Fuel PO log (RO3's PO log sheet is empty; PO numbers can still be entered on the Fuel sheet)
+-   [ ] Import trip/toll data where reliable (601 toll rows clean in the dry run; trip lines not importable, no times/odometer)
+-   [ ] Import LTO/GSIS information (GSIS 16 clean; LTO needs expiry dates, the sheet has the registration date and renewal month)
 -   [x] Produce import warnings (Issues sheet: sheet, Excel row, level, field, message, value, reviewer column)
 -   [x] Produce import summary (created / updated / skipped / failed / warnings per sheet, on screen and in the report; audit entry on commit)
--   [ ] Perform dry run on staging (needs the filled workbook)
+-   [ ] Perform dry run on staging (converted workbook dry-run on a throwaway SQLite copy with the real offices; staging run after the blanks are filled)
 -   [ ] Reconcile counts against Excel (procedure in `docs/MIGRATION.md` step 7)
 -   [ ] Manually review flagged rows
 -   [ ] Obtain client validation of migrated records
