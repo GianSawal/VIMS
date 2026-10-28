@@ -21,6 +21,7 @@ the prepared copy, which gets passed around for filling in.
 import re
 from copy import copy
 from datetime import date, datetime, time, timedelta
+from pathlib import Path
 
 from openpyxl import load_workbook
 from openpyxl.worksheet.datavalidation import DataValidation
@@ -237,6 +238,7 @@ def prepare(source, target):
     return notes
 
 
+FORM = Path(__file__).parent / 'forms' / 'vehicle-record-form.xlsx'  # built by blank_form; served by the app
 FORM_SHEET = 'PLATE NO'  # the one empty vehicle sheet in the blank form; staff copy it per vehicle
 SHEET_LABELS = {'MAINTENANCE RECORD', 'ENGINE', 'TIRE', 'BRAKES', 'AIRCON', 'BATTERY', 'BODY', 'AUTHORIZED DRIVER'}
 

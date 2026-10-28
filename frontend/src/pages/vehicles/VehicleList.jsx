@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import {
-  Ban, CircleCheck, LayoutList, Navigation, PackageX, Plus, Search, TriangleAlert, Wrench, X,
+  Ban, CircleCheck, FileSpreadsheet, LayoutList, Navigation, PackageX, Plus, Search, TriangleAlert, Wrench, X,
 } from 'lucide-react'
 import { useList } from '../../api'
 import { useCan, useMe } from '../../auth'
@@ -124,9 +124,16 @@ export default function VehicleList() {
 
   return (
     <div>
-      <PageHeader title="Vehicles" actions={can('fleet.add_vehicle') && (
-        <Button onClick={() => navigate('/vehicles/new')}><Plus size={16} /> Add vehicle</Button>
-      )}>Track and manage the DOLE vehicle fleet.</PageHeader>
+      <PageHeader title="Vehicles" actions={
+        <div className="flex flex-wrap gap-2">
+          {/* The old VEHICLE RECORD workbook layout: RO3 list + one sheet per plate. Scoped and permission-checked by the API. */}
+          <a href={`/api/export/vehicle-record/${f.office ? `?office=${f.office}` : ''}`} download
+            className="inline-flex items-center justify-center gap-2 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-ink transition hover:bg-slate-50 active:scale-[.97]">
+            <FileSpreadsheet size={16} aria-hidden="true" /> VEHICLE RECORD
+          </a>
+          {can('fleet.add_vehicle') && <Button onClick={() => navigate('/vehicles/new')}><Plus size={16} /> Add vehicle</Button>}
+        </div>
+      }>Track and manage the DOLE vehicle fleet.</PageHeader>
 
       <div role="group" aria-label="Filter by status" className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-4 xl:grid-cols-7">
         <StatusCard type="ALL" label="All vehicles" count={summary.data?.total} loading={summary.isLoading}
