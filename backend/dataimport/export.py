@@ -139,6 +139,7 @@ def export_form(user, office=None):
 
     if vehicles:
         wb.remove(form)  # every vehicle has its own copy; an empty form stays only when there are none
+    wb.calculation.fullCalcOnLoad = True  # the form's remaining balance formulas get values when Excel opens it
     buf = io.BytesIO()
     wb.save(buf)
     return buf.getvalue(), len(vehicles)
@@ -202,12 +203,13 @@ def fill_vehicle_sheet(ws, v, assignment, see, po_rows):
                 'ODO OUT': t.odometer_start, 'ODO IN': t.odometer_end}))
     lines.sort(key=lambda x: (x[0], x[1]))
     ensure_rows(ws, lrow + 1, len(lines), ws.max_row)
-    credit, debit, bal = (cols.get(k) for k in ('CREDIT', 'DEBIT', 'BALANCE'))
+    # BALANCE as numbers, not formulas: openpyxl can't store a formula's result, so a formula shows blank until Excel
+    # recalculates (not in Protected View or other viewers). Same running total as the app: credits minus debits in time order.
+    running = 0
     for r, (_, _, line) in enumerate(lines, start=lrow + 1):
         for name, value in line.items():
             if name in cols and value not in (None, ''):
                 ws.cell(r, cols[name]).value = value
-        if credit and debit and bal:
-            n, o, p = (ws.cell(1, x).column_letter for x in (credit, debit, bal))
-            prev = f'{p}{r - 1}+' if r > lrow + 1 else ''
-            ws.cell(r, bal).value = f'={prev}{n}{r}-{o}{r}'
+        running = round(running + (line.get('CREDIT') or 0) - (line.get('DEBIT') or 0), 2)
+        if 'BALANCE' in cols:
+            ws.cell(r, cols['BALANCE']).value = running  # the form's formulas below (=P{r-1}+N{r}-O{r}) continue from it

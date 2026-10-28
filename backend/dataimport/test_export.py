@@ -65,7 +65,8 @@ def test_export_fills_the_form_per_vehicle(records):
     log = [[ws.cell(r, c).value for c in (12, 14, 15)] for r in range(3, 11)]
     assert ['RO3-002', None, None] in log  # the trip line
     assert [None, 1000, None] in log and ['RO3-001', None, 632] in log
-    assert ws['P4'].value == '=P3+N4-O4'
+    assert [ws.cell(r, 16).value for r in range(3, 9)] == [1000, 368, 368, 272, 5272, 5000]  # running balance as numbers
+    assert ws.cell(9, 16).value == 5500 and ws['P10'].value == '=P9+N10-O10'  # last row, then the form's formula
     assert [c.value for c in wb['Sheet20'][3]][:7] == [wb['Sheet20']['A3'].value, 'PO-0001', 'SAB 1234', 34.89, 65, 'PEDRO S. REYES', 61.5]
     assert AuditLog.objects.filter(action='export', entity_type='vehicle').exists()
 
