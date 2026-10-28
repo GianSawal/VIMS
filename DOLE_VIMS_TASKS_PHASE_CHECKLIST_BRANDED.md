@@ -517,31 +517,35 @@ entity, and before/after values. — met; every entry stores user (plus username
 
 # Phase 15 --- Excel Data Migration
 
--   [ ] Make backup copy of source workbook
--   [ ] Create Excel-to-database field mapping
--   [ ] Normalize office names
--   [ ] Normalize vehicle names
--   [ ] Normalize driver/accountable-person names
--   [ ] Identify duplicate plate numbers
--   [ ] Identify malformed dates
--   [ ] Identify missing required fields
--   [ ] Build import command/script
--   [ ] Import vehicle master records
--   [ ] Import assignments
--   [ ] Import maintenance history
--   [ ] Import fuel history
--   [ ] Import Fuel PO log
--   [ ] Import trip/toll data where reliable
--   [ ] Import LTO/GSIS information
--   [ ] Produce import warnings
--   [ ] Produce import summary
--   [ ] Perform dry run on staging
--   [ ] Reconcile counts against Excel
+Approach: the source workbook is not in the repo yet, so the migration uses a **standard import workbook**
+(`manage.py import_workbook --template`) that staff fill from the old sheets. Tooling is done and tested
+(`dataimport/test_import.py`); the items that need the real data stay open.
+
+-   [x] Make backup copy of source workbook (every run copies the input to `backend/import_runs/` before reading)
+-   [ ] Create Excel-to-database field mapping (template column → DB field done in `docs/MIGRATION.md`; old-sheet → template table pending the source workbook)
+-   [x] Normalize office names (code, name ignoring case/punctuation/"DOLE", or an alias on the Offices sheet)
+-   [x] Normalize vehicle names (plates uppercased; `SAB 1234` / `SAB-1234` / `sab1234` match; identifiers uppercased, blank → NULL)
+-   [x] Normalize driver/accountable-person names (spaces/case/punctuation ignored; drivers matched by license then name; ambiguous → warning, never a duplicate silently)
+-   [x] Identify duplicate plate numbers (within the sheet and against the system)
+-   [x] Identify malformed dates (several formats accepted; anything else fails the row)
+-   [x] Identify missing required fields (missing column skips the sheet; missing cell fails the row)
+-   [x] Build import command/script (`manage.py import_workbook`, dry run unless `--commit`, `--user` required to commit)
+-   [ ] Import vehicle master records (supported and tested; pending the real data)
+-   [ ] Import assignments (supported and tested; pending the real data)
+-   [ ] Import maintenance history (supported and tested; completed/cancelled jobs only; pending the real data)
+-   [ ] Import fuel history (supported and tested; pending the real data)
+-   [ ] Import Fuel PO log (PO number column on the Fuel sheet; pending the real data)
+-   [ ] Import trip/toll data where reliable (supported and tested; pending the real data)
+-   [ ] Import LTO/GSIS information (Documents sheet, history → superseded; pending the real data)
+-   [x] Produce import warnings (Issues sheet: sheet, Excel row, level, field, message, value, reviewer column)
+-   [x] Produce import summary (created / updated / skipped / failed / warnings per sheet, on screen and in the report; audit entry on commit)
+-   [ ] Perform dry run on staging (needs the filled workbook)
+-   [ ] Reconcile counts against Excel (procedure in `docs/MIGRATION.md` step 7)
 -   [ ] Manually review flagged rows
 -   [ ] Obtain client validation of migrated records
 
 **Phase gate:** Staging migration reconciles with the source workbook
-and no production data is silently overwritten.
+and no production data is silently overwritten. — not yet: the "never overwrite" half is built and tested (existing values kept and reported, re-runs create nothing); reconciliation waits for the real workbook.
 
 ------------------------------------------------------------------------
 

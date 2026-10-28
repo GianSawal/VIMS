@@ -34,6 +34,7 @@ INSTALLED_APPS = [
     'audit',
     'dashboard',
     'reports',
+    'dataimport',
 ]
 
 MIDDLEWARE = [

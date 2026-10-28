@@ -1,0 +1,102 @@
+# Excel data migration
+
+How DOLE's old vehicle spreadsheet gets into the system. The old workbook is laid out one sheet per vehicle,
+which the system deliberately does not copy. Instead, the data is copied into one **standard import workbook**
+(one sheet per kind of record), checked by a dry run, and then imported.
+
+## Procedure
+
+1. **Back up the old workbook** and work on a copy. The importer also copies every file it reads into
+   `backend/import_runs/` (git-ignored) before touching anything.
+2. **Get the blank template:**
+   `python manage.py import_workbook --template vrs-import-template.xlsx`
+   The *Instructions* sheet lists every column, whether it is required, and the allowed values. Header
+   cells carry the same notes as comments.
+3. **Set up offices first** in the app (Administration → Offices). Offices are not imported. If the old sheets
+   spell an office differently ("Tarlac FO"), add a row to the *Offices* sheet mapping that spelling to the
+   office code.
+4. **Copy the old data into the template.** One row per vehicle, driver, assignment, document, maintenance job,
+   fill-up, trip and toll transaction. Leave a sheet empty to skip it.
+5. **Dry run on staging** (a copy of the database, never production first):
+   `python manage.py import_workbook filled.xlsx --user <your username>`
+   Nothing is saved. The command prints a summary and writes
+   `import_runs/<time>-<name>-dryrun-report.xlsx`:
+   - *Summary* gives created / updated / skipped / failed / warnings per sheet;
+   - *Issues* lists every flagged row with sheet, Excel row number, field, message and value, plus an empty
+     "Reviewed by / action" column for the person checking it.
+6. **Fix and repeat.** Correct the workbook, not the report, until there are no errors. Check that each
+   remaining warning is acceptable.
+7. **Reconcile.** Compare the *Summary* counts with the old workbook: the number of vehicles, fill-ups per
+   vehicle, and total fuel and maintenance amounts. The Reports module (Vehicle Master List, Fuel Cost, Maintenance
+   Expense) gives the totals after a staging import.
+8. **Import for real:** add `--commit`. One audit entry ("import") records who ran it and the summary.
+9. **Client validation:** the client reviews the migrated records on staging before the production import.
+
+Running the same workbook again is safe. Rows that are already in the system are skipped, so a second run
+creates nothing. Only missing blanks get filled, as described in the rules below.
+
+## Rules the importer applies
+
+| Situation | What happens |
+|---|---|
+| Vehicle plate already in the system | Not re-created. Only fields that are **blank** in the system are filled ("updated"). Fields that differ are kept and reported as a warning, so values are never silently overwritten. Status is never taken from the sheet for an existing vehicle. |
+| Driver license number already in the system | Same as vehicles: blanks filled, differences reported. |
+| Driver name matches another driver with a different license | Created as a separate driver with a warning to check it isn't the same person. |
+| Same plate twice on the Vehicles sheet | Spellings like `SAB 1234`, `SAB-1234` and `sab1234` count as the same plate. The second row fails. |
+| Same license number twice on the Drivers sheet | The second row fails. |
+| Office name | Matched by code, by name (ignoring case, punctuation and the word "DOLE"), or by the Offices sheet. If none matches, the row fails. |
+| Person names (driver on assignments, fuel, trips) | Matched ignoring case, extra spaces and punctuation, but the middle initial must agree. If exactly one driver matches, the record is linked; otherwise the name is kept as text with a warning. Trips need a driver, so an unmatched trip fails. |
+| Dates | Excel date cells, `YYYY-MM-DD`, `MM/DD/YYYY`, `15-Mar-2025`, `Mar 15, 2025`. Anything else fails the row (e.g. `31/31/2020`). |
+| Amounts | `1,500.00`, `₱1,500` and `PHP 1500` are accepted. Negative amounts fail. |
+| Choice columns (type, fuel, status…) | The value or its label, in any case or punctuation: `Pick-up` = Pickup, `gsis insurance` = GSIS Insurance. |
+| Missing required column | The whole sheet is skipped with an error. |
+| Missing required cell | The row fails. |
+| Several LTO / OR / CR / insurance rows for one vehicle | Treated as history: the latest expiry becomes Active and older ones Superseded. If the system already has an active one, all imported rows become history. |
+| Maintenance status | Only completed or cancelled jobs are imported (enter open jobs in the app). Completed date defaults to the job date. Unknown categories are filed under Other with a warning. |
+| Fuel total differs from liters × price by more than ₱1 | Imported with the amount given, with a warning. |
+| Fuel type differs from the vehicle's | Imported, with a warning. |
+| Fuel PO log | The PO number column of the Fuel sheet, so the same fill-up is never entered twice. |
+| Trips | Completed (needs return time and both odometer readings) or cancelled only. An existing ticket number is skipped. |
+| Toll rows | Exactly one of credit (load) or debit (toll). Unknown RFID accounts are created for the row's vehicle with a warning. Account numbers are masked in the report. |
+| Odometer | After the import, a vehicle's odometer is raised to the highest reading in its imported fuel, maintenance and trip rows, with a warning. It is never lowered. |
+| A row already imported | Skipped. The match is plate + date + description (maintenance), plate + date + odometer + liters (fuel), ticket (trips), plate + type + expiry + reference (documents), plate + start date (assignments), or account + time + amount + description (toll). |
+
+Historical rows are written straight to the database models with full model validation. They do not go through
+the live-entry services, whose "today" rules (odometer only goes up, an open job puts the vehicle under maintenance)
+can't apply to old records.
+
+## Field mapping
+
+Template column → database field. `*` = required. The old spreadsheet's columns are mapped onto these when the
+data is copied into the template (step 4). Record that mapping in the table at the end once the source workbook
+is available.
+
+| Sheet | Column | Database field |
+|---|---|---|
+| Vehicles | Plate number * | `Vehicle.plate_number` (migration identifier, uppercased) |
+| | Property / Engine / Chassis number | `property_number`, `engine_number`, `chassis_number` (uppercased; blank → NULL) |
+| | Make *, Model *, Variant, Year model, Color | same names |
+| | Vehicle type *, Fuel type * | `vehicle_type`, `fuel_type` (choices) |
+| | Acquisition date, Acquisition cost | same names |
+| | Current odometer | `current_odometer` (default 0; raised by later sheets) |
+| | Office * | `office` (code, name or Offices-sheet alias) |
+| | Status | `status` (default Serviceable; new vehicles only) |
+| | Remarks | `remarks` |
+| Drivers | Full name *, Employee number, Office *, Contact number | `Driver.full_name`, `employee_number`, `office`, `contact_number` |
+| | License number *, License type *, License restrictions, License issue date, License expiry date * | same names |
+| Assignments | Plate number *, Office *, Accountable person *, Start date *, End date, Remarks | `VehicleAssignment.vehicle`, `office`, `accountable_person`, `start_date`, `end_date` (blank = current), `remarks` |
+| | Driver name | `driver` (when matched) and `driver_name` (snapshot) |
+| Documents | Plate number *, Document type *, Reference number, Issue date, Expiry date, Remarks | `VehicleDocument.vehicle`, `document_type`, `reference_number`, `issue_date`, `expiry_date`, `remarks`; `status` set as above |
+| Maintenance | Plate number *, Date *, Odometer, Reference number, Description *, Service provider, Labor cost, Parts cost, Status, Completed on, Remarks | `MaintenanceRecord.*` (same names; `total_cost` is computed) |
+| | Categories | `categories` (comma-separated names) |
+| Fuel | Plate number *, Date *, PO number, Supplier, Fuel type, Liters *, Unit price *, Total amount, Odometer *, Is full tank, Receipt number, Remarks | `FuelRecord.*` (same names) |
+| | Driver name | `driver` (when matched) |
+| Trips | Ticket number *, Plate number *, Driver name *, Requesting office, Origin *, Destination *, Purpose *, Departed at *, Returned at, Odometer start, Odometer end, Status, Remarks | `Trip.*` (same names; `distance_km` is computed) |
+| Toll | Provider *, Account number *, Plate number * | `RFIDAccount` (found or created by provider + number) and `TollTransaction.vehicle` |
+| | Transacted at *, Description *, Credit, Debit, Reference number, Ticket number | `TollTransaction.*` (`trip` linked by ticket) |
+
+### Old spreadsheet → template (fill in when the source workbook is available)
+
+| Old sheet / column | Template sheet / column | Notes |
+|---|---|---|
+| | | |

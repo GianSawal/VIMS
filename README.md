@@ -158,6 +158,17 @@ Tokens are in `frontend/src/index.css` (`@theme`), used as Tailwind classes such
 
 Back up the `media` volume together with the database. Uploads are served by nginx at their random-named URLs without a login check (same as dev).
 
+## Importing the old spreadsheet
+
+Data from the old workbook is copied into a standard import workbook and loaded with a management command
+(dry run unless `--commit`). Full procedure, rules and field mapping: [docs/MIGRATION.md](docs/MIGRATION.md).
+
+```bash
+python manage.py import_workbook --template vrs-import-template.xlsx   # blank workbook with instructions
+python manage.py import_workbook filled.xlsx --user admin              # dry run + review report in import_runs/
+python manage.py import_workbook filled.xlsx --user admin --commit     # import (never overwrites existing values)
+```
+
 ## Git workflow
 
 - `main`: production-ready. `develop`: integration.
