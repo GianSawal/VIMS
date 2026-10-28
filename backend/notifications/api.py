@@ -22,8 +22,7 @@ class NotificationSerializer(serializers.ModelSerializer):
         return obj.read_at is not None
 
     def get_link(self, obj):
-        # Frontend route to the record the alert is about. ponytail: fetches related_object per row (N+1);
-        # a list page is ~20 rows, so fine — revisit with a prefetch if it grows.
+        # Frontend route to the record the alert is about (related_object is prefetched for the whole page).
         o = obj.related_object
         if o is None:
             return None
@@ -48,7 +47,8 @@ class NotificationViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
     filterset_fields = ['type', 'read_at']
 
     def get_queryset(self):
-        return Notification.objects.filter(recipient=self.request.user, dismissed_at__isnull=True)
+        return (Notification.objects.filter(recipient=self.request.user, dismissed_at__isnull=True)
+                .select_related('content_type').prefetch_related('related_object'))
 
     @action(detail=False, url_path='unread-count')
     def unread_count(self, request):

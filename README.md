@@ -48,10 +48,14 @@ python manage.py seed_reference  # role groups + maintenance categories (idempot
 python manage.py run_notifications  # generate expiry/due alerts (idempotent; run daily via cron/Task Scheduler)
 python manage.py createsuperuser
 python manage.py runserver      # http://127.0.0.1:8000
-pytest                          # tests
+pytest                          # tests (or DATABASE_URL=sqlite:///test.sqlite3 pytest)
 ```
 
-API docs: http://127.0.0.1:8000/api/docs/ (Swagger), schema at `/api/schema/`.
+API docs: http://127.0.0.1:8000/api/docs/ (Swagger, after logging in), schema at `/api/schema/`.
+
+Demo data for QA or a walkthrough, on a throwaway SQLite database only:
+`DATABASE_URL=sqlite:///qa.sqlite3 python manage.py migrate && DATABASE_URL=sqlite:///qa.sqlite3 python manage.py seed_demo`
+(one login per role; password in `backend/qa-accounts.txt`). Full QA setup, results and UAT scenarios: [docs/QA.md](docs/QA.md).
 
 ### Frontend
 
@@ -59,6 +63,7 @@ API docs: http://127.0.0.1:8000/api/docs/ (Swagger), schema at `/api/schema/`.
 cd frontend
 npm install
 npm run dev                     # http://localhost:5173
+npm test                        # component and helper tests (Vitest)
 ```
 
 The Vite dev server proxies `/api` and `/media` to Django (`VITE_API_TARGET`, default `http://127.0.0.1:8000`),

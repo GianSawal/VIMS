@@ -10,7 +10,7 @@ after the first up to and including the second. Partial fills alone can't give a
 from decimal import ROUND_HALF_UP, Decimal
 
 from django.db import transaction
-from django.db.models import OuterRef, Q, Subquery, Sum
+from django.db.models import F, Max, Min, OuterRef, Q, Subquery, Sum
 from django.utils import timezone
 from rest_framework import serializers
 
@@ -114,13 +114,19 @@ def km_per_liter(record):
 
 def vehicle_average(vehicle_id):
     """Usual km/L for a vehicle: total distance between its first and last full tank over the liters in between."""
-    fulls = FuelRecord.objects.filter(vehicle_id=vehicle_id, is_full_tank=True).order_by('odometer')
-    first, last = fulls.first(), fulls.last()
-    if not first or first.pk == last.pk or last.odometer <= first.odometer:
-        return None
-    liters = (FuelRecord.objects.filter(vehicle_id=vehicle_id, odometer__gt=first.odometer, odometer__lte=last.odometer)
-              .aggregate(s=Sum('liters'))['s'])
-    return (Decimal(last.odometer - first.odometer) / liters).quantize(Decimal('0.01')) if liters else None
+    return vehicle_averages([vehicle_id]).get(vehicle_id)
+
+
+def vehicle_averages(vehicle_ids):
+    """vehicle_average() for many vehicles in one query: {vehicle_id: km/L}, vehicles without a fair figure left out."""
+    fulls = FuelRecord.objects.filter(vehicle=OuterRef('vehicle_id'), is_full_tank=True).order_by()
+    span = lambda agg: Subquery(fulls.values('vehicle').annotate(x=agg('odometer')).values('x')[:1])
+    rows = (FuelRecord.objects.filter(vehicle_id__in=set(vehicle_ids))
+            .annotate(lo=span(Min), hi=span(Max))
+            .filter(hi__gt=F('lo'), odometer__gt=F('lo'), odometer__lte=F('hi'))
+            .values('vehicle_id', 'lo', 'hi').annotate(liters=Sum('liters')).order_by())
+    return {r['vehicle_id']: (Decimal(r['hi'] - r['lo']) / r['liters']).quantize(Decimal('0.01'))
+            for r in rows if r['liters']}
 
 
 def is_unusual(kml, average):

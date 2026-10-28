@@ -191,11 +191,11 @@ export default function MaintenanceList() {
         </div>
       )}>Service records, preventive schedules and what is due.</PageHeader>
 
-      <div role="tablist" aria-label="Maintenance views" className="mb-4 inline-flex rounded-xl border border-slate-200 bg-white p-1 text-sm shadow-sm">
+      <div role="tablist" aria-label="Maintenance views" className="mb-4 inline-flex max-w-full overflow-x-auto rounded-xl border border-slate-200 bg-white p-1 text-sm shadow-sm">
         {[['', 'Maintenance records', Wrench, 0], ['schedules', 'Preventive schedules', AlarmClockCheck, attention]].map(([v, label, Icon, n]) => (
           <button key={label} role="tab" aria-selected={(f.view ?? '') === v}
             onClick={() => setParams(v ? { view: v } : {}, { replace: true })}
-            className={`flex items-center gap-2 rounded-lg px-4 py-1.5 font-medium ${(f.view ?? '') === v ? 'bg-brand text-white' : 'text-slate-600 hover:bg-slate-100'}`}>
+            className={`flex shrink-0 items-center gap-2 whitespace-nowrap rounded-lg px-4 py-1.5 font-medium ${(f.view ?? '') === v ? 'bg-brand text-white' : 'text-slate-600 hover:bg-slate-100'}`}>
             <Icon size={16} aria-hidden="true" /> {label}
             {n > 0 && <span className="rounded-full bg-danger px-1.5 text-xs text-white" aria-label={`${n} need attention`}>{n}</span>}
           </button>

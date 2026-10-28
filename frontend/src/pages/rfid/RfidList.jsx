@@ -142,11 +142,11 @@ export default function RfidList() {
         </div>
       )}>Easytrip / Autosweep accounts and their toll loads and charges.</PageHeader>
 
-      <div role="tablist" aria-label="RFID views" className="mb-4 inline-flex rounded-xl border border-slate-200 bg-white p-1 text-sm shadow-sm">
+      <div role="tablist" aria-label="RFID views" className="mb-4 inline-flex max-w-full overflow-x-auto rounded-xl border border-slate-200 bg-white p-1 text-sm shadow-sm">
         {[['', 'Accounts', CreditCard], ['transactions', 'Toll transactions', Wallet]].map(([v, label, Icon]) => (
           <button key={label} role="tab" aria-selected={(f.view ?? '') === v}
             onClick={() => setParams(v ? { view: v } : {}, { replace: true })}
-            className={`flex items-center gap-2 rounded-lg px-4 py-1.5 font-medium ${(f.view ?? '') === v ? 'bg-brand text-white' : 'text-slate-600 hover:bg-slate-100'}`}>
+            className={`flex shrink-0 items-center gap-2 whitespace-nowrap rounded-lg px-4 py-1.5 font-medium ${(f.view ?? '') === v ? 'bg-brand text-white' : 'text-slate-600 hover:bg-slate-100'}`}>
             <Icon size={16} aria-hidden="true" /> {label}
           </button>
         ))}

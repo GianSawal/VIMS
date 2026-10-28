@@ -124,6 +124,8 @@ def test_filters_and_validation(fleet, fo2):
     assert d['params']['date_from'] == today().replace(day=1).isoformat()  # default period: this month
     assert run(c, 'trip-history', status='COMPLETED', vehicle=fleet['a'].pk)['count'] == 2
     assert run(c, 'trip-history', driver=fleet['d2'].pk)['count'] == 1
+    one = run(c, 'driver-assignment', driver=fleet['d2'].pk)  # was a 500: filtering the driver list by pk
+    assert one['count'] == 1 and {f['label'] for f in one['filters']} >= {'Driver'}
     for bad in ({'status': 'NOPE'}, {'date_from': '2026-05-02', 'date_to': '2026-05-01'}, {'office': 'x'},
                 {'group_by': 'driver'}, {'export': 'doc'}):
         assert c.get('/api/reports/fuel-cost/' if 'group_by' in bad else '/api/reports/trip-history/', bad).status_code == 400, bad

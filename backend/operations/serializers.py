@@ -253,9 +253,11 @@ class FuelRecordSerializer(serializers.ModelSerializer):
         return None if v is None else str(v)
 
     def get_usual_km_per_liter(self, r):
-        cache = self.context.setdefault('avg_cache', {})  # one calculation per vehicle per request
+        cache = self.context.setdefault('avg_cache', {})  # one query for every vehicle on the page
         if r.vehicle_id not in cache:
-            cache[r.vehicle_id] = fuel.vehicle_average(r.vehicle_id)
+            page = self.parent.instance if self.parent is not None and self.parent.instance is not None else [r]
+            ids = {x.vehicle_id for x in page} - cache.keys() | {r.vehicle_id}
+            cache.update({**dict.fromkeys(ids), **fuel.vehicle_averages(ids)})
         v = cache[r.vehicle_id]
         return None if v is None else str(v)
 

@@ -124,11 +124,11 @@ export default function DocumentList() {
         <Button onClick={() => setAdding(true)}><Plus size={16} /> Add document</Button>
       )}>LTO registration, OR/CR and GSIS/insurance, with alerts 60, 30, 15 and 7 days before they expire.</PageHeader>
 
-      <div role="tablist" aria-label="Document views" className="mb-4 inline-flex rounded-xl border border-slate-200 bg-white p-1 text-sm shadow-sm">
+      <div role="tablist" aria-label="Document views" className="mb-4 inline-flex max-w-full overflow-x-auto rounded-xl border border-slate-200 bg-white p-1 text-sm shadow-sm">
         {VIEWS.map(([v, label, Icon]) => (
           <button key={label} role="tab" aria-selected={status === v}
             onClick={() => setParams(v ? { status: v } : {}, { replace: true })}
-            className={`flex items-center gap-2 rounded-lg px-4 py-1.5 font-medium ${status === v ? 'bg-brand text-white' : 'text-slate-600 hover:bg-slate-100'}`}>
+            className={`flex shrink-0 items-center gap-2 whitespace-nowrap rounded-lg px-4 py-1.5 font-medium ${status === v ? 'bg-brand text-white' : 'text-slate-600 hover:bg-slate-100'}`}>
             <Icon size={16} aria-hidden="true" /> {label}
             {!v && urgent > 0 && <span className="rounded-full bg-danger px-1.5 text-xs text-white" aria-label={`${urgent} expired or expiring within 7 days`}>{urgent}</span>}
           </button>

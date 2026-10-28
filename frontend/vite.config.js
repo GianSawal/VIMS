@@ -8,5 +8,6 @@ export default defineConfig(({ mode }) => {
   return {
     plugins: [react(), tailwindcss()],
     server: { proxy: { '/api': target, '/media': target } },
+    test: { environment: 'jsdom', setupFiles: ['./src/test/setup.js'], css: false },
   }
 })

@@ -114,15 +114,18 @@ def to_xlsx(doc):
         cell.alignment = Alignment(vertical='center', wrap_text=True)
     rows = [[_excel_value(r.get(c['key']), c['kind']) for c in doc['columns']] for r in doc['rows']]
     total = _total_row(doc)
+    formats = [(i, EXCEL_FORMATS[c['kind']]) for i, c in enumerate(doc['columns'], 1) if c['kind'] in EXCEL_FORMATS]
+    # Rows are counted here: ws.max_row scans every cell, so reading it per row made big exports quadratic.
+    row = header
     for values in rows + ([[_excel_value(v, c['kind']) if i else v for i, (v, c) in enumerate(zip(total, doc['columns']))]]
                           if total else []):
         ws.append(values)
-        for c, cell in zip(doc['columns'], ws[ws.max_row]):
-            if c['kind'] in EXCEL_FORMATS:
-                cell.number_format = EXCEL_FORMATS[c['kind']]
+        row += 1
+        for i, fmt in formats:
+            ws.cell(row, i).number_format = fmt
     if total:
-        for cell in ws[ws.max_row]:
-            cell.font = Font(bold=True)
+        for i in range(1, len(doc['columns']) + 1):
+            ws.cell(row, i).font = Font(bold=True)
     last = header + len(rows)
     ws.freeze_panes = ws.cell(header + 1, 1)
     if rows:

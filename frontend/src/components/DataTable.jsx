@@ -21,7 +21,8 @@ export default function DataTable({ columns, query, page = 1, onPage, toolbar, o
   return (
     <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
       {toolbar}
-      <div className="overflow-x-auto">
+      {/* relative: keeps absolutely placed children (sr-only header labels) inside the scroll box, or they widen the page */}
+      <div className="relative overflow-x-auto">
         <table className={`w-full text-left text-sm ${isFetching && !isLoading ? 'opacity-60' : ''}`}>
           <thead className="border-b border-slate-200 bg-slate-50 text-[11px] tracking-wider text-slate-500 uppercase">
             <tr>

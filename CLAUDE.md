@@ -22,9 +22,11 @@ React (Vite, Tailwind v4) + Django REST Framework + MySQL. Replaces DOLE's sprea
 python manage.py migrate && python manage.py seed_reference   # re-run seed after adding permissions
 python manage.py runserver                                    # :8000, Swagger at /api/docs/
 DATABASE_URL=sqlite:///test.sqlite3 python -m pytest -q       # then delete test.sqlite3
+DATABASE_URL=sqlite:///qa.sqlite3 python manage.py seed_demo  # demo/QA data + one login per role (SQLite only; docs/QA.md)
 
 # frontend
 npm run dev      # :5173, proxies /api and /media to Django
+npm test         # Vitest + Testing Library (src/**/*.test.jsx)
 npm run build && npm run lint
 ```
 
@@ -59,6 +61,7 @@ MySQL-specific behavior (CHECK constraints, generated columns) was verified manu
   - Uploaded files are served by `config/media.py`, never by a static route: photos are public, documents and attachments follow the record's permission and office. A new `FileField` must be added there.
   - Rate limits live in `accounts/throttles.py` and `DEFAULT_THROTTLE_RATES`.
   - Log output passes through `config.log_filters.RedactSecrets`; still never log secrets on purpose.
+- Performance: `config/test_performance.py` fails when a list, summary, dashboard or report endpoint's query count grows with the data, or exceeds 25. Batch per-row lookups (prefetch, one query per page) instead of raising the limit. In openpyxl never read `ws.max_row`/`max_column` inside a loop (each read scans every cell).
 
 ## Frontend conventions
 
@@ -68,6 +71,8 @@ MySQL-specific behavior (CHECK constraints, generated columns) was verified manu
 - Permission UI uses `useCan()` and `<RequirePerm>`; these are hints only, the API enforces the same permissions.
 - Reuse `components/ui.jsx` (Button, Field, Modal, ConfirmDialog, Badge), `components/DataTable.jsx` (takes a `toolbar` and `onRowClick`) and `components/filters.jsx` (Toolbar, SearchBox, StatCard/CardGrid, Avatar). List pages follow one pattern: status/role cards on top, a toolbar attached to the table card, filter chips. Use `inputBase` (no width) for filter controls and `inputClass` (full width) for form fields; mixing `inputClass` with `w-44` does not work because `w-full` wins. Money is Philippine pesos via `Intl.NumberFormat('en-PH')`.
 - Routes for unbuilt phases render `<Pending>` in `App.jsx`; replace the entry when building the phase.
+- Layout: a bare `grid` gets one shrinkable column by default (`index.css`), so `grid lg:grid-cols-3` is safe on phones. Tables go through `DataTable` (its scroll box is `relative`, which keeps `sr-only` header labels from widening the page). Tab strips use `max-w-full overflow-x-auto` with `shrink-0 whitespace-nowrap` buttons.
+- Tests: `src/test/render.jsx` (`renderApp` with a seeded `me` and query data, no network); `npm test`.
 - Animation uses `motion` (Framer Motion, `import { motion, AnimatePresence } from 'motion/react'`). `<MotionConfig reducedMotion="user">` in `main.jsx` handles reduced motion. `Modal` keeps the native `<dialog>` open until its exit animation finishes.
 
 ## Branding

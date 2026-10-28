@@ -587,42 +587,44 @@ least-privilege database account is in place.
 
 # Phase 17 --- QA and User Acceptance Testing
 
+Results, defects fixed and UAT scenarios: `docs/QA.md`. Demo/QA data: `manage.py seed_demo` (SQLite only).
+
 ## Functional QA
 
--   [ ] Test all CRUD workflows
--   [ ] Test filters/search/pagination
--   [ ] Test validation messages
--   [ ] Test uploads/downloads
--   [ ] Test notifications
--   [ ] Test reports
--   [ ] Test audit logs
+-   [x] Test all CRUD workflows (per-module backend tests; browser walkthrough of every page on demo data)
+-   [x] Test filters/search/pagination (backend filter tests; DataTable paging tests; browser)
+-   [x] Test validation messages (backend serializer tests; frontend field-error and API-message tests)
+-   [x] Test uploads/downloads (content checks, protected files 200/401/403/404, CSV/Excel/PDF per report, VEHICLE RECORD workbook)
+-   [x] Test notifications (generation/dedupe tests; list query count fixed)
+-   [x] Test reports (every report runs and exports; Driver Assignment with one driver was a 500, fixed)
+-   [x] Test audit logs (append-only and filter tests; browser)
 
 ## Role QA
 
--   [ ] System Administrator
--   [ ] Fleet Administrator
--   [ ] Field Office User
--   [ ] Viewer
--   [ ] Unauthorized user
+-   [x] System Administrator (browser + tests)
+-   [x] Fleet Administrator (tests: writes allowed, no users/audit)
+-   [x] Field Office User (browser: Tarlac only, 404 for other offices, 403 for admin pages)
+-   [x] Viewer (browser: read-only; direct API write answers 403)
+-   [x] Unauthorized user (every endpoint: 401 logged out, refused without a role; route-guard tests)
 
 ## Technical QA
 
--   [ ] Backend automated tests
--   [ ] Frontend tests
--   [ ] API integration tests
--   [ ] Browser testing
--   [ ] Responsive testing
--   [ ] Performance testing
--   [ ] Backup/restore test
--   [ ] Error/recovery testing
+-   [x] Backend automated tests (226 passing)
+-   [x] Frontend tests (Vitest + Testing Library, 20 passing; `npm test`)
+-   [x] API integration tests (DRF client tests per endpoint, schema-wide security and query-count tests)
+-   [ ] Browser testing (Chrome done; Edge/Firefox during UAT)
+-   [x] Responsive testing (every page at 390 px; sideways scrolling fixed on dashboard, vehicle profile, documents, fuel)
+-   [x] Performance testing (300 vehicles / 12k trips: lists ≤ 180 ms, dashboard 129 ms; Excel export 35 s → 2.6 s, VEHICLE RECORD 95 s → 20 s; N+1 fixed in fuel and notifications)
+-   [ ] Backup/restore test (needs staging MySQL and the Phase 18 backup job; procedure in `docs/SECURITY.md`)
+-   [ ] Error/recovery testing (partial: server/network/rate-limit messages, session expiry, atomic writes; database outage and restart not yet)
 
 ## UAT
 
--   [ ] Prepare UAT scenarios
--   [ ] Import realistic staging data
+-   [x] Prepare UAT scenarios (`docs/QA.md`: 18 scenarios, issue log, sign-off sheet)
+-   [ ] Import realistic staging data (waits on the Phase 15 blanks being filled)
 -   [ ] Conduct client UAT
--   [ ] Record issues
--   [ ] Prioritize defects
+-   [ ] Record issues (issue log template in `docs/QA.md`)
+-   [ ] Prioritize defects (severity scale in `docs/QA.md`)
 -   [ ] Fix blocking/critical defects
 -   [ ] Retest
 -   [ ] Obtain UAT sign-off

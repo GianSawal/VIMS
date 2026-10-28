@@ -81,10 +81,10 @@ class Ctx:
         qs = scope_to_offices(qs, self.user, office_field)
         if self.office:
             qs = qs.filter(**{office_field: self.office})
-        if self.vehicle and vehicle_field:
-            qs = qs.filter(**{vehicle_field: self.vehicle})
+        if self.vehicle and vehicle_field:  # by id, so a field path of 'pk' works as well as 'vehicle'
+            qs = qs.filter(**{vehicle_field: self.vehicle.pk})
         if self.driver and driver_field:
-            qs = qs.filter(**{driver_field: self.driver})
+            qs = qs.filter(**{driver_field: self.driver.pk})
         return qs
 
     def dates(self, qs, field):

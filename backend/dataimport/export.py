@@ -41,11 +41,21 @@ def sheet_title(plate, taken):
 def ensure_rows(ws, first, count, style_row):
     """Make sure rows first..first+count-1 exist with the look of `style_row` (rows below `first` are formatted
     already up to the form's size; extra ones copy the last formatted row)."""
+    width = ws.max_column  # scans every cell, so read once rather than per row
     for r in range(first, first + count):
         if r > style_row:
-            for c in range(1, ws.max_column + 1):
+            for c in range(1, width + 1):
                 ws.cell(r, c)._style = copy(ws.cell(style_row, c)._style)
             ws.row_dimensions[r].height = ws.row_dimensions[style_row].height
+
+
+def trim_form(ws):
+    """Drop the blank form's empty formatted rows below its last value or formula (it ships with ~1000). Every vehicle
+    sheet is a copy, so writing them all made a 300-vehicle export take over a minute; ensure_rows adds rows back
+    with the same look wherever a vehicle has more history."""
+    last = max((c.row for c in ws._cells.values() if c.value not in (None, '')), default=1)
+    if ws.max_row > last:
+        ws.delete_rows(last + 1, ws.max_row - last)
 
 
 def export_form(user, office=None):
@@ -57,6 +67,7 @@ def export_form(user, office=None):
     vehicles = list(vehicles.order_by('office__code', 'plate_number'))
     wb = load_workbook(FORM)
     ro3, form = wb['RO3'], wb[FORM_SHEET]
+    trim_form(form)
     head, dhead = master_rows(ro3)
     cols = header_cols(ro3, head)
 

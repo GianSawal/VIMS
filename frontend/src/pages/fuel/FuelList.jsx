@@ -195,10 +195,10 @@ export default function FuelList() {
         <Button onClick={() => setAdding(true)}><Plus size={16} /> Add fuel record</Button>
       )}>Fill-ups, costs, estimated efficiency and the Fuel PO log.</PageHeader>
 
-      <div role="tablist" aria-label="Fuel views" className="mb-4 inline-flex rounded-xl border border-slate-200 bg-white p-1 text-sm shadow-sm">
+      <div role="tablist" aria-label="Fuel views" className="mb-4 inline-flex max-w-full overflow-x-auto rounded-xl border border-slate-200 bg-white p-1 text-sm shadow-sm">
         {[['', 'All fuel records', Fuel], ['po', 'Fuel PO log', FileCheck2]].map(([v, label, Icon]) => (
           <button key={label} role="tab" aria-selected={(f.view ?? '') === v} onClick={() => set('view', v)}
-            className={`flex items-center gap-2 rounded-md px-4 py-1.5 font-medium ${(f.view ?? '') === v ? 'bg-brand text-white' : 'text-slate-600 hover:bg-slate-100'}`}>
+            className={`flex shrink-0 items-center gap-2 whitespace-nowrap rounded-md px-4 py-1.5 font-medium ${(f.view ?? '') === v ? 'bg-brand text-white' : 'text-slate-600 hover:bg-slate-100'}`}>
             <Icon size={16} aria-hidden="true" /> {label}
           </button>
         ))}

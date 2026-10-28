@@ -27,7 +27,10 @@ api.interceptors.response.use(undefined, (err) => {
 
 export function errorMessage(err) {
   const data = err?.response?.data
-  if (!data) return 'Network error. Please try again.'
+  if (!err?.response) return 'Network error. Please try again.'
+  if (err.response.status === 429) return data?.detail || 'Too many attempts. Please wait a moment and try again.'
+  if (err.response.status >= 500) return 'Something went wrong on the server. Please try again; if it keeps happening, tell the System Administrator.'
+  if (!data) return 'Request failed.'
   if (typeof data.detail === 'string') return data.detail
   if (typeof data === 'object') return Object.values(data).flat().join(' ') || 'Request failed.'
   return 'Request failed.'

@@ -24,3 +24,7 @@ Thumbs.db
 # Local data workbooks (migration sources) — not for git
 DATA/
 backend/import_runs/
+
+# QA demo environment (seed_demo)
+backend/qa-accounts.txt
+backend/qa_media/
