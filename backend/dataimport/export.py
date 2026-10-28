@@ -73,7 +73,7 @@ def export_form(user, office=None):
 
     def put(ws, r, cols, name, value):
         if name in cols and value not in (None, ''):
-            ws.cell(r, cols[name]).value = value
+            write(ws.cell(r, cols[name]), value)
 
     taken = set(wb.sheetnames)
     see = {'docs': can('fleet.view_vehicledocument'), 'assign': can('fleet.view_vehicleassignment'),
@@ -145,6 +145,20 @@ def export_form(user, office=None):
     return buf.getvalue(), len(vehicles)
 
 
+def write(cell, value):
+    """Set a value; text wraps inside its column instead of running over the empty cells beside it."""
+    cell.value = value
+    if isinstance(value, str):
+        alignment = copy(cell.alignment)
+        alignment.wrap_text = True
+        cell.alignment = alignment
+
+
+def place(text):
+    """'Royce Hotel and Casino, Clark, Pampanga, ...' -> 'Royce Hotel and Casino' (map addresses are long)."""
+    return (text or '').split(',')[0].strip()
+
+
 def add_dropdown(ws, col, first, last, choices):
     dv = DataValidation(type='list', formula1='"' + ','.join(label for _, label in choices) + '"', allow_blank=True)
     ws.add_data_validation(dv)
@@ -178,7 +192,7 @@ def fill_vehicle_sheet(ws, v, assignment, see, po_rows):
     for i, j in enumerate(jobs, start=mrow + 1):
         for c, value in enumerate([j.date, j.reference_number, j.description, j.service_provider, float(j.total_cost)], start=1):
             if value not in (None, ''):
-                ws.cell(i, c).value = value
+                write(ws.cell(i, c), value)
     for i, f in enumerate(fuel, start=mrow + 1):
         for c, value in zip((7, 8, 9, 10), (f.date, f.odometer, float(f.liters), float(f.unit_price))):
             ws.cell(i, c).value = value
@@ -196,7 +210,7 @@ def fill_vehicle_sheet(ws, v, assignment, see, po_rows):
     if see['trips']:
         for t in Trip.objects.filter(vehicle=v, status=Trip.Status.COMPLETED).exclude(departed_at=None):
             lines.append((t.departed_at, 0, {
-                'DATE': localtime(t.departed_at).date(), 'TRIP TICKET NO.': t.ticket_number, 'DESCRIPTION': f'{t.origin} - {t.destination}',
+                'DATE': localtime(t.departed_at).date(), 'TRIP TICKET NO.': t.ticket_number, 'DESCRIPTION': f'{place(t.origin)} - {place(t.destination)}',
                 'PASSENGER': t.passengers, 'PLACE VISIT': t.destination, 'PURPOSE': t.purpose,
                 'TIME OUT': localtime(t.departed_at).time().replace(second=0, microsecond=0),
                 'TIME IN': t.returned_at and localtime(t.returned_at).time().replace(second=0, microsecond=0),
@@ -209,7 +223,7 @@ def fill_vehicle_sheet(ws, v, assignment, see, po_rows):
     for r, (_, _, line) in enumerate(lines, start=lrow + 1):
         for name, value in line.items():
             if name in cols and value not in (None, ''):
-                ws.cell(r, cols[name]).value = value
+                write(ws.cell(r, cols[name]), value)
         running = round(running + (line.get('CREDIT') or 0) - (line.get('DEBIT') or 0), 2)
         if 'BALANCE' in cols:
             ws.cell(r, cols['BALANCE']).value = running  # the form's formulas below (=P{r-1}+N{r}-O{r}) continue from it
