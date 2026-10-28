@@ -32,13 +32,20 @@ class Command(BaseCommand):
         parser.add_argument('--template', metavar='PATH', help='Write the blank import workbook to PATH and stop')
         parser.add_argument('--prepare', nargs=2, metavar=('OLD', 'OUT'),
                             help="Copy RO3's old workbook OLD to OUT with the extra columns the import needs, and stop")
+        parser.add_argument('--blank-form', nargs=2, metavar=('OLD', 'OUT'),
+                            help='Write the blank VEHICLE RECORD form (the app download) built from OLD, and stop')
         parser.add_argument('--convert', nargs=2, metavar=('OLD', 'OUT'),
                             help="Convert RO3's old per-vehicle workbook OLD into a filled import workbook OUT and stop")
         parser.add_argument('--commit', action='store_true', help='Save the records (default: dry run, everything rolled back)')
         parser.add_argument('--user', help='Username recorded as creator of the imported records and in the audit log')
         parser.add_argument('--out', default=str(RUNS_DIR), help='Folder for the backup copy and the report')
 
-    def handle(self, *args, workbook=None, template=None, prepare=None, convert=None, commit=False, user=None, out=None, **opts):
+    def handle(self, *args, workbook=None, template=None, prepare=None, convert=None, commit=False, user=None, out=None,
+               blank_form=None, **opts):
+        if blank_form:
+            legacy.blank_form(*blank_form)
+            self.stdout.write(self.style.SUCCESS(f'Blank form written to {blank_form[1]}.'))
+            return
         if prepare:
             if Path(prepare[0]).resolve() == Path(prepare[1]).resolve():
                 raise CommandError('Write the prepared copy to a different file; the original is kept as it is.')

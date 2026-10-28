@@ -534,7 +534,7 @@ maintenance 46 and toll 601 rows clean. Waiting on staff to fill 253 prices, 19 
 -   [x] Identify duplicate plate numbers (within the sheet and against the system)
 -   [x] Identify malformed dates (several formats accepted; anything else fails the row)
 -   [x] Identify missing required fields (missing column skips the sheet; missing cell fails the row)
--   [x] Build import command/script (`manage.py import_workbook`, dry run unless `--commit`, `--user` required to commit; blank template also downloadable in the app: Administration → Data Import, `accounts.import_data`)
+-   [x] Build import command/script (`manage.py import_workbook`, dry run unless `--commit`, `--user` required to commit; blank VEHICLE RECORD form, in RO3's own layout and format with the added columns, downloadable in the app: Administration → Data Import, `accounts.import_data`; standard workbook as a secondary link)
 -   [ ] Import vehicle master records (21 converted; FUEL TYPE column added for the 4 still blank; staging import pending)
 -   [ ] Import assignments (19 converted; START DATE column added, to fill)
 -   [ ] Import maintenance history (46 converted, clean in the dry run; staging import pending)

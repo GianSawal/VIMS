@@ -183,5 +183,7 @@ def test_template_download_is_for_system_administrators(api):
     viewer.groups.add(Group.objects.get(name='Fleet Administrator'))
     assert client_for(viewer).get('/api/import/template/').status_code == 403
     r = client_for(admin).get('/api/import/template/')
-    assert r.status_code == 200 and 'vrs-import-template.xlsx' in r['Content-Disposition']
-    assert set(SHEETS) <= set(load_workbook(io.BytesIO(r.content)).sheetnames)
+    assert r.status_code == 200 and 'VEHICLE RECORD form.xlsx' in r['Content-Disposition']
+    assert {'RO3', 'PLATE NO', 'Sheet20'} <= set(load_workbook(io.BytesIO(r.content)).sheetnames)
+    r = client_for(admin).get('/api/import/template/?kind=standard')
+    assert r.status_code == 200 and set(SHEETS) <= set(load_workbook(io.BytesIO(r.content)).sheetnames)

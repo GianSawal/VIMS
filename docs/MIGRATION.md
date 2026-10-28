@@ -8,11 +8,16 @@ which the system deliberately does not copy. Instead, the data is copied into on
 
 1. **Back up the old workbook** and work on a copy. The importer also copies every file it reads into
    `backend/import_runs/` (git-ignored) before touching anything.
-2. **Get the blank template:** in the app, Administration → **Data Import** → *Download template* (System
-   Administrator role, permission `accounts.import_data`), or on the server
-   `python manage.py import_workbook --template vrs-import-template.xlsx`
-   The *Instructions* sheet lists every column, whether it is required, and the allowed values. Header
-   cells carry the same notes as comments.
+2. **Get the blank form:** in the app, Administration → **Data Import** (System Administrator role, permission
+   `accounts.import_data`):
+   - *Download form* gives the **VEHICLE RECORD form**: RO3's own layout and format (RO3 master list and driver
+     list, a `PLATE NO` vehicle sheet to copy per vehicle, the Sheet20 PO log) with the added columns, and no
+     records. It is `backend/dataimport/forms/vehicle-record-form.xlsx`, built from the old workbook with
+     `import_workbook --blank-form "../DATA/VEHICLE RECORD.xlsx" dataimport/forms/vehicle-record-form.xlsx`
+     (re-run if the old layout changes). Fill it, then convert it as in step 4.
+   - The *standard import workbook* link (or `import_workbook --template vrs-import-template.xlsx`) gives one sheet
+     per record type, for data from other sources. Its *Instructions* sheet lists every column, whether it is
+     required, and the allowed values.
 3. **Set up offices first** in the app (Administration → Offices). Offices are not imported. If the old sheets
    spell an office differently ("Tarlac FO"), add a row to the *Offices* sheet mapping that spelling to the
    office code.

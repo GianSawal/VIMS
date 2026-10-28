@@ -130,3 +130,39 @@ def test_prepare_fill_convert_import(tmp_path):
     assert MaintenanceRecord.objects.count() == 2
     t = TollTransaction.objects.order_by('transacted_at')
     assert sum(x.credit - x.debit for x in t) == 5500  # same closing balance as the old sheet
+
+
+def test_blank_form_has_no_records_and_converts_when_filled(tmp_path):
+    from dataimport.legacy import FORM_SHEET, blank_form
+    old, form, out = tmp_path / 'old.xlsx', tmp_path / 'form.xlsx', tmp_path / 'filled.xlsx'
+    old_workbook(old)
+    blank_form(old, form)
+    wb = load_workbook(form)
+    assert wb.sheetnames == ['RO3', FORM_SHEET, 'Sheet20']
+    values = {c.value for ws in wb for r in ws.iter_rows() for c in r if c.value not in (None, '')}
+    assert not values & {'SAB 1234', 'secret-pw', 'user1', 'USERNAME', 'PW', 'PEDRO S. REYES', 'C10-00-000001', 'PMS (1,154)', 'PO-0001'}
+    assert {'PN', 'FUEL TYPE', 'START DATE', 'LICENSE TYPE', 'PLATE NO. :', 'PRICE/L', 'TIME OUT', 'UNIT PRICE'} <= values
+
+    # Staff fill RO3 and a copy of the PLATE NO sheet; the untouched PLATE NO sheet is ignored.
+    ro3 = wb['RO3']
+    for col, v in zip('ABCDEFIJKLMNOPQR', [1, 'TARLAC', 'TOYOTA HIACE COMMUTER 3.0 M/T', 'WHITE', 'SAC 5678', '5400-0000-2222',
+                                          datetime(2026, 12, 1), datetime(2026, 1, 5), 'AUGUST', 'JUAN P. CRUZ', 'PEDRO S. REYES',
+                                          'SERVICEABLE', 'Diesel', 'Van', datetime(2026, 1, 5), datetime(2027, 1, 5)]):
+        ro3[f'{col}3'] = v
+    for col, v in zip('ABCDEFG', [1, 'PEDRO S. REYES', 'C10-00-000009', datetime(2031, 1, 1), 'TAR FO', '0917', 'Professional']):
+        ro3[f'{col}7'] = v
+    ws = wb.copy_worksheet(wb[FORM_SHEET])
+    ws.title, ws['B4'] = 'SAC 5678', 'SAC 5678'
+    ws['G9'], ws['H9'], ws['I9'], ws['J9'] = datetime(2026, 2, 1), 120, 40, 60
+    wb.save(form)
+    counts, notes = convert(form, out)
+    assert (counts['Vehicles'], counts['Drivers'], counts['Fuel']) == (1, 1, 1)
+    assert not any('not on the RO3 master list' in n[2] for n in notes)
+
+    call_command('seed_reference', stdout=io.StringIO())
+    Office.objects.create(code='TAR', name='Tarlac Field Office', office_type='FIELD')
+    User.objects.create(username='migrator')
+    text = io.StringIO()
+    call_command('import_workbook', str(out), commit=True, user='migrator', out=str(tmp_path / 'runs'), stdout=text)
+    assert '0 error(s)' in text.getvalue(), text.getvalue()
+    assert FuelRecord.objects.get().total_amount == 2400

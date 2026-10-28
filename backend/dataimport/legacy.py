@@ -237,6 +237,50 @@ def prepare(source, target):
     return notes
 
 
+FORM_SHEET = 'PLATE NO'  # the one empty vehicle sheet in the blank form; staff copy it per vehicle
+SHEET_LABELS = {'MAINTENANCE RECORD', 'ENGINE', 'TIRE', 'BRAKES', 'AIRCON', 'BATTERY', 'BODY', 'AUTHORIZED DRIVER'}
+
+
+def blank_form(source, target):
+    """The blank data-entry form (what the app's Download button serves): the prepared old workbook with every record
+    removed. Headers, formats, balance formulas and drop-downs stay; one empty vehicle sheet (FORM_SHEET) remains.
+    Regenerate with `import_workbook --blank-form OLD OUT` if the old layout changes."""
+    prepare(source, target)
+    wb = load_workbook(target)
+    sheets = [ws for ws in wb.worksheets if is_vehicle_sheet(ws)]
+    standard = [ws for ws in sheets if not ws.merged_cells.ranges and log_row(ws) and 'PASSENGER' in header_cols(ws, log_row(ws))]
+    keep = max(standard or sheets, key=lambda ws: ws.max_row)  # unmerged, standard headers, most formatted rows
+    for ws in sheets:
+        if ws is not keep:
+            wb.remove(ws)
+    keep.title = FORM_SHEET
+
+    def clear(ws, keep_cell):
+        for row in ws.iter_rows():
+            for c in row:
+                if hasattr(c, 'column') and (c.value not in (None, '') or c.hyperlink) and not keep_cell(c):
+                    c.value, c.hyperlink = None, None  # RO3 plates link to their (removed) vehicle sheets
+
+    ro3 = wb['RO3']
+    head, dhead = master_rows(ro3)
+    clear(ro3, lambda c: c.row in (head, dhead) or (c.row < head and isinstance(c.value, str)) or clean(c.value).upper() in SHEET_LABELS)
+    for name in CREDENTIAL_COLUMNS:  # no place for third-party logins in a form the system hands out
+        ro3.cell(head, header_cols(ro3, head)[name]).value = None
+    mrow, lrow = maint_row(keep), log_row(keep)
+    # The header rows also carry other blocks' data (row 2 = log header + VEHICLE :, row 8 = maintenance header + a log
+    # line), so a header row is kept only within its own block: maintenance/fuel A-J, log from K.
+    clear(keep, lambda c: (c.row == mrow and c.column <= 10) or (c.row == lrow and c.column >= 11)
+          or (isinstance(c.value, str) and c.value.startswith('='))
+          or (c.row == 1 and clean(c.value).upper() in SHEET_LABELS) or (c.column == 1 and clean(c.value).endswith(':')))
+    po = wb['Sheet20'] if 'Sheet20' in wb.sheetnames else None
+    if po and po_row(po):
+        clear(po, lambda c: c.row <= po_row(po))
+    wb.active = wb.sheetnames.index('RO3')
+    for ws in wb.worksheets:
+        ws.sheet_view.tabSelected = ws.title == 'RO3'  # open on RO3
+    wb.save(target)
+
+
 # ---------------------------------------------------------------- step 2: convert
 
 class Converter:
@@ -307,6 +351,8 @@ class Converter:
             if not is_vehicle_sheet(ws):
                 continue
             plate = next(clean(ws.cell(r, 2).value) for r in range(1, 10) if clean(ws.cell(r, 1).value).startswith('PLATE NO'))
+            if not plate and ws.title == FORM_SHEET:
+                continue  # the blank form's unused sheet
             key = plate_key(plate) if plate_key(plate) in vehicles else plate_key(ws.title)
             if key not in vehicles:
                 self.note(ws.title, '', f'Sheet not on the RO3 master list (plate "{plate}"); not converted.')
