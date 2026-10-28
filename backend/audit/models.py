@@ -18,3 +18,13 @@ class AuditLog(models.Model):
     class Meta:
         ordering = ['-timestamp']
         indexes = [models.Index(fields=['entity_type', 'entity_id'])]
+
+    # Append-only in code too: an existing entry can't be saved again or deleted through the ORM instance.
+    # (Bulk QuerySet.update/delete bypass this; nothing in the app calls them on AuditLog.)
+    def save(self, *args, **kwargs):
+        if self.pk is not None:
+            raise PermissionError('Audit log entries cannot be changed.')
+        super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise PermissionError('Audit log entries cannot be deleted.')

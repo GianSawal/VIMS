@@ -26,11 +26,10 @@ import DocumentDetail from './pages/documents/DocumentDetail'
 import RfidList from './pages/rfid/RfidList'
 import RfidDetail from './pages/rfid/RfidDetail'
 import { ReportCatalog, ReportPage, ReportPrint } from './pages/reports/Reports'
+import AuditLogs from './pages/admin/AuditLogs'
 
 // Each route gets a real page as its phase is built; Pending marks what's not built yet.
-const pending = [
-  ['audit-logs', 'Audit Logs', 14],
-]
+const pending = []
 
 export default function App() {
   return (
@@ -47,6 +46,9 @@ export default function App() {
           {/* Each report checks its own module permissions in the API; the catalog lists only allowed ones. */}
           <Route path="reports" element={<ReportCatalog />} />
           <Route path="reports/:slug" element={<ReportPage />} />
+          <Route element={<RequirePerm perm="audit.view_auditlog" />}>
+            <Route path="audit-logs" element={<AuditLogs />} />
+          </Route>
           <Route element={<RequirePerm perm="accounts.view_user" />}>
             <Route path="admin/users" element={<Users />} />
           </Route>

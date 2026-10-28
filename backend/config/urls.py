@@ -6,6 +6,7 @@ from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 from rest_framework.routers import DefaultRouter
 
 from accounts.views import OfficeViewSet, UserViewSet
+from audit.views import AuditLogViewSet
 from dashboard.views import DashboardView
 from fleet.document_views import DocumentViewSet
 from fleet.driver_views import DriverViewSet
@@ -31,6 +32,7 @@ router.register('maintenance-categories', CategoryViewSet)
 router.register('maintenance-schedules', ScheduleViewSet)
 router.register('maintenance', MaintenanceRecordViewSet)
 router.register('notifications', NotificationViewSet, basename='notification')
+router.register('audit-logs', AuditLogViewSet)
 
 urlpatterns = [
     path('admin/', admin.site.urls),

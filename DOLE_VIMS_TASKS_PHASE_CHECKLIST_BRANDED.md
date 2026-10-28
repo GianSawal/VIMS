@@ -497,19 +497,21 @@ correct records and totals. — pending client review; totals are checked agains
 -   [x] Vehicle creation/update/archive logs
 -   [x] Assignment change logs
 -   [x] Odometer correction logs (lowering odometer needs `fleet.correct_odometer`)
--   [ ] Fuel change logs
--   [ ] Maintenance change logs
--   [ ] Document change logs
+-   [x] Fuel change logs (create, edit with field diff, odometer updates)
+-   [x] Maintenance change logs (create, edit diff, each status change with side effects)
+-   [x] Document change logs (create, edit diff, renew, cancel, file replace)
 -   [x] User/role change logs
--   [ ] Audit-log API
--   [ ] Audit-log UI
--   [ ] Admin-only/restricted permissions
--   [ ] Before/after values for critical changes
--   [x] Prevent modification/deletion by normal users (no write API; admin read-only)
--   [ ] Tests
+-   [x] Audit-log API (`/api/audit-logs/`, read-only; filters by action, record type/ID, user, date range, search; `/facets/` for the dropdowns)
+-   [x] Audit-log UI (`/audit-logs`: filters in the URL, links to the changed record, detail modal with a before/after table)
+-   [x] Admin-only/restricted permissions (`audit.view_auditlog` is System Administrator only; Fleet Admin, Field Office User and Viewer get 403)
+-   [x] Before/after values for critical changes (`{'field': [old, new]}` from `diff()`; creations store an `after` snapshot; RFID numbers masked)
+-   [x] Prevent modification/deletion by normal users (no write API; admin read-only; `AuditLog.save()` refuses updates and `delete()` raises)
+-   [x] Tests (`audit/test_audit.py`: fuel/maintenance/document diffs, filters, facets, role access, no writes, append-only model, 401)
+
+Deferred: the dashboard's "Recent activity" still reads the office-scoped records, because the audit log has no office field. Adding one would let field users see their own office's history.
 
 **Phase gate:** Critical changes can be traced to user, timestamp,
-entity, and before/after values.
+entity, and before/after values. — met; every entry stores user (plus username snapshot), timestamp, entity type/ID, IP and browser, and edits store field-level before/after (tested for fuel, maintenance and documents).
 
 ------------------------------------------------------------------------
 
