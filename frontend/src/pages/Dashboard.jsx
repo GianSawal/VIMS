@@ -68,6 +68,7 @@ export default function Dashboard() {
   const [from, to] = selectedMonth ? monthRange(selectedMonth) : []
   const monthName = selectedMonth ? monthLong.format(ymDate(selectedMonth)) : 'This month'
   const attention = d && [d.renewals, d.maintenance_due, d.licenses].some(Boolean)
+  const multiOffice = (d?.vehicles?.by_office.length ?? 0) > 1
 
   return (
     <div>
@@ -94,39 +95,36 @@ export default function Dashboard() {
         // Fades in over the skeleton, and dims while an office/month change is loading (useList keeps the old data on screen).
         <motion.div className="space-y-6" aria-busy={query.isPlaceholderData}
           initial={{ opacity: 0 }} animate={{ opacity: query.isPlaceholderData ? 0.6 : 1 }} transition={{ duration: 0.2, ease: 'easeOut' }}>
-          {d.vehicles && <FleetStatus v={d.vehicles} office={office} />}
-
-          {attention && (
-            <Section title="Needs attention">
-              <div className="grid items-start gap-4 md:grid-cols-2 xl:grid-cols-4">
-                {d.renewals && <ExpiryWidget icon={Car} title="LTO registration" data={d.renewals.lto} window={d.renewals.window_days}
-                  all={href('/documents', { type: 'LTO_REGISTRATION' }, office)}
-                  expiredTo={href('/documents', { type: 'LTO_REGISTRATION', band: 'EXPIRED' }, office)} />}
-                {d.renewals && <ExpiryWidget icon={ShieldCheck} title="GSIS / insurance" data={d.renewals.insurance} window={d.renewals.window_days}
-                  all={href('/documents', { type: 'GSIS_INSURANCE,INSURANCE_POLICY' }, office)}
-                  expiredTo={href('/documents', { type: 'GSIS_INSURANCE,INSURANCE_POLICY', band: 'EXPIRED' }, office)} />}
-                {d.maintenance_due && <MaintenanceDue data={d.maintenance_due} office={office} />}
-                {d.licenses && <Licenses data={d.licenses} office={office} />}
-              </div>
-            </Section>
+          {d.vehicles && (
+            // Fleet status beside the per-office breakdown; the breakdown only earns a card with 2+ offices.
+            <div className={`grid gap-4 ${multiOffice ? 'xl:grid-cols-3' : ''}`}>
+              <div className={multiOffice ? 'xl:col-span-2' : ''}><FleetStatus v={d.vehicles} office={office} /></div>
+              {multiOffice && <ByOffice rows={d.vehicles.by_office} office={office} />}
+            </div>
           )}
+
+          {attention && <NeedsAttention d={d} office={office} />}
 
           {(d.fuel || d.maintenance_cost || d.utilization) && (
             <Section title={monthName}>
-              <div className="grid items-start gap-4 lg:grid-cols-2">
-                {d.fuel && (
-                  <MoneyTrend title="Fuel" icon={Fuel} data={d.fuel} to={href('/fuel', { date_from: from, date_to: to }, office)}
-                    stats={[[liters(d.fuel.liters), 'Purchased'], [num.format(d.fuel.count), 'Fill-ups']]}
-                    tooltip={(m) => [`Cost: ${formatPeso(m.amount)}`, `Fuel: ${liters(m.liters)}`]} />
-                )}
-                {d.maintenance_cost && (
-                  <MoneyTrend title="Maintenance cost" icon={Wrench} data={d.maintenance_cost}
-                    to={href('/maintenance', { status: 'COMPLETED', date_from: from, date_to: to }, office)}
-                    stats={[[num.format(d.maintenance_cost.count), 'Completed'], [num.format(d.maintenance_cost.open), 'Open jobs', href('/maintenance', {}, office)]]}
-                    tooltip={(m) => [`Cost: ${formatPeso(m.amount)}`, `${plural(m.count, 'job')} completed`]} />
+              {/* Costs stacked on the left so the taller Utilization card on the right is matched. */}
+              <div className="grid gap-4 lg:grid-cols-2">
+                {(d.fuel || d.maintenance_cost) && (
+                  <div className="flex flex-col gap-4">
+                    {d.fuel && (
+                      <MoneyTrend title="Fuel" icon={Fuel} data={d.fuel} to={href('/fuel', { date_from: from, date_to: to }, office)}
+                        stats={[[liters(d.fuel.liters), 'Purchased'], [num.format(d.fuel.count), 'Fill-ups']]}
+                        tooltip={(m) => [`Cost: ${formatPeso(m.amount)}`, `Fuel: ${liters(m.liters)}`]} />
+                    )}
+                    {d.maintenance_cost && (
+                      <MoneyTrend title="Maintenance cost" icon={Wrench} data={d.maintenance_cost}
+                        to={href('/maintenance', { status: 'COMPLETED', date_from: from, date_to: to }, office)}
+                        stats={[[num.format(d.maintenance_cost.count), 'Completed'], [num.format(d.maintenance_cost.open), 'Open jobs', href('/maintenance', {}, office)]]}
+                        tooltip={(m) => [`Cost: ${formatPeso(m.amount)}`, `${plural(m.count, 'job')} completed`]} />
+                    )}
+                  </div>
                 )}
                 {d.utilization && <Utilization u={d.utilization} office={office} from={from} to={to} />}
-                {d.vehicles && d.vehicles.by_office.length > 0 && <ByOffice rows={d.vehicles.by_office} office={office} />}
               </div>
             </Section>
           )}
@@ -151,9 +149,9 @@ function Section({ title, children }) {
   )
 }
 
-function Card({ title, icon: Icon, tint = 'bg-brand-light text-brand', action, children }) {
+function Card({ title, icon: Icon, tint = 'bg-brand-light text-brand', action, className = '', children }) {
   return (
-    <div className="flex flex-col rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+    <div className={`flex flex-col rounded-xl border border-slate-200 bg-white p-4 shadow-sm ${className}`}>
       <div className="mb-3 flex items-center gap-2.5">
         {Icon && <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${tint}`}><Icon size={16} aria-hidden="true" /></span>}
         <h3 className="mr-auto font-semibold text-ink">{title}</h3>
@@ -222,7 +220,7 @@ function FleetStatus({ v, office }) {
   const available = operable ? Math.round(((s.SERVICEABLE + s.IN_USE) / operable) * 100) : null
   const share = (n) => (v.total ? `${Math.round((n / v.total) * 100)}%` : '–')
   return (
-    <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm" aria-labelledby="fleet-title">
+    <section className="h-full rounded-xl border border-slate-200 bg-white p-5 shadow-sm" aria-labelledby="fleet-title">
       <div className="mb-3 flex flex-wrap items-baseline gap-x-3">
         <h2 id="fleet-title" className="font-semibold text-ink">Fleet status</h2>
         <Link to={href('/vehicles', {}, office)} className="text-xs font-medium text-brand hover:underline">View vehicles</Link>
@@ -276,6 +274,58 @@ function Counts({ urgent, upcoming }) {
       {tile(...urgent, 'bg-red-50 text-danger hover:bg-red-100')}
       {tile(...upcoming, 'bg-amber-50 text-amber-800 hover:bg-amber-100')}
     </div>
+  )
+}
+
+// Widgets with something to act on get a full card; all-clear ones collapse into one row of green chips,
+// so a quiet widget never leaves a short card next to a tall one.
+const COLS = { 1: '', 2: 'md:grid-cols-2', 3: 'md:grid-cols-2 xl:grid-cols-3', 4: 'md:grid-cols-2 xl:grid-cols-4' }
+
+function NeedsAttention({ d, office }) {
+  const lto = { type: 'LTO_REGISTRATION' }
+  const ins = { type: 'GSIS_INSURANCE,INSURANCE_POLICY' }
+  const widgets = [
+    d.renewals && {
+      key: 'lto', title: 'LTO registration', icon: Car, open: d.renewals.lto.expired + d.renewals.lto.due, to: href('/documents', lto, office),
+      node: <ExpiryWidget icon={Car} title="LTO registration" data={d.renewals.lto} window={d.renewals.window_days}
+        all={href('/documents', lto, office)} expiredTo={href('/documents', { ...lto, band: 'EXPIRED' }, office)} />,
+    },
+    d.renewals && {
+      key: 'ins', title: 'GSIS / insurance', icon: ShieldCheck, open: d.renewals.insurance.expired + d.renewals.insurance.due, to: href('/documents', ins, office),
+      node: <ExpiryWidget icon={ShieldCheck} title="GSIS / insurance" data={d.renewals.insurance} window={d.renewals.window_days}
+        all={href('/documents', ins, office)} expiredTo={href('/documents', { ...ins, band: 'EXPIRED' }, office)} />,
+    },
+    d.maintenance_due && {
+      key: 'mnt', title: 'Maintenance due', icon: Wrench, open: d.maintenance_due.overdue + d.maintenance_due.due_soon,
+      to: href('/maintenance', { view: 'schedules' }, office), node: <MaintenanceDue data={d.maintenance_due} office={office} />,
+    },
+    d.licenses && {
+      key: 'lic', title: 'Driver licenses', icon: IdCard, open: d.licenses.expired + d.licenses.expiring,
+      to: href('/drivers', { is_active: 'true' }, office), node: <Licenses data={d.licenses} office={office} />,
+    },
+  ].filter(Boolean)
+  const open = widgets.filter((w) => w.open)
+  const clear = widgets.filter((w) => !w.open)
+  return (
+    <Section title="Needs attention">
+      {open.length > 0 && (
+        <div className={`grid items-start gap-4 ${COLS[open.length]}`}>
+          {open.map((w) => <div key={w.key}>{w.node}</div>)}
+        </div>
+      )}
+      {clear.length > 0 && (
+        <div className={`flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm ${open.length ? 'mt-4' : ''}`}>
+          <span className="mr-1 flex items-center gap-1.5 text-sm font-medium text-green-800">
+            <CircleCheck size={16} aria-hidden="true" /> {open.length ? 'All clear' : 'Nothing needs attention'}
+          </span>
+          {clear.map(({ key, title, icon: Icon, to }) => (
+            <Link key={key} to={to} className="inline-flex items-center gap-1.5 rounded-full bg-green-50 px-3 py-1 text-xs font-medium text-green-800 hover:bg-green-100">
+              <Icon size={13} aria-hidden="true" /> {title}
+            </Link>
+          ))}
+        </div>
+      )}
+    </Section>
   )
 }
 
@@ -396,7 +446,7 @@ function MoneyTrend({ title, icon, data, to, stats, tooltip }) {
 function Utilization({ u, office, from, to }) {
   const done = href('/trips', { status: 'COMPLETED', date_from: from, date_to: to }, office)
   return (
-    <Card title="Utilization" icon={RouteIcon} action={<ViewAll to={done}>Open trips</ViewAll>}>
+    <Card title="Utilization" icon={RouteIcon} action={<ViewAll to={done}>Open trips</ViewAll>} className="h-full">
       <div className="mb-1 flex items-baseline gap-3">
         <span className="text-2xl font-semibold text-ink tabular-nums">{u.rate == null ? '—' : `${u.rate}%`}</span>
         <span className="text-sm text-slate-500">of vehicles used ({u.vehicles_used} of {u.operable})</span>
@@ -420,23 +470,26 @@ function Utilization({ u, office, from, to }) {
   )
 }
 
+// On wide screens the card takes the fleet card's height and scrolls, instead of stretching the row.
 function ByOffice({ rows, office }) {
   return (
-    <Card title="Vehicles by office" icon={Car}>
-      <ul className="space-y-3.5">
-        {rows.map((r) => (
-          <li key={r.office}>
-            <div className="mb-1.5 flex items-baseline gap-2 text-sm">
-              <Link to={`/vehicles?office=${r.office}`} className="font-semibold text-brand hover:underline">{r.code}</Link>
-              <span className="min-w-0 flex-1 truncate text-slate-500">{r.name}</span>
-              <span className="font-semibold text-ink tabular-nums">{num.format(r.total)}</span>
-            </div>
-            <StatusBar byStatus={r.by_status} total={r.total} height="h-2" office={office} officeId={r.office} />
-          </li>
-        ))}
-      </ul>
-      <p className="mt-4 text-xs text-slate-500">Bar colors follow the fleet status legend above.</p>
-    </Card>
+    <div className="relative">
+      <Card title="Vehicles by office" icon={Car} className="xl:absolute xl:inset-0">
+        <ul className="min-h-0 flex-1 space-y-3.5 overflow-y-auto pr-1">
+          {rows.map((r) => (
+            <li key={r.office}>
+              <div className="mb-1.5 flex items-baseline gap-2 text-sm">
+                <Link to={`/vehicles?office=${r.office}`} className="font-semibold text-brand hover:underline">{r.code}</Link>
+                <span className="min-w-0 flex-1 truncate text-slate-500">{r.name}</span>
+                <span className="font-semibold text-ink tabular-nums">{num.format(r.total)}</span>
+              </div>
+              <StatusBar byStatus={r.by_status} total={r.total} height="h-2" office={office} officeId={r.office} />
+            </li>
+          ))}
+        </ul>
+        <p className="mt-3 text-xs text-slate-500">Bar colors follow the fleet status legend.</p>
+      </Card>
+    </div>
   )
 }
 
@@ -463,9 +516,10 @@ function Activity({ items }) {
   }
   return (
     <Section title="Recent activity">
-      <div className="rounded-xl border border-slate-200 bg-white px-4 py-2 shadow-sm">
+      {/* Two columns on wide screens so short rows don't leave the right half of the card empty. */}
+      <div className="gap-x-8 rounded-xl border border-slate-200 bg-white px-4 py-2 shadow-sm xl:columns-2">
         {groups.length ? groups.map((g) => (
-          <div key={g.label} className="py-2">
+          <div key={g.label} className="break-inside-avoid py-2">
             <h3 className="mb-1 text-xs font-medium text-slate-500">{g.label}</h3>
             <ul>
               {g.items.map((a) => {
