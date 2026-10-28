@@ -171,3 +171,17 @@ def test_bad_rows_are_flagged_and_skipped(tmp_path):
 def test_commit_needs_a_user(tmp_path):
     with pytest.raises(CommandError):
         call_command('import_workbook', str(workbook(tmp_path, GOOD)), commit=True, out=str(tmp_path), stdout=io.StringIO())
+
+
+def test_template_download_is_for_system_administrators(api):
+    from django.contrib.auth.models import Group
+    from accounts.test_auth import client_for
+
+    assert api.get('/api/import/template/').status_code == 401
+    admin, viewer = User.objects.create(username='sysadmin'), User.objects.create(username='viewer')
+    admin.groups.add(Group.objects.get(name='System Administrator'))
+    viewer.groups.add(Group.objects.get(name='Fleet Administrator'))
+    assert client_for(viewer).get('/api/import/template/').status_code == 403
+    r = client_for(admin).get('/api/import/template/')
+    assert r.status_code == 200 and 'vrs-import-template.xlsx' in r['Content-Disposition']
+    assert set(SHEETS) <= set(load_workbook(io.BytesIO(r.content)).sheetnames)

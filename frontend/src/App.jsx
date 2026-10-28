@@ -27,6 +27,7 @@ import RfidList from './pages/rfid/RfidList'
 import RfidDetail from './pages/rfid/RfidDetail'
 import { ReportCatalog, ReportPage, ReportPrint } from './pages/reports/Reports'
 import AuditLogs from './pages/admin/AuditLogs'
+import DataImport from './pages/admin/DataImport'
 
 // Each route gets a real page as its phase is built; Pending marks what's not built yet.
 const pending = []
@@ -51,6 +52,9 @@ export default function App() {
           </Route>
           <Route element={<RequirePerm perm="accounts.view_user" />}>
             <Route path="admin/users" element={<Users />} />
+          </Route>
+          <Route element={<RequirePerm perm="accounts.import_data" />}>
+            <Route path="admin/import" element={<DataImport />} />
           </Route>
           <Route element={<RequirePerm perm="fleet.view_vehicle" />}>
             <Route path="vehicles" element={<VehicleList />} />

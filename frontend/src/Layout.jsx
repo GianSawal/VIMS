@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { AnimatePresence, motion } from 'motion/react'
 import {
-  Bell, Building2, Car, ClipboardList, CreditCard, FileText, Fuel, IdCard, KeyRound, LayoutDashboard, LogOut, Menu,
+  Bell, Building2, Car, ClipboardList, CreditCard, FileSpreadsheet, FileText, Fuel, IdCard, KeyRound, LayoutDashboard, LogOut, Menu,
   Route as RouteIcon, ScrollText, Users, Wrench, X,
 } from 'lucide-react'
 import { useCan, useLogout, useMe } from './auth'
@@ -23,6 +23,7 @@ const nav = [
   ['/admin/users', 'Users', Users, 'accounts.view_user'],
   ['/admin/offices', 'Offices', Building2, 'accounts.view_office'],
   ['/audit-logs', 'Audit Logs', ScrollText, 'audit.view_auditlog'],
+  ['/admin/import', 'Data Import', FileSpreadsheet, 'accounts.import_data'],
 ]
 
 export default function Layout() {

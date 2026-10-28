@@ -8,7 +8,8 @@ which the system deliberately does not copy. Instead, the data is copied into on
 
 1. **Back up the old workbook** and work on a copy. The importer also copies every file it reads into
    `backend/import_runs/` (git-ignored) before touching anything.
-2. **Get the blank template:**
+2. **Get the blank template:** in the app, Administration → **Data Import** → *Download template* (System
+   Administrator role, permission `accounts.import_data`), or on the server
    `python manage.py import_workbook --template vrs-import-template.xlsx`
    The *Instructions* sheet lists every column, whether it is required, and the allowed values. Header
    cells carry the same notes as comments.
@@ -17,10 +18,14 @@ which the system deliberately does not copy. Instead, the data is copied into on
    office code.
 4. **Copy the old data into the template.** One row per vehicle, driver, assignment, document, maintenance job,
    fill-up, trip and toll transaction. Leave a sheet empty to skip it. For RO3's workbook
-   (`DATA/VEHICLE RECORD.xlsx`, git-ignored) this is automatic:
-   `python manage.py import_workbook --convert "../DATA/VEHICLE RECORD.xlsx" import_runs/converted.xlsx`
-   The *Conversion notes* sheet lists what was inferred or left out. Fill the blanks it names (see
-   "Still to fill in" below) before the dry run.
+   (`DATA/VEHICLE RECORD.xlsx`, git-ignored) this is automatic, in three steps:
+   1. `python manage.py import_workbook --prepare "../DATA/VEHICLE RECORD.xlsx" "../DATA/VEHICLE RECORD (to fill).xlsx"`
+      writes a copy with the columns the old sheets lack (see "Added columns" below), highlighted in yellow.
+      The EasyTrip USERNAME / PW cells are blanked in the copy. The original is not changed.
+   2. Staff fill the highlighted cells in that copy, in the sheets they already know.
+   3. `python manage.py import_workbook --convert "../DATA/VEHICLE RECORD (to fill).xlsx" import_runs/converted.xlsx`
+      The *Conversion notes* sheet lists what was inferred or left out, and how many highlighted cells are
+      still blank. Fill those and convert again before the dry run.
 5. **Dry run on staging** (a copy of the database, never production first):
    `python manage.py import_workbook filled.xlsx --user <your username>`
    Nothing is saved. The command prints a summary and writes
@@ -122,8 +127,22 @@ found by header name because the order differs between sheets).
 | Maintenance DATE, PR No., DESCRIPTION, SUPPLIER, COST | Maintenance: Date, Reference number, Description, Service provider, Parts cost | One COST column, so it all goes to parts cost. `Free` = 0 with a remark. Odometer from `PMS (1622)` / `PMS 1,287 KM`. Categories from words in the description. |
 | Fuel DATE, ODO, FUEL LITERS | Fuel: Date, Odometer, Liters | Only rows with liters. Rows with just an odometer are daily readings, used for the current odometer. |
 | Log DATE, TRIP TICKET No., DESCRIPTION, CREDIT, DEBIT | Toll: Transacted at, Reference number, Description, Credit, Debit | Date at 08:00, one minute apart per row, to keep the sheet order. Negative charges are made positive. "Toll" in CREDIT = a charge; "RELOAD" = a load (its amount sits in DEBIT); "Toll/Reload" = both, the load taken from the label or worked out from the BALANCE column. A balance before the first row becomes an "Opening balance" credit. Balances that don't add up are listed in the notes. |
-| Log PASSENGER, PLACE VISIT, PURPOSE | — | Not imported: no departure/return times or odometer readings, which a completed trip needs. Counted in the notes. |
-| Category dates under ENGINE…BODY, `Sheet20` | — | Last-service summary and an empty PO log; nothing to import. |
+| Log lines with TIME OUT (added) | Trips: Ticket number, Departed at, Returned at, Odometer start/end | One trip per ticket (first line with times). Destination = PLACE VISIT (else DESCRIPTION), Purpose = PURPOSE, Remarks = "Passengers: …", Driver = the sheet's DRIVER, Origin = the vehicle's office. Toll rows with that ticket are linked to the trip. Lines without TIME OUT stay out (counted in the notes). |
+| `Sheet20` (PO log) DATE, P.O No., VEHICLE, FUEL LITER, ODO, DRIVER, UNIT PRICE (added) | Fuel: PO number, Driver name, Unit price | Merged into the fill-up with the same vehicle, date and liters; otherwise added as a fill-up. |
+| Category dates under ENGINE…BODY | — | A last-service summary; nothing to import. |
 
-**Still to fill in** (not in the old workbook): fuel unit price, assignment start date, driver license type,
-LTO registration expiry date, and fuel type for the vehicles left blank. The first dry run lists every one of them.
+### Added columns (`--prepare`)
+
+Added only in empty columns, because the logs have balance formulas and merged cells that inserting would break.
+
+| Where | Column | Notes |
+|---|---|---|
+| RO3 vehicle list, after REMARKS | FUEL TYPE, VEHICLE TYPE | Drop-downs, pre-filled with the guesses above. Correct them where wrong. |
+| | START DATE | Start of the current assignment (PAR / driver). |
+| | LTO EXPIRY | The registration's expiry date (the old sheet has only the registration date and renewal month). |
+| RO3 driver list, after MOBILE No. | LICENSE TYPE | Drop-down: Professional / Non-Professional. |
+| Vehicle sheets, column J | PRICE/L | Next to FUEL LITERS; needed on every fill-up (the total is liters × price). |
+| Vehicle sheets, after the log's last column | TIME OUT, TIME IN, ODO OUT, ODO IN | Fill only for trips to import; time as `08:30` or `5:30 PM`. |
+| `Sheet20` after DRIVER | UNIT PRICE | For PO log rows. |
+
+A blank added column falls back to the guess (fuel/vehicle type) or stays blank, and the dry run lists it.

@@ -519,10 +519,12 @@ entity, and before/after values. — met; every entry stores user (plus username
 
 Approach: the migration uses a **standard import workbook** (`manage.py import_workbook --template`).
 RO3's source workbook (`DATA/VEHICLE RECORD.xlsx`, git-ignored) is converted into it automatically with
-`import_workbook --convert` (`dataimport/legacy.py`, `test_legacy.py`). A dry run of the converted workbook on a
-throwaway database: maintenance 46 and toll 601 rows import cleanly. The rest wait only on values the old workbook
-doesn't have: fuel unit price (253 fill-ups), assignment start dates (19), driver license type (26), LTO expiry (16),
-and fuel type for 4 older vehicles. Trip lines are not importable (no times or odometer readings).
+`import_workbook --convert` (`dataimport/legacy.py`, `test_legacy.py`). The values the old sheets lack now have
+columns in the old workbook itself: `import_workbook --prepare` writes `DATA/VEHICLE RECORD (to fill).xlsx` with
+FUEL TYPE / VEHICLE TYPE / START DATE / LTO EXPIRY (RO3), LICENSE TYPE (drivers), PRICE/L (fill-ups), TIME OUT / IN
+and ODO OUT / IN (trip log) and UNIT PRICE (PO log), highlighted for staff. Dry run so far (throwaway database):
+maintenance 46 and toll 601 rows clean. Waiting on staff to fill 253 prices, 19 start dates, 27 license types,
+17 LTO expiry dates, 4 fuel types, and trip times for the trips worth importing.
 
 -   [x] Make backup copy of source workbook (every run copies the input to `backend/import_runs/` before reading)
 -   [x] Create Excel-to-database field mapping (`docs/MIGRATION.md`: old sheet → template → DB field; applied by `import_workbook --convert`)
@@ -532,14 +534,14 @@ and fuel type for 4 older vehicles. Trip lines are not importable (no times or o
 -   [x] Identify duplicate plate numbers (within the sheet and against the system)
 -   [x] Identify malformed dates (several formats accepted; anything else fails the row)
 -   [x] Identify missing required fields (missing column skips the sheet; missing cell fails the row)
--   [x] Build import command/script (`manage.py import_workbook`, dry run unless `--commit`, `--user` required to commit)
--   [ ] Import vehicle master records (21 converted; 4 need a fuel type; staging import pending)
--   [ ] Import assignments (19 converted; need start dates)
+-   [x] Build import command/script (`manage.py import_workbook`, dry run unless `--commit`, `--user` required to commit; blank template also downloadable in the app: Administration → Data Import, `accounts.import_data`)
+-   [ ] Import vehicle master records (21 converted; FUEL TYPE column added for the 4 still blank; staging import pending)
+-   [ ] Import assignments (19 converted; START DATE column added, to fill)
 -   [ ] Import maintenance history (46 converted, clean in the dry run; staging import pending)
--   [ ] Import fuel history (253 converted; need unit prices, the old sheets record liters only)
--   [ ] Import Fuel PO log (RO3's PO log sheet is empty; PO numbers can still be entered on the Fuel sheet)
--   [ ] Import trip/toll data where reliable (601 toll rows clean in the dry run; trip lines not importable, no times/odometer)
--   [ ] Import LTO/GSIS information (GSIS 16 clean; LTO needs expiry dates, the sheet has the registration date and renewal month)
+-   [ ] Import fuel history (253 converted; PRICE/L column added next to FUEL LITERS, to fill)
+-   [ ] Import Fuel PO log (Sheet20 is read and merged into the fill-ups, UNIT PRICE column added; the sheet is still empty)
+-   [ ] Import trip/toll data where reliable (601 toll rows clean; trips convert from log lines with TIME OUT / IN and ODO OUT / IN, to fill)
+-   [ ] Import LTO/GSIS information (GSIS 16 clean; LTO EXPIRY column added, to fill)
 -   [x] Produce import warnings (Issues sheet: sheet, Excel row, level, field, message, value, reviewer column)
 -   [x] Produce import summary (created / updated / skipped / failed / warnings per sheet, on screen and in the report; audit entry on commit)
 -   [ ] Perform dry run on staging (converted workbook dry-run on a throwaway SQLite copy with the real offices; staging run after the blanks are filled)

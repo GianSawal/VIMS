@@ -8,6 +8,7 @@ from rest_framework.routers import DefaultRouter
 from accounts.views import OfficeViewSet, UserViewSet
 from audit.views import AuditLogViewSet
 from dashboard.views import DashboardView
+from dataimport.views import ImportTemplateView
 from fleet.document_views import DocumentViewSet
 from fleet.driver_views import DriverViewSet
 from fleet.views import VehicleViewSet
@@ -42,6 +43,7 @@ urlpatterns = [
     path('api/reports/<slug:slug>/', ReportView.as_view(), name='report'),
     path('api/display/trips/', DisplayTripsView.as_view(), name='display-trips'),
     path('api/maps/<str:op>/', MapsView.as_view(), name='maps'),  # status | autocomplete | route
+    path('api/import/template/', ImportTemplateView.as_view(), name='import-template'),
     path('api/', include(router.urls)),
     path('api/schema/', SpectacularAPIView.as_view(), name='schema'),
     path('api/docs/', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger'),

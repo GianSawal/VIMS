@@ -1,6 +1,6 @@
 """Phase 15: RO3's old per-vehicle workbook converts into an importable standard workbook (synthetic data)."""
 import io
-from datetime import datetime
+from datetime import datetime, time
 
 import pytest
 from django.core.management import call_command
@@ -8,9 +8,10 @@ from openpyxl import Workbook, load_workbook
 
 from accounts.models import Office, User
 from dataimport.importer import SHEETS
-from dataimport.legacy import convert
+from dataimport.legacy import convert, prepare
+from fleet.models import Driver, VehicleAssignment, VehicleDocument
 from maintenance.models import MaintenanceRecord
-from operations.models import TollTransaction
+from operations.models import FuelRecord, TollTransaction, Trip
 
 pytestmark = pytest.mark.django_db
 
@@ -51,6 +52,24 @@ def old_workbook(path):
         for c, v in enumerate(row, start=11):
             ws.cell(i, c, v)
     ws.cell(5, 17, 'JUAN P. CRUZ')  # passenger on the trip-only line
+    ws.cell(5, 18, 'Tarlac City')
+    ws.cell(5, 19, 'Courtesy call')
+    po = wb.create_sheet('Sheet20')
+    po.append(['RED PLATE FUEL PURCHASE ORDER LOG'])
+    po.append(['DATE', 'P.O No.', 'VEHICLE', 'FUEL LITER', 'ODO', 'DRIVER'])
+    po.append([datetime(2026, 1, 26), 'PO-0001', 'SAB 1234', 34.89, 65, 'PEDRO S. REYES'])
+    wb.save(path)
+
+
+def fill_new_columns(path):
+    """What staff do in the prepared copy: the columns prepare() added."""
+    wb = load_workbook(path)
+    ro3, ws, po = wb['RO3'], wb['SAB 1234'], wb['Sheet20']
+    ro3['Q3'], ro3['R3'] = datetime(2026, 1, 19), datetime(2027, 6, 30)  # START DATE, LTO EXPIRY
+    ro3['G7'] = 'Professional'                                            # LICENSE TYPE
+    ws['J9'] = 61.50                                                      # PRICE/L
+    ws['T5'], ws['U5'], ws['V5'], ws['W5'] = time(8, 0), '5:30 PM', 900, 1010  # the RO3-002 trip
+    po['G3'] = 60
     wb.save(path)
 
 
@@ -74,21 +93,40 @@ def test_convert_then_import(tmp_path):
     assert [(t['credit'], t['debit']) for t in rows('Toll')] == [(1000, None), (None, 632), (None, 96), (5000, None), (None, 272), (500, None)]
     assert len({t['transacted_at'] for t in rows('Toll')}) == 6  # same-day rows stay distinct and ordered
     assert any('1 trip log line' in n[2] for n in notes)
+    assert any('1 PRICE/L on fill-ups' in n[2] and '1 START DATE' in n[2] for n in notes)  # what is still blank
 
-    # Fill what the old workbook lacks, then import it for real.
+
+def test_prepare_fill_convert_import(tmp_path):
+    old, ready, out = tmp_path / 'old.xlsx', tmp_path / 'to-fill.xlsx', tmp_path / 'filled.xlsx'
+    old_workbook(old)
+    prepare(old, ready)
+    wb = load_workbook(ready)
+    assert [c.value for c in wb['RO3'][2]][-4:] == ['FUEL TYPE', 'VEHICLE TYPE', 'START DATE', 'LTO EXPIRY']
+    assert (wb['RO3']['O3'].value, wb['RO3']['P3'].value) == ('Diesel', 'Van')  # guesses pre-filled for checking
+    assert wb['RO3']['G6'].value == 'LICENSE TYPE' and wb['SAB 1234']['J8'].value == 'PRICE/L'
+    assert [c.value for c in wb['SAB 1234'][2]][-4:] == ['TIME OUT', 'TIME IN', 'ODO OUT', 'ODO IN']
+    assert wb['Sheet20']['G2'].value == 'UNIT PRICE'
+    assert load_workbook(old)['RO3'].max_column == 14  # the original is not touched
+    assert (wb['RO3']['G3'].value, wb['RO3']['H3'].value) == (None, None)  # EasyTrip login blanked in the copy
+    assert load_workbook(old)['RO3']['H3'].value == 'secret-pw'
+
+    fill_new_columns(ready)
+    convert(ready, out)
     call_command('seed_reference', stdout=io.StringIO())
     Office.objects.create(code='TAR', name='Tarlac Field Office', office_type='FIELD')
     User.objects.create(username='migrator')
-    keys = {s: [c['key'] for c in SHEETS[s][1]] for s in SHEETS}
-    for sheet, key, value in [('Fuel', 'unit_price', 60), ('Drivers', 'license_type', 'Professional'),
-                              ('Assignments', 'start_date', '2026-01-01'), ('Documents', 'expiry_date', '2027-06-30')]:
-        for r in range(2, wb[sheet].max_row + 1):
-            cell = wb[sheet].cell(r, keys[sheet].index(key) + 1)
-            cell.value = cell.value or value
-    wb.save(out)
     text = io.StringIO()
     call_command('import_workbook', str(out), commit=True, user='migrator', out=str(tmp_path / 'runs'), stdout=text)
-    assert '0 error(s)' in text.getvalue()
+    assert '0 error(s)' in text.getvalue(), text.getvalue()
+
+    assert Driver.objects.get().license_type == Driver.LicenseType.PROFESSIONAL
+    assert str(VehicleAssignment.objects.get().start_date) == '2026-01-19'
+    assert str(VehicleDocument.objects.get(document_type='LTO_REGISTRATION').expiry_date) == '2027-06-30'
+    fuel = FuelRecord.objects.get()
+    assert (fuel.unit_price, fuel.po_number, fuel.driver.full_name) == (61.5, 'PO-0001', 'PEDRO S. REYES')
+    trip = Trip.objects.get()
+    assert (trip.ticket_number, trip.odometer_start, trip.odometer_end, trip.destination) == ('RO3-002', 900, 1010, 'Tarlac City')
+    assert trip.driver.full_name == 'PEDRO S. REYES' and (trip.returned_at - trip.departed_at).seconds == 9.5 * 3600
     assert MaintenanceRecord.objects.count() == 2
     t = TollTransaction.objects.order_by('transacted_at')
     assert sum(x.credit - x.debit for x in t) == 5500  # same closing balance as the old sheet
