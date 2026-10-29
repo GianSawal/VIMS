@@ -28,6 +28,11 @@ export default function DataImport() {
             className="inline-flex items-center gap-2 rounded-md bg-brand px-3 py-2 text-sm font-medium text-white transition hover:bg-brand-dark active:scale-[.97]">
             <Download size={16} aria-hidden="true" /> Download form
           </a>
+          {/* Same form filled with what is already in the system (every office the user can see). */}
+          <a href="/api/export/vehicle-record/" download
+            className="inline-flex items-center gap-2 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-ink transition hover:bg-slate-50 active:scale-[.97]">
+            <Download size={16} aria-hidden="true" /> Form with current data
+          </a>
         </div>
         <ol className="space-y-2.5 border-t border-slate-100 pt-4 text-sm text-slate-600">
           {STEPS.map((step, i) => (

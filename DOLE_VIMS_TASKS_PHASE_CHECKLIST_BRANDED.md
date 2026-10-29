@@ -484,7 +484,7 @@ permissions. — met; tests compare the dashboard with the list summary endpoint
 -   [x] Print view (`/reports/:slug/print`, A4 landscape, opens the print dialog)
 -   [x] PDF export (reportlab, DOLE header and logo, repeated header row, page footer)
 -   [x] Excel/CSV export (openpyxl with numeric cells and formats; CSV UTF-8 with BOM); exports are audit-logged
--   [x] VEHICLE RECORD export: the system's records in the old workbook layout (RO3 list, one sheet per plate, PO log); Vehicles page button, `/api/export/vehicle-record/`, office-scoped, per-section permissions, masked RFID numbers, audit-logged (`dataimport/export.py`, `test_export.py`)
+-   [x] VEHICLE RECORD export: the system's records in the old workbook layout (RO3 list, one sheet per plate, PO log); Vehicles page button and Data Import page ("Form with current data"), `/api/export/vehicle-record/`, office-scoped, per-section permissions, masked RFID numbers, audit-logged (`dataimport/export.py`, `test_export.py`)
 -   [x] Verify report totals (`reports/test_reports.py` compares totals with the fuel, maintenance, trip and vehicle summaries; every report and format tested)
 
 **Phase gate:** Client verifies that required official reports contain
