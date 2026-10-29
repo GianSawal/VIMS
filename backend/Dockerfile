@@ -7,8 +7,9 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
-# media/ and staticfiles/ become volumes shared with nginx; create them owned by the app user so uploads can be written.
-RUN useradd --create-home app && mkdir -p media staticfiles && chown -R app:app media staticfiles
+# media/ and staticfiles/ become volumes shared with nginx; import_runs/ holds import backups and reports. All three
+# are created owned by the app user so it can write them.
+RUN useradd --create-home app && mkdir -p media staticfiles import_runs && chown -R app:app media staticfiles import_runs
 USER app
 
 EXPOSE 8000

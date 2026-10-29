@@ -633,27 +633,30 @@ Results, defects fixed and UAT scenarios: `docs/QA.md`. Demo/QA data: `manage.py
 
 # Phase 18 --- Deployment
 
--   [ ] Provision production server/environment
--   [ ] Install/configure MySQL
--   [ ] Configure Django production environment (docker-compose.yaml for Coolify written 2026-10-27, not yet deployed or built)
+Runbook: `docs/DEPLOYMENT.md` (sections 1-11). Everything below that needs the real server is still open: no server,
+domain or Docker host was available while building. The repository side is ready and tested locally (2026-10-29).
+
+-   [ ] Provision production server/environment (spec and Coolify install in DEPLOYMENT.md §1)
+-   [ ] Install/configure MySQL (Coolify MySQL 8, `vims` utf8mb4, least-privilege `vrs_app`: §2)
+-   [ ] Configure Django production environment (docker-compose.yaml for Coolify written 2026-10-27, not yet deployed or built; env vars listed in §3)
 -   [ ] Configure React production build (docker-compose.yaml for Coolify written 2026-10-27, not yet deployed or built)
--   [ ] Configure application server (docker-compose.yaml for Coolify written 2026-10-27, not yet deployed or built)
--   [ ] Configure reverse proxy (docker-compose.yaml for Coolify written 2026-10-27, not yet deployed or built)
--   [ ] Configure domain/DNS
--   [ ] Configure HTTPS
--   [ ] Configure persistent media storage (docker-compose.yaml for Coolify written 2026-10-27, not yet deployed or built)
--   [ ] Configure scheduled jobs
--   [ ] Configure backups
--   [ ] Configure log rotation
--   [ ] Configure health monitoring
--   [ ] Create initial administrator
--   [ ] Run production migrations
--   [ ] Run approved data migration
--   [ ] Smoke-test production
--   [ ] Verify permissions
--   [ ] Verify reports
--   [ ] Verify file uploads
--   [ ] Verify backups
+-   [ ] Configure application server (gunicorn in the backend container; docker-compose.yaml written 2026-10-27, not yet deployed or built)
+-   [ ] Configure reverse proxy (nginx `web` container behind Coolify's Traefik; docker-compose.yaml written 2026-10-27, not yet deployed or built)
+-   [ ] Configure domain/DNS (A record request: §4)
+-   [ ] Configure HTTPS (Coolify Let's Encrypt; HTTPS redirect + HSTS in Django: §4)
+-   [ ] Configure persistent media storage (`media` named volume, written 2026-10-27, not yet deployed or built: §5)
+-   [ ] Configure scheduled jobs (Coolify Scheduled Tasks `run_notifications` 06:00 and `clearsessions`: §7)
+-   [ ] Configure backups (`deploy/backup.sh` + `restore.sh`: gpg AES-256, 30 days, off-site hook, heartbeat; pipeline tested with a stand-in docker/gpg, real gpg encryption not yet run: §8)
+-   [ ] Configure log rotation (compose `json-file` 5 x 10 MB per container; logrotate entry for the backup log: §9)
+-   [ ] Configure health monitoring (`/api/health/` checks DB + media volume, compose healthchecks, `web` waits for a healthy backend; verified against a DEBUG=False server; external uptime monitor still to set up: §10)
+-   [ ] Create initial administrator (`manage.py create_admin`: System Administrator, one-time password, must change at first login; tested in `config/test_deploy.py`: §6)
+-   [ ] Run production migrations (automatic on every backend start)
+-   [ ] Run approved data migration (waits on client approval of the import review; container steps in §11; Dockerfile now creates a writable `import_runs/`)
+-   [ ] Smoke-test production (`deploy/smoke_test.py`, read-only; passes against the local QA stack except the nginx-only headers)
+-   [ ] Verify permissions (smoke test `--viewer` + per-role checks by hand: §11)
+-   [ ] Verify reports (smoke test exports CSV/Excel/PDF; totals against the old workbook with the client: §11)
+-   [ ] Verify file uploads (smoke test reads existing photo/document; upload by hand: §11)
+-   [ ] Verify backups (`restore.sh --check` + quarterly staging restore: §8)
 
 **Phase gate:** Production smoke test and client deployment acceptance
 pass.

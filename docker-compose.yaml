@@ -28,17 +28,40 @@ services:
       - static:/app/staticfiles
     expose:
       - "8000"
+    # Database reachable and media volume writable. Host header: Django only answers its own domain.
+    healthcheck:
+      test: ["CMD", "python", "-c", "import os,urllib.request as u; u.urlopen(u.Request('http://127.0.0.1:8000/api/health/', headers={'Host': os.environ['ALLOWED_HOSTS'].split(',')[0].strip()}), timeout=5)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 90s   # migrate + seed + collectstatic run before gunicorn starts
+    logging:   # Docker keeps at most 5 x 10 MB of console log per container (log rotation)
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
 
   web:
     build: ./frontend
     restart: unless-stopped
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
     volumes:
       - media:/srv/media:ro
       - static:/srv/static:ro
     expose:
       - "80"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    logging:   # Docker keeps at most 5 x 10 MB of console log per container (log rotation)
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
 
 volumes:
   media:   # uploaded photos and attachments: back this up with the database

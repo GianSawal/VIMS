@@ -61,6 +61,7 @@ MySQL-specific behavior (CHECK constraints, generated columns) was verified manu
   - Uploaded files are served by `config/media.py`, never by a static route: photos are public, documents and attachments follow the record's permission and office. A new `FileField` must be added there.
   - Rate limits live in `accounts/throttles.py` and `DEFAULT_THROTTLE_RATES`.
   - Log output passes through `config.log_filters.RedactSecrets`; still never log secrets on purpose.
+- Deployment: `docs/DEPLOYMENT.md` is the runbook. `/api/health/` (`config/health.py`, plain Django view, public, exempt from the HTTPS redirect) backs the compose healthcheck. `deploy/` holds host-side scripts: `backup.sh`/`restore.sh` (encrypted dump + media volume) and `smoke_test.py` (stdlib only, read-only). First admin: `manage.py create_admin`. Anything the container writes outside a volume must be created and chowned in the `Dockerfile` (it runs as `app`).
 - Performance: `config/test_performance.py` fails when a list, summary, dashboard or report endpoint's query count grows with the data, or exceeds 25. Batch per-row lookups (prefetch, one query per page) instead of raising the limit. In openpyxl never read `ws.max_row`/`max_column` inside a loop (each read scans every cell).
 
 ## Frontend conventions

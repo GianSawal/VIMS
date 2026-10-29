@@ -6,6 +6,7 @@ from rest_framework.routers import DefaultRouter
 
 from accounts.views import OfficeViewSet, UserViewSet
 from audit.views import AuditLogViewSet
+from config.health import health
 from config.media import serve_media
 from dashboard.views import DashboardView
 from dataimport.views import ImportTemplateView, RecordsFormView
@@ -37,6 +38,7 @@ router.register('audit-logs', AuditLogViewSet)
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+    path('api/health/', health, name='health'),  # public: container healthcheck and uptime monitor
     path('api/auth/', include('accounts.urls')),
     path('api/dashboard/', DashboardView.as_view(), name='dashboard'),
     path('api/reports/', ReportListView.as_view(), name='reports'),

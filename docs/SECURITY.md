@@ -123,15 +123,16 @@ step moved out of the container start command.
 
 ## Backups
 
-- Back up the MySQL database and the `media` volume together, daily, keeping at least 30 days. Use
-  `mysqldump --single-transaction --routines vims`, plus a tar of the volume.
+- Back up the MySQL database and the `media` volume together, daily, keeping at least 30 days.
+  `deploy/backup.sh` does this (`mysqldump --single-transaction`, a tar of the volume, gpg AES-256, 30-day
+  retention, optional off-site copy); setup in [DEPLOYMENT.md](DEPLOYMENT.md#8-backups).
 - **Encrypt the backups at rest**, for example `gpg --symmetric --cipher-algo AES256` or an encrypted backup target.
   Keep the passphrase outside the server, with the System Administrator. The backups contain personal data (drivers,
   license scans) and the audit trail.
 - Store the backups off the application server, readable only by the backup operator and the System Administrator.
   Don't download them to personal machines.
-- Test a restore on staging at least once per quarter: restore the dump and the media, run `migrate`, then open a few
-  vehicles, documents and attachments.
+- Test a restore on staging at least once per quarter (`deploy/restore.sh`, which `migrate` follows on the next
+  start), then open a few vehicles, documents and attachments.
 
 ## Dependency review
 
