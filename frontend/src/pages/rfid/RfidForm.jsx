@@ -6,8 +6,7 @@ import { Button, Field, inputClass } from '../../components/ui'
 import { useToast } from '../../components/toast'
 import { PROVIDERS } from './common'
 
-const FIELDS = ['provider', 'account_number', 'vehicle', 'balance', 'is_active', 'remarks']
-const money = (v) => (v === '' || v == null ? null : String(Number(String(v).replace(/,/g, ''))))
+const FIELDS = ['provider', 'account_number', 'vehicle', 'is_active', 'remarks']
 
 /** Add or edit an RFID / toll account. `vehicle` locks it to that vehicle (from the vehicle tab). */
 export default function RfidForm({ account, vehicle, onClose, onSaved }) {
@@ -19,8 +18,8 @@ export default function RfidForm({ account, vehicle, onClose, onSaved }) {
   const { register, handleSubmit, setError, formState: { errors } } = useForm({
     defaultValues: account
       ? { provider: account.provider, account_number: account.account_number, vehicle: account.vehicle ? String(account.vehicle) : '',
-          balance: account.balance ?? '', is_active: account.is_active, remarks: account.remarks }
-      : { provider: 'EASYTRIP', account_number: '', vehicle: vehicle ? String(vehicle.id) : '', balance: '', is_active: true, remarks: '' },
+          is_active: account.is_active, remarks: account.remarks }
+      : { provider: 'EASYTRIP', account_number: '', vehicle: vehicle ? String(vehicle.id) : '', is_active: true, remarks: '' },
   })
 
   const save = useMutation({
@@ -36,7 +35,7 @@ export default function RfidForm({ account, vehicle, onClose, onSaved }) {
 
   const submit = (v) => save.mutate({
     provider: v.provider, account_number: v.account_number, vehicle: v.vehicle ? Number(v.vehicle) : null,
-    balance: money(v.balance), is_active: v.is_active, remarks: v.remarks,
+    is_active: v.is_active, remarks: v.remarks,
   })
 
   return (
@@ -69,15 +68,10 @@ export default function RfidForm({ account, vehicle, onClose, onSaved }) {
         </Field>
       )}
 
-      <div className="grid gap-4 sm:grid-cols-2">
-        <Field label="Recorded balance (₱)" htmlFor="rfid-balance" error={errors.balance?.message} hint="Optional. The latest balance from the provider's portal.">
-          <input id="rfid-balance" className={inputClass} inputMode="decimal" placeholder="0.00" {...register('balance')} />
-        </Field>
-        <label className="mt-7 flex items-center gap-2.5 text-sm">
-          <input type="checkbox" className="h-4 w-4 rounded border-slate-300 text-brand focus:ring-brand" {...register('is_active')} />
-          Active
-        </label>
-      </div>
+      <label className="flex items-center gap-2.5 text-sm">
+        <input type="checkbox" className="h-4 w-4 rounded border-slate-300 text-brand focus:ring-brand" {...register('is_active')} />
+        Active
+      </label>
 
       <Field label="Remarks" htmlFor="rfid-remarks" error={errors.remarks?.message}>
         <textarea id="rfid-remarks" rows={2} className={inputClass} {...register('remarks')} />

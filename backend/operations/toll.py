@@ -6,7 +6,7 @@ RFID / toll rules. One place, so the API and the Excel import can't bypass them.
 - The account number is shown masked (last 4 only) to anyone who cannot change the account; no third-party
   passwords are stored at all (spec 5.8).
 - Running balance is the cumulative credit - debit over an account's transactions in time order. It is
-  computed, never typed. `RFIDAccount.balance` is a separate, manually recorded figure (e.g. from the portal).
+  computed, never typed.
 """
 from decimal import ROUND_HALF_UP, Decimal
 

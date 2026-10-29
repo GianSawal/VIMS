@@ -30,7 +30,6 @@ export function accountColumns({ withVehicle = true } = {}) {
     { key: 'balance', label: 'Balance', className: 'text-right', render: (a) => (
       <div className="tabular-nums">
         <div className="font-semibold">{formatPeso(a.current_balance)}</div>
-        {a.balance != null && <div className="text-xs text-slate-500">Portal {formatPeso(a.balance)}</div>}
       </div>
     ) },
     { key: 'txns', label: 'Transactions', className: 'text-right tabular-nums', render: (a) => a.transaction_count },

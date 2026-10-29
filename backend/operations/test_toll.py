@@ -39,7 +39,7 @@ def txn(acc, veh, **kw):
 def test_account_created_normalized_and_number_masked_for_view_only(fo1):
     v = make_vehicle(fo1, 'RFD 1')
     admin = as_role('Fleet Administrator')
-    r = admin.post('/api/rfid-accounts/', account(vehicle=v.pk, balance='500.00'), format='json')
+    r = admin.post('/api/rfid-accounts/', account(vehicle=v.pk), format='json')
     assert r.status_code == 201, r.json()
     body = r.json()
     assert body['account_number'] == 'EASY-1234567890' and body['masked_account'] == '•••• 7890'  # admin sees full

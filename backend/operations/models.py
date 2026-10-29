@@ -116,8 +116,6 @@ class RFIDAccount(Tracked):
     account_number = models.CharField(max_length=40)
     vehicle = models.ForeignKey(Vehicle, null=True, blank=True, on_delete=models.PROTECT, related_name='rfid_accounts')
     is_active = models.BooleanField(default=True)
-    balance = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True,
-                                  help_text='Manually recorded balance.')
     remarks = models.TextField(blank=True)
 
     class Meta:

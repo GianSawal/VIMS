@@ -399,7 +399,7 @@ expiration alerts are accurate.
 -   [x] Toll transaction CRUD (`/api/toll-transactions/`, no DELETE)
 -   [x] Link toll transaction to trip where applicable (optional, must match the vehicle; the trip ticket shows a "Toll & RFID" card with its charges, and can record a toll linked to the trip)
 -   [x] Credit/debit fields (a transaction is a load or a charge, never both; non-negative; one form can record a reload + several tolls from a trip as separate rows via `/toll-transactions/batch/`)
--   [x] Balance logic if required (live current balance = total loads (credit) − total charges (debit), shown on the account and lists; running balance per transaction; optional portal balance kept per account)
+-   [x] Balance logic if required (live current balance = total loads (credit) − total charges (debit), shown on the account and lists; running balance per transaction)
 -   [x] Toll transaction history (per account with running balance; per vehicle; global list)
 -   [x] Vehicle RFID/toll tab (accounts + toll history)
 -   [x] Filters (provider, office, status, unassigned; toll: kind, date range, account, vehicle; search)

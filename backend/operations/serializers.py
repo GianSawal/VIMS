@@ -287,7 +287,7 @@ class RFIDAccountSerializer(serializers.ModelSerializer):
     class Meta:
         model = RFIDAccount
         fields = ['id', 'provider', 'provider_display', 'account_number', 'masked_account', 'vehicle',
-                  'plate_number', 'vehicle_label', 'vehicle_photo_url', 'office_code', 'is_active', 'balance',
+                  'plate_number', 'vehicle_label', 'vehicle_photo_url', 'office_code', 'is_active',
                   'remarks', 'transaction_count', 'current_balance', 'created_at', 'updated_at']
         read_only_fields = ['created_at', 'updated_at']
 

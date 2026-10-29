@@ -408,7 +408,7 @@ def _money(v):
     return str(Decimal(str(v or 0)).quantize(Decimal('0.01')))  # same shape on MySQL and SQLite
 
 
-RFID_AUDITED = ['provider', 'account_number', 'vehicle', 'is_active', 'balance', 'remarks']
+RFID_AUDITED = ['provider', 'account_number', 'vehicle', 'is_active', 'remarks']
 TOLL_AUDITED = ['account', 'vehicle', 'trip', 'transacted_at', 'description', 'credit', 'debit', 'reference_number']
 
 
@@ -442,7 +442,7 @@ class RFIDAccountViewSet(OfficeScopedMixin, mixins.ListModelMixin, mixins.Retrie
     office_field = 'vehicle__office'
     filterset_class = RFIDAccountFilter
     search_fields = ['account_number', 'remarks', 'vehicle__plate_number']
-    ordering_fields = ['provider', 'is_active', 'balance']
+    ordering_fields = ['provider', 'is_active']
 
     def get_queryset(self):
         qs = self.queryset  # unassigned accounts belong to no office; show them to everyone who may view
