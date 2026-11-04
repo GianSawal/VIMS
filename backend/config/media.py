@@ -4,7 +4,7 @@
 - Vehicle and driver photos are public (the logged-out TV board shows them; their names are random).
 - Vehicle documents need fleet.view_vehicledocument and the vehicle's office.
 - Attachments need view_<model> of the record they hang on and that record's office (the same office scoping as
-  the record's own API, taken from its viewset).
+  the record's own API, taken from its viewset, or the model's `visible_to(user)` when it has one).
 - Anything else under MEDIA_ROOT that no record points at is never served.
 
 Logged out = 401, no permission = 403, out of office or unknown = 404. In production set MEDIA_ACCEL_REDIRECT
@@ -36,7 +36,10 @@ def _can_see(user, model, pk):
     fields = _office_fields()
     if model not in fields:
         return 404  # a record type with no API: nobody downloads its files through here
-    return 200 if scope_to_offices(model.objects.filter(pk=pk), user, fields[model]).exists() else 404
+    qs = model.objects.filter(pk=pk)
+    # A model with its own rule (vehicle requests: a requester sees only their own) uses it instead.
+    qs = qs.visible_to(user) if hasattr(qs, 'visible_to') else scope_to_offices(qs, user, fields[model])
+    return 200 if qs.exists() else 404
 
 
 def _check(request, name):

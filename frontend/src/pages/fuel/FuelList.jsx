@@ -183,7 +183,12 @@ export default function FuelList() {
         <option value="">All fuel types</option>
         {FUELS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
       </select>
-      <label className="flex items-center gap-2 text-sm text-slate-600">Month <input type="month" className={`${selectClass} w-40`} aria-label="Filter by month" value={selectedMonth} onChange={(e) => setMonth(e.target.value)} /></label>
+      <select className={`${selectClass} w-40`} aria-label="Filter by month" value={selectedMonth} onChange={(e) => setMonth(e.target.value)}>
+        <option value="">All months</option>
+        {[...new Set([selectedMonth, ...recentMonths()].filter(Boolean))].map((ym) => (
+          <option key={ym} value={ym}>{monthLong.format(new Date(Number(ym.slice(0, 4)), Number(ym.slice(5, 7)) - 1, 1))}</option>
+        ))}
+      </select>
       <label className="flex items-center gap-2 text-sm text-slate-600">From <input type="date" className={`${selectClass} w-40`} value={f.date_from ?? ''} onChange={(e) => set('date_from', e.target.value)} /></label>
       <label className="flex items-center gap-2 text-sm text-slate-600">To <input type="date" className={`${selectClass} w-40`} value={f.date_to ?? ''} onChange={(e) => set('date_to', e.target.value)} /></label>
     </Toolbar>
@@ -255,6 +260,15 @@ export default function FuelList() {
 
 const monthShort = new Intl.DateTimeFormat('en-PH', { month: 'short' })
 const monthLong = new Intl.DateTimeFormat('en-PH', { month: 'short', year: 'numeric' })
+
+// Month dropdown choices, newest first ('YYYY-MM'); older months stay reachable through From/To.
+function recentMonths(count = 24) {
+  const now = new Date()
+  return Array.from({ length: count }, (_, i) => {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+  })
+}
 
 function change(cur, prev) {
   if (!prev) return cur ? { dir: 'up', pct: null } : null

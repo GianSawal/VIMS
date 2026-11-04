@@ -50,7 +50,7 @@ def driver(fo1):
 
 def book(c, vehicle, driver, start, end=None, **kw):
     return c.post('/api/trips/schedule/', {
-        'vehicle': vehicle.pk, 'driver': driver.pk, 'scheduled_departure': start.isoformat(),
+        'vehicle': vehicle.pk, 'driver': driver and driver.pk, 'scheduled_departure': start.isoformat(),
         'scheduled_return': end.isoformat() if end else None, 'origin': 'RO', 'destination': 'Tarlac',
         'purpose': 'Inspection', **kw}, format='json')
 
@@ -130,6 +130,27 @@ def test_dispatch_only_on_the_scheduled_day_with_odometer(vehicle, driver):
     r = c.post(f'/api/trips/{today.pk}/complete/', {'returned_at': timezone.now().isoformat(), 'odometer_end': 20100},
                format='json')
     assert r.status_code == 200 and r.json()['distance_km'] == 60
+
+
+def test_driver_optional_when_booking_required_at_dispatch(vehicle, driver, fo1, fo2):
+    c = as_role('Fleet Administrator')
+    r = book(c, vehicle, None, at(2, 8))
+    assert r.status_code == 201, r.json()
+    assert r.json()['driver'] is None and r.json()['driver_name'] is None
+    # Two unassigned bookings never clash on the driver; the vehicle rule still applies.
+    other = make_vehicle(fo1, 'SCH 2')
+    assert book(c, other, None, at(2, 9)).status_code == 201
+    assert 'vehicle' in book(c, vehicle, None, at(2, 10)).json()
+
+    t = make_scheduled(vehicle, None, at(0, 0, 1))
+    r = c.post(f'/api/trips/{t.pk}/dispatch/', {'odometer_start': 20000}, format='json')
+    assert r.status_code == 400 and 'driver' in r.json()
+    stranger = make_driver(fo2, 'Far', 'L-8')
+    fo = as_role('Field Office User', [fo1])
+    assert 'driver' in fo.post(f'/api/trips/{t.pk}/dispatch/', {'odometer_start': 20000, 'driver': stranger.pk}, format='json').json()
+    r = c.post(f'/api/trips/{t.pk}/dispatch/', {'odometer_start': 20000, 'driver': driver.pk}, format='json')
+    assert r.status_code == 200, r.json()
+    assert r.json()['driver'] == driver.pk and r.json()['status'] == 'DISPATCHED'
 
 
 def test_dispatch_on_the_day_still_checks_vehicle_availability(vehicle, driver):

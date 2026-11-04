@@ -23,7 +23,7 @@ from fleet.models import Attachment, VehicleDocument
 from fleet.test_drivers import make_driver
 from fleet.test_vehicles import as_role, image, make_vehicle
 from maintenance.models import MaintenanceCategory, MaintenanceRecord, MaintenanceSchedule
-from operations.models import DisplayScreen, FuelRecord, RFIDAccount, TollTransaction, Trip
+from operations.models import DisplayScreen, FuelRecord, RFIDAccount, TollTransaction, Trip, VehicleRequest
 
 pytestmark = pytest.mark.django_db
 METHODS = ['get', 'post', 'put', 'patch', 'delete']
@@ -40,7 +40,7 @@ OWN = {('/api/auth/me/', 'get'), ('/api/auth/logout/', 'post'), ('/api/auth/chan
 # The only DELETEs: removing a photo or an attachment file (the record itself is kept). Records are archived instead.
 DELETES = {'/api/vehicles/{id}/photo/', '/api/drivers/{id}/photo/', '/api/drivers/{id}/attachments/{att_id}/',
            '/api/trips/{id}/attachments/{att_id}/', '/api/fuel-records/{id}/attachments/{att_id}/',
-           '/api/maintenance/{id}/attachments/{att_id}/'}
+           '/api/maintenance/{id}/attachments/{att_id}/', '/api/vehicle-requests/{id}/attachments/{att_id}/'}
 
 
 @pytest.fixture(autouse=True)
@@ -150,6 +150,9 @@ def far(fo2):
         'maintenance-schedules': MaintenanceSchedule.objects.create(
             vehicle=v, category=MaintenanceCategory.objects.get(name='Tires'), interval_days=180),
         'display-screens': DisplayScreen.objects.create(name='Far TV', office=fo2),
+        'vehicle-requests': VehicleRequest.objects.create(
+            reference_number='VR-FAR', requester=User.objects.create_user('far-requester'), office=fo2,
+            purpose='x', origin='A', destination='B', needed_at=timezone.now()),
     }
 
 

@@ -1,7 +1,7 @@
 """
 Trip rules: schedule, dispatch, complete, cancel. One place, so the API and the Excel import can't bypass them.
 
-Lifecycle: SCHEDULED (booked ahead, no odometer) -> DISPATCHED (left; odometer read that day) -> COMPLETED,
+Lifecycle: SCHEDULED (booked ahead, no odometer, driver optional) -> DISPATCHED (driver required) (left; odometer read that day) -> COMPLETED,
 or a trip can be dispatched directly without scheduling. SCHEDULED or DISPATCHED trips can be CANCELLED.
 
 Odometer: a trip starts at or above the vehicle's accepted odometer and, on completion, moves the vehicle's
@@ -39,7 +39,7 @@ def _lock_vehicle(pk):
 def _check_scope(user, vehicle, driver):
     if not scope_to_offices(Vehicle.objects.filter(pk=vehicle.pk), user, 'office').exists():
         _fail('vehicle', 'You do not have access to this vehicle.')
-    if not scope_to_offices(Driver.objects.filter(pk=driver.pk), user, 'office').exists():
+    if driver and not scope_to_offices(Driver.objects.filter(pk=driver.pk), user, 'office').exists():
         _fail('driver', 'You do not have access to this driver.')
 
 
@@ -87,6 +87,19 @@ def _mark_in_use(vehicle):
         vehicle.save(update_fields=['status', 'updated_at'])
 
 
+# ---------------------------------------------------------------- dispatch desk filters (trip list + dashboard)
+
+NEEDS_DRIVER = Q(status=Trip.Status.SCHEDULED, driver__isnull=True)
+
+
+def overdue_q(now=None):
+    """Out past the expected return, or (without one) still out after the departure day, as booking_window reads it."""
+    now = now or timezone.now()
+    day_start = timezone.make_aware(datetime.combine(timezone.localtime(now).date(), time.min))
+    return Q(status=Trip.Status.DISPATCHED) & (
+        Q(scheduled_return__lt=now) | Q(scheduled_return__isnull=True, departed_at__lt=day_start))
+
+
 # ---------------------------------------------------------------- scheduling
 
 def booking_window(start, end):
@@ -104,7 +117,8 @@ def _check_booking(vehicle, driver, start, end, exclude=None):
         _fail('scheduled_departure', 'The scheduled departure must be in the future.')
     if end and end < start:
         _fail('scheduled_return', 'Expected return cannot be before the scheduled departure.')
-    _check_driver(driver, timezone.localtime(start).date())
+    if driver:
+        _check_driver(driver, timezone.localtime(start).date())
 
     s, e = booking_window(start, end)
     clashes = Trip.objects.filter(status=Trip.Status.SCHEDULED).exclude(pk=exclude).filter(
@@ -115,7 +129,7 @@ def _check_booking(vehicle, driver, start, end, exclude=None):
             when = timezone.localtime(other.scheduled_departure).strftime('%b %d, %I:%M %p')
             if other.vehicle_id == vehicle.pk:
                 _fail('vehicle', f'This vehicle is already booked on {other.ticket_number} ({when}).')
-            if other.driver_id == driver.pk:
+            if driver and other.driver_id == driver.pk:
                 _fail('driver', f'This driver is already booked on {other.ticket_number} ({when}).')
 
 
@@ -131,8 +145,8 @@ def _check_reserved(vehicle, driver, at, exclude=None):
             _fail(who, f'This {who} is reserved for {b.ticket_number} ({span}). Dispatch that booking or reschedule it first.')
 
 
-def schedule(*, user, vehicle, driver, scheduled_departure, scheduled_return=None, ticket_number='', **fields):
-    """Book a trip ahead. No odometer yet: it is read on the day, at dispatch."""
+def schedule(*, user, vehicle, scheduled_departure, driver=None, scheduled_return=None, ticket_number='', **fields):
+    """Book a trip ahead. No odometer yet: it is read on the day, at dispatch. The driver can be left for later."""
     _check_scope(user, vehicle, driver)
     ticket = _check_ticket(ticket_number)
     with transaction.atomic():
@@ -147,7 +161,7 @@ def schedule(*, user, vehicle, driver, scheduled_departure, scheduled_return=Non
     return trip
 
 
-def reschedule(trip, *, user, vehicle, driver, scheduled_departure, scheduled_return=None):
+def reschedule(trip, *, user, vehicle, scheduled_departure, driver=None, scheduled_return=None):
     """Change who/what/when of a scheduled trip. Returns (trip, before) for auditing."""
     _check_scope(user, vehicle, driver)
     with transaction.atomic():
@@ -155,7 +169,7 @@ def reschedule(trip, *, user, vehicle, driver, scheduled_departure, scheduled_re
         trip = Trip.objects.select_for_update().get(pk=trip.pk)
         if trip.status != Trip.Status.SCHEDULED:
             raise serializers.ValidationError('Only scheduled trips can be rescheduled.')
-        before = {'vehicle': trip.vehicle.plate_number, 'driver': trip.driver.full_name,
+        before = {'vehicle': trip.vehicle.plate_number, 'driver': trip.driver.full_name if trip.driver else None,
                   'scheduled_departure': trip.scheduled_departure.isoformat(),
                   'scheduled_return': trip.scheduled_return.isoformat() if trip.scheduled_return else None}
         _check_booking(vehicle, driver, scheduled_departure, scheduled_return, exclude=trip.pk)
@@ -165,9 +179,12 @@ def reschedule(trip, *, user, vehicle, driver, scheduled_departure, scheduled_re
     return trip, before
 
 
-def dispatch_scheduled(trip, *, odometer_start, departed_at=None):
-    """The vehicle leaves on a scheduled trip. Only on the scheduled day; the odometer is read now."""
+def dispatch_scheduled(trip, *, user, odometer_start, departed_at=None, driver=None):
+    """The vehicle leaves on a scheduled trip. Only on the scheduled day; the odometer is read now.
+    `driver` assigns (or replaces) the driver; a trip booked without one must get one here."""
     departed_at = departed_at or timezone.now()
+    if driver:
+        _check_scope(user, trip.vehicle, driver)
     if departed_at > timezone.now() + timedelta(minutes=5):
         _fail('departed_at', 'Departure time cannot be in the future.')
     with transaction.atomic():
@@ -183,8 +200,12 @@ def dispatch_scheduled(trip, *, odometer_start, departed_at=None):
             raise serializers.ValidationError(msg)
         if timezone.localtime(departed_at).date() != today:
             _fail('departed_at', 'The departure must be today.')
-        _check_departure(vehicle, trip.driver, departed_at, odometer_start, exclude=trip.pk)
-        _check_reserved(vehicle, trip.driver, departed_at, exclude=trip.pk)
+        driver = driver or trip.driver
+        if not driver:
+            _fail('driver', 'Assign a driver before dispatching.')
+        _check_departure(vehicle, driver, departed_at, odometer_start, exclude=trip.pk)
+        _check_reserved(vehicle, driver, departed_at, exclude=trip.pk)
+        trip.driver = driver
         trip.status, trip.departed_at, trip.odometer_start = Trip.Status.DISPATCHED, departed_at, odometer_start
         trip.save()
         _mark_in_use(vehicle)

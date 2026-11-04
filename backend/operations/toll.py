@@ -6,10 +6,13 @@ RFID / toll rules. One place, so the API and the Excel import can't bypass them.
 - The account number is shown masked (last 4 only) to anyone who cannot change the account; no third-party
   passwords are stored at all (spec 5.8).
 - Running balance is the cumulative credit - debit over an account's transactions in time order. It is
-  computed, never typed. `RFIDAccount.balance` is a separate, manually recorded figure (e.g. from the portal).
+  computed, never typed.
 """
 from decimal import ROUND_HALF_UP, Decimal
 
+from django.conf import settings
+from django.db.models import Sum
+from django.db.models.functions import Coalesce
 from django.utils import timezone
 from rest_framework import serializers
 
@@ -93,6 +96,14 @@ def save_transaction(*, user, instance=None, data):
         setattr(instance, k, v)
     instance.save()
     return instance
+
+
+def low_balance(accounts=None):
+    """Active accounts whose balance (credit - debit) is below RFID_LOW_BALANCE, including ones never loaded."""
+    accounts = RFIDAccount.objects.all() if accounts is None else accounts
+    return accounts.filter(is_active=True).annotate(
+        _bal=Coalesce(Sum('transactions__credit'), Decimal(0)) - Coalesce(Sum('transactions__debit'), Decimal(0)),
+    ).filter(_bal__lt=settings.RFID_LOW_BALANCE)
 
 
 def with_running_balance(transactions):

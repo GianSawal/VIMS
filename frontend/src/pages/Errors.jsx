@@ -5,7 +5,7 @@ function ErrorPage({ code, message }) {
     <div className="py-16 text-center">
       <div className="text-5xl font-bold text-brand">{code}</div>
       <p className="mt-2 text-slate-600">{message}</p>
-      <Link to="/dashboard" className="mt-4 inline-block text-brand underline">Back to dashboard</Link>
+      <Link to="/" className="mt-4 inline-block text-brand underline">Back to home</Link>
     </div>
   )
 }

@@ -5,6 +5,7 @@ import { useList } from '../../api'
 import { Avatar } from '../../components/filters'
 import { Button } from '../../components/ui'
 import { VehiclePhoto } from '../vehicles/common'
+import { driverLabel } from './common'
 
 const iso = (d) => d.toLocaleDateString('en-CA')
 const clock = new Intl.DateTimeFormat('en-PH', { hour: 'numeric', minute: '2-digit' })
@@ -87,7 +88,7 @@ export default function TripCalendar({ month, onMonth, filters, toolbar }) {
                     const missed = t.schedule_day === 'MISSED'
                     return (
                       <li key={t.id}>
-                        <Link to={`/trips/${t.id}`} title={`${t.ticket_number} · ${t.driver_name} · to ${t.destination}${missed ? ' · missed' : ''}`}
+                        <Link to={`/trips/${t.id}`} title={`${t.ticket_number} · ${driverLabel(t)} · to ${t.destination}${missed ? ' · missed' : ''}`}
                           className={`block overflow-hidden rounded-lg border border-l-4 bg-white p-2 text-xs shadow-sm transition hover:-translate-y-px hover:shadow-md
                             ${missed ? 'border-red-200 border-l-danger' : 'border-slate-200 border-l-amber-500'}`}>
                           <div className="mb-1.5 flex items-center justify-between gap-1">
@@ -105,7 +106,7 @@ export default function TripCalendar({ month, onMonth, filters, toolbar }) {
                           </div>
                           <div className="mt-1.5 flex items-center gap-1.5 border-t border-slate-100 pt-1.5">
                             <Avatar name={t.driver_name} src={t.driver_photo_url} className="h-5! w-5! text-[8px]" />
-                            <span className="min-w-0 truncate text-[11px] text-slate-600">{t.driver_name}</span>
+                            <span className="min-w-0 truncate text-[11px] text-slate-600">{driverLabel(t)}</span>
                           </div>
                         </Link>
                       </li>

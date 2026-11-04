@@ -13,7 +13,7 @@ import DispatchForm from './DispatchForm'
 import TripCalendar from './TripCalendar'
 import TvScreens from './TvScreens'
 import { CompleteForm, DispatchScheduledForm } from './TripDetail'
-import { km, shortDateTime, TRIP_STATUSES, tripDuration, tripStatusLabel, TripStatusBadge } from './common'
+import { driverLabel, km, shortDateTime, TRIP_STATUSES, tripDuration, tripStatusLabel, TripStatusBadge } from './common'
 
 const CARDS = {
   ALL: [RouteIcon, 'bg-slate-100 text-slate-700', 'All trips'],
@@ -36,7 +36,7 @@ function TripIdentity({ t }) {
         <div className="truncate text-xs text-slate-500">{t.vehicle_label}</div>
         <div className="mt-2 flex items-center gap-2">
           <Avatar name={t.driver_name} src={t.driver_photo_url} className="h-8! w-8! text-xs" />
-          <span className="min-w-0"><span className="block text-[11px] leading-none text-slate-500">Driver</span><span className="block truncate text-sm font-medium">{t.driver_name}</span></span>
+          <span className="min-w-0"><span className="block text-[11px] leading-none text-slate-500">Driver</span><span className="block truncate text-sm font-medium">{driverLabel(t)}</span></span>
         </div>
       </div>
     </div>
@@ -83,11 +83,11 @@ export function tripColumns({ withVehicle = true } = {}) {
         <div className="min-w-0">
           <div className="font-semibold tracking-wide">{t.plate_number}</div>
           <div className="truncate text-xs text-slate-500">{t.vehicle_label}</div>
-          <div className="mt-1 flex items-center gap-1.5 truncate text-xs text-slate-600"><Avatar name={t.driver_name} src={t.driver_photo_url} className="h-5! w-5! text-[9px]" />{t.driver_name}</div>
+          <div className="mt-1 flex items-center gap-1.5 truncate text-xs text-slate-600"><Avatar name={t.driver_name} src={t.driver_photo_url} className="h-5! w-5! text-[9px]" />{driverLabel(t)}</div>
         </div>
       </div>
     ) }] : [{ key: 'driver', label: 'Driver', render: (t) => (
-      <span className="flex items-center gap-2"><Avatar name={t.driver_name} src={t.driver_photo_url} className="h-7! w-7! text-[10px]" />{t.driver_name}</span>
+      <span className="flex items-center gap-2"><Avatar name={t.driver_name} src={t.driver_photo_url} className="h-7! w-7! text-[10px]" />{driverLabel(t)}</span>
     ) }]),
     { key: 'route', label: 'Route', render: (t) => (
       <ol className="relative max-w-64 space-y-1 pl-4 text-sm" aria-label={`From ${t.origin} to ${t.destination}`}>
@@ -119,11 +119,10 @@ function datePresets() {
 
 const LONG_TRIP_HOURS = 12 // flag trips out longer than this (still shown in text, not by color alone)
 
-/** Live board of vehicles currently out, so returns can be recorded without hunting through the table. */
-/** Today's bookings that haven't left yet: dispatch them here by entering the odometer. */
-function LeavingToday({ canChange }) {
+/** Today's bookings that haven't left yet: dispatch them here by entering the odometer. Also on the dashboard. */
+export function LeavingToday({ canChange, office }) {
   const [today] = useState(() => new Date().toLocaleDateString('en-CA'))
-  const q = useList('/trips/', { status: 'SCHEDULED', date_from: today, date_to: today, ordering: 'scheduled_departure', page_size: 12 })
+  const q = useList('/trips/', { status: 'SCHEDULED', date_from: today, date_to: today, ordering: 'scheduled_departure', page_size: 12, office: office || undefined })
   const [leaving, setLeaving] = useState(null)
   const rows = q.data?.results ?? []
   if (!rows.length) return null
@@ -160,8 +159,9 @@ function LeavingToday({ canChange }) {
   )
 }
 
-function OpenTrips({ canChange, onViewAll }) {
-  const q = useList('/trips/', { status: 'DISPATCHED', page_size: 6, ordering: 'departed_at' })
+/** Live board of vehicles currently out, so returns can be recorded without hunting through the table. */
+export function OpenTrips({ canChange, onViewAll, office }) {
+  const q = useList('/trips/', { status: 'DISPATCHED', page_size: 6, ordering: 'departed_at', office: office || undefined })
   const [returning, setReturning] = useState(null)
   const [now] = useState(() => Date.now()) // render-stable clock; the list refetches on focus anyway
   const count = q.data?.count ?? 0
@@ -248,7 +248,7 @@ export default function TripList() {
     return () => clearTimeout(t)
   }, [search, set])
 
-  const filters = { search: f.search, office: f.office, date_from: f.date_from, date_to: f.date_to }
+  const filters = { search: f.search, office: f.office, date_from: f.date_from, date_to: f.date_to, needs_driver: f.needs_driver, overdue: f.overdue }
   const query = useList('/trips/', { page, status: f.status, ...filters })
   const summary = useList('/trips/summary/', filters)
 
@@ -260,6 +260,8 @@ export default function TripList() {
     f.status && ['status', `Status: ${tripStatusLabel[f.status]}`],
     f.date_from && ['date_from', `From ${f.date_from}`],
     f.date_to && ['date_to', `To ${f.date_to}`],
+    f.needs_driver && ['needs_driver', 'Needs a driver'], // dashboard links
+    f.overdue && ['overdue', 'Overdue return'],
   ].filter(Boolean)
   const remove = (key) => { if (key === 'search') setSearch(''); set(key, '') }
   const clearAll = () => { setSearch(''); setParams({}, { replace: true }) }

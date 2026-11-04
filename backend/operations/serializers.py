@@ -10,7 +10,7 @@ from accounts.models import Office
 from fleet.models import Driver, Vehicle
 
 from . import fuel
-from .models import DisplayScreen, FuelRecord, RFIDAccount, TollTransaction, Trip
+from .models import DisplayScreen, FuelRecord, RFIDAccount, TollTransaction, Trip, VehicleRequest
 
 DESCRIPTIVE = ['requesting_office', 'passengers', 'origin', 'destination', 'purpose', 'remarks',
                'estimated_distance_km', 'estimated_duration_min', 'origin_lat', 'origin_lng', 'destination_lat',
@@ -37,7 +37,7 @@ class TripSerializer(serializers.ModelSerializer):
     office_code = serializers.CharField(source='vehicle.office.code', read_only=True)
     vehicle_photo_url = serializers.SerializerMethodField()
     driver_photo_url = serializers.SerializerMethodField()
-    driver_name = serializers.CharField(source='driver.full_name', read_only=True)
+    driver_name = serializers.CharField(source='driver.full_name', read_only=True, default=None)
     requesting_office = serializers.PrimaryKeyRelatedField(queryset=Office.objects.all(), required=False, allow_null=True)
     requesting_office_name = serializers.CharField(source='requesting_office.name', read_only=True, default=None)
     status_display = serializers.CharField(source='get_status_display', read_only=True)
@@ -64,7 +64,7 @@ class TripSerializer(serializers.ModelSerializer):
         return t.vehicle.photo.url if t.vehicle.photo else None
 
     def get_driver_photo_url(self, t):
-        return t.driver.photo.url if t.driver.photo else None
+        return t.driver.photo.url if t.driver and t.driver.photo else None
 
     def get_schedule_day(self, t):
         if t.status != Trip.Status.SCHEDULED:
@@ -122,7 +122,8 @@ class ScheduleSerializer(serializers.Serializer):
     """Book a trip ahead: no odometer and no actual departure yet."""
     ticket_number = serializers.CharField(max_length=40, required=False, allow_blank=True, default='')
     vehicle = serializers.PrimaryKeyRelatedField(queryset=Vehicle.objects.all())
-    driver = serializers.PrimaryKeyRelatedField(queryset=Driver.objects.all())
+    driver = serializers.PrimaryKeyRelatedField(queryset=Driver.objects.all(), required=False, allow_null=True,
+                                                help_text='Optional when booking; required at dispatch.')
     scheduled_departure = serializers.DateTimeField()
     scheduled_return = serializers.DateTimeField(required=False, allow_null=True)
     requesting_office = serializers.PrimaryKeyRelatedField(queryset=Office.objects.filter(is_active=True),
@@ -146,7 +147,8 @@ class ScheduleSerializer(serializers.Serializer):
 
 class RescheduleSerializer(serializers.Serializer):
     vehicle = serializers.PrimaryKeyRelatedField(queryset=Vehicle.objects.all())
-    driver = serializers.PrimaryKeyRelatedField(queryset=Driver.objects.all())
+    driver = serializers.PrimaryKeyRelatedField(queryset=Driver.objects.all(), required=False, allow_null=True,
+                                                help_text='Optional when booking; required at dispatch.')
     scheduled_departure = serializers.DateTimeField()
     scheduled_return = serializers.DateTimeField(required=False, allow_null=True)
 
@@ -154,6 +156,8 @@ class RescheduleSerializer(serializers.Serializer):
 class DispatchScheduledSerializer(serializers.Serializer):
     odometer_start = serializers.IntegerField(min_value=0)
     departed_at = serializers.DateTimeField(required=False, help_text='Defaults to now.')
+    driver = serializers.PrimaryKeyRelatedField(queryset=Driver.objects.all(), required=False, allow_null=True,
+                                                help_text="Required if the trip was booked without one; otherwise replaces it.")
 
 
 class DisplayScreenSerializer(serializers.ModelSerializer):
@@ -171,7 +175,7 @@ class DisplayTripSerializer(serializers.ModelSerializer):
     plate_number = serializers.CharField(source='vehicle.plate_number')
     vehicle_label = serializers.SerializerMethodField()
     vehicle_photo_url = serializers.SerializerMethodField()
-    driver_name = serializers.CharField(source='driver.full_name')
+    driver_name = serializers.CharField(source='driver.full_name', default=None)
     driver_photo_url = serializers.SerializerMethodField()
     office_code = serializers.CharField(source='vehicle.office.code')
     flag = serializers.SerializerMethodField(help_text='DELAYED (late to leave) or OVERDUE (late to return).')
@@ -188,7 +192,7 @@ class DisplayTripSerializer(serializers.ModelSerializer):
         return t.vehicle.photo.url if t.vehicle.photo else None
 
     def get_driver_photo_url(self, t):
-        return t.driver.photo.url if t.driver.photo else None
+        return t.driver.photo.url if t.driver and t.driver.photo else None
 
     def get_flag(self, t):
         now = timezone.now()
@@ -287,7 +291,7 @@ class RFIDAccountSerializer(serializers.ModelSerializer):
     class Meta:
         model = RFIDAccount
         fields = ['id', 'provider', 'provider_display', 'account_number', 'masked_account', 'vehicle',
-                  'plate_number', 'vehicle_label', 'vehicle_photo_url', 'office_code', 'is_active', 'balance',
+                  'plate_number', 'vehicle_label', 'vehicle_photo_url', 'office_code', 'is_active',
                   'remarks', 'transaction_count', 'current_balance', 'created_at', 'updated_at']
         read_only_fields = ['created_at', 'updated_at']
 
@@ -355,3 +359,80 @@ class TollTransactionSerializer(serializers.ModelSerializer):
 
     def validate_description(self, v):
         return ' '.join(v.split())
+
+
+# ---------------------------------------------------------------- vehicle requests
+
+class RouteInput(serializers.Serializer):
+    """Map estimate fields sent by the place search (all optional; plain-text places have none)."""
+    estimated_distance_km = serializers.DecimalField(max_digits=7, decimal_places=1, min_value=0, required=False, allow_null=True)
+    estimated_duration_min = serializers.IntegerField(min_value=0, required=False, allow_null=True)
+    origin_lat = serializers.DecimalField(max_digits=9, decimal_places=6, required=False, allow_null=True, min_value=-90, max_value=90)
+    origin_lng = serializers.DecimalField(max_digits=9, decimal_places=6, required=False, allow_null=True, min_value=-180, max_value=180)
+    destination_lat = serializers.DecimalField(max_digits=9, decimal_places=6, required=False, allow_null=True, min_value=-90, max_value=90)
+    destination_lng = serializers.DecimalField(max_digits=9, decimal_places=6, required=False, allow_null=True, min_value=-180, max_value=180)
+    route_geometry = serializers.JSONField(required=False, allow_null=True)
+
+    def validate_route_geometry(self, v):
+        return clean_geometry(v)
+
+
+class VehicleRequestSerializer(serializers.ModelSerializer):
+    """Read-only view of a request. `trip` shows what was booked: the requester's only window into the fleet."""
+    requester_name = serializers.SerializerMethodField()
+    office_code = serializers.CharField(source='office.code', read_only=True)
+    office_name = serializers.CharField(source='office.name', read_only=True)
+    status_display = serializers.CharField(source='get_status_display', read_only=True)
+    decided_by_name = serializers.SerializerMethodField()
+    trip = serializers.SerializerMethodField()
+    progress = serializers.SerializerMethodField(help_text='Status, or the trip status once approved.')
+
+    class Meta:
+        model = VehicleRequest
+        fields = ['id', 'reference_number', 'requester', 'requester_name', 'office', 'office_code', 'office_name',
+                  'purpose', 'origin', 'destination', 'passengers', 'needed_at', 'return_at', 'remarks', 'status',
+                  'status_display', 'progress', 'decided_by_name', 'decided_at', 'decision_note', 'trip', 'created_at',
+                  *RouteInput._declared_fields]
+        read_only_fields = fields
+
+    def get_requester_name(self, r):
+        return r.requester.get_full_name() or r.requester.username
+
+    def get_decided_by_name(self, r):
+        return (r.decided_by.get_full_name() or r.decided_by.username) if r.decided_by else None
+
+    def get_progress(self, r):
+        if r.status == VehicleRequest.Status.APPROVED and r.trip.status != Trip.Status.SCHEDULED:
+            return r.trip.status
+        return r.status
+
+    def get_trip(self, r):
+        t = r.trip
+        if t is None:
+            return None
+        v, d = t.vehicle, t.driver
+        return {
+            'id': t.id, 'ticket_number': t.ticket_number, 'status': t.status, 'status_display': t.get_status_display(),
+            'plate_number': v.plate_number, 'vehicle_label': f'{v.make} {v.model}', 'vehicle_photo_url': v.photo.url if v.photo else None,
+            'driver_name': d.full_name if d else None, 'driver_contact': d.contact_number if d else None,
+            'driver_photo_url': d.photo.url if d and d.photo else None,
+            'departed_at': t.departed_at, 'returned_at': t.returned_at,
+        }
+
+
+class VehicleRequestInputSerializer(RouteInput):
+    office = serializers.PrimaryKeyRelatedField(queryset=Office.objects.filter(is_active=True))
+    purpose = serializers.CharField()
+    origin = serializers.CharField(max_length=200)
+    destination = serializers.CharField(max_length=255)
+    passengers = serializers.CharField(required=False, allow_blank=True, default='')
+    needed_at = serializers.DateTimeField()
+    return_at = serializers.DateTimeField(required=False, allow_null=True)
+    remarks = serializers.CharField(required=False, allow_blank=True, default='')
+
+
+class ApproveRequestSerializer(serializers.Serializer):
+    vehicle = serializers.PrimaryKeyRelatedField(queryset=Vehicle.objects.all())
+    driver = serializers.PrimaryKeyRelatedField(queryset=Driver.objects.all(), required=False, allow_null=True,
+                                                help_text='Optional; required later at dispatch.')
+    note = serializers.CharField(required=False, allow_blank=True, default='', max_length=500)

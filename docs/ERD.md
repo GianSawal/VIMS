@@ -20,6 +20,9 @@ erDiagram
     Vehicle |o--o{ RFIDAccount : ""
     RFIDAccount ||--o{ TollTransaction : ""
     Trip |o--o{ TollTransaction : ""
+    User ||--o{ VehicleRequest : requests
+    Office ||--o{ VehicleRequest : "requesting office"
+    VehicleRequest |o--o| Trip : "booked on approval"
     Vehicle ||--o{ MaintenanceRecord : ""
     MaintenanceRecord }o--o{ MaintenanceCategory : categories
     Vehicle ||--o{ MaintenanceSchedule : "PM rules"
@@ -47,6 +50,13 @@ erDiagram
         int odometer_start
         int odometer_end ">= start"
         int distance_km "generated"
+    }
+    VehicleRequest {
+        string reference_number UK "VR-YYYY-NNNNN"
+        datetime needed_at
+        datetime return_at ">= needed_at"
+        enum status "PENDING, APPROVED, DECLINED, CANCELLED"
+        string decision_note "decline / cancel reason"
     }
     FuelRecord {
         string po_number
@@ -94,14 +104,18 @@ erDiagram
 | Document expiry bands (expired, 7, 15, 30, 60 days) | `fleet/documents.py` `expiry_state()` / `band_filter()`, thresholds in `DOCUMENT_ALERT_DAYS` |
 | No duplicate threshold alerts | DB UNIQUE (`recipient`, `dedupe_key`) |
 | Audit log append-only | Admin read-only; no write API |
+| Trip driver optional while SCHEDULED, required from dispatch | DB CHECK + `operations/trips.py` |
+| Vehicle request flow (approve books a scheduled trip; approved has a trip) | `operations/requests.py` + DB CHECK |
+| A requester sees only their own requests and files | `VehicleRequest.objects.visible_to()` (API and `config/media.py`) |
 
 ## Roles (`python manage.py seed_reference`)
 
 | Group | Model permissions |
 |---|---|
 | System Administrator | all, every VRS app |
-| Fleet Administrator | add/change/view on fleet, operations, maintenance; view offices |
+| Fleet Administrator | add/change/view on fleet, operations, maintenance; view offices; approve vehicle requests |
 | Field Office User | view fleet; add/change trips, fuel, tolls, maintenance records |
 | Viewer | view only (no audit, no users) |
+| Requester | add/change/view own vehicle requests; notifications |
 
 No role gets `delete` except System Administrator; records are archived instead. Office scoping (`User.offices`) is applied in Phase 3.

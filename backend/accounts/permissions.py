@@ -39,6 +39,16 @@ def require(*perms):
     return Required
 
 
+def require_any(*perms):
+    """Permission class needing at least one of `perms`."""
+    class RequiredAny(BasePermission):
+        message = 'You do not have permission to perform this action.'
+
+        def has_permission(self, request, view):
+            return request.user.is_authenticated and any(request.user.has_perm(p) for p in perms)
+    return RequiredAny
+
+
 def scope_to_offices(qs, user, office_field):
     """Limit a queryset to the user's offices unless they may see all offices."""
     if office_field is None or user.has_perm(VIEW_ALL_OFFICES):

@@ -277,7 +277,7 @@ correctly and preserves history.
 
 ## Trip scheduling
 
--   [x] "Scheduled" trip status: book a vehicle and driver for a future date/time (no odometer at booking)
+-   [x] "Scheduled" trip status: book a vehicle and driver for a future date/time (no odometer at booking; driver optional until dispatch, enforced by a DB check; added 2026-11-04)
 -   [x] Prevent double-booking a vehicle or driver in overlapping schedules (no expected return = holds the rest of that day; "Dispatch now" is also blocked inside someone's booking; forms show booked vehicles/drivers as unavailable)
 -   [x] Dispatch a scheduled trip (scheduled → dispatched) and cancel/reschedule it (dispatch only on the scheduled day, entering the current odometer; missed bookings must be rescheduled)
 -   [x] Schedule calendar/list view in the Trips page (Scheduled status card, "Leaving today" board; Calendar/List toggle under the Scheduled card: month grid of bookings, missed ones in red, month in the URL; added 2026-10-27)
@@ -399,7 +399,7 @@ expiration alerts are accurate.
 -   [x] Toll transaction CRUD (`/api/toll-transactions/`, no DELETE)
 -   [x] Link toll transaction to trip where applicable (optional, must match the vehicle; the trip ticket shows a "Toll & RFID" card with its charges, and can record a toll linked to the trip)
 -   [x] Credit/debit fields (a transaction is a load or a charge, never both; non-negative; one form can record a reload + several tolls from a trip as separate rows via `/toll-transactions/batch/`)
--   [x] Balance logic if required (live current balance = total loads (credit) − total charges (debit), shown on the account and lists; running balance per transaction; optional portal balance kept per account)
+-   [x] Balance logic if required (live current balance = total loads (credit) − total charges (debit), shown on the account and lists; running balance per transaction)
 -   [x] Toll transaction history (per account with running balance; per vehicle; global list)
 -   [x] Vehicle RFID/toll tab (accounts + toll history)
 -   [x] Filters (provider, office, status, unassigned; toll: kind, date range, account, vehicle; search)
@@ -484,7 +484,7 @@ permissions. — met; tests compare the dashboard with the list summary endpoint
 -   [x] Print view (`/reports/:slug/print`, A4 landscape, opens the print dialog)
 -   [x] PDF export (reportlab, DOLE header and logo, repeated header row, page footer)
 -   [x] Excel/CSV export (openpyxl with numeric cells and formats; CSV UTF-8 with BOM); exports are audit-logged
--   [x] VEHICLE RECORD export: the system's records in the old workbook layout (RO3 list, one sheet per plate, PO log); Vehicles page button, `/api/export/vehicle-record/`, office-scoped, per-section permissions, masked RFID numbers, audit-logged (`dataimport/export.py`, `test_export.py`)
+-   [x] VEHICLE RECORD export: the system's records in the old workbook layout (RO3 list, one sheet per plate, PO log); Vehicles page button and Data Import page ("Form with current data"), `/api/export/vehicle-record/`, office-scoped, per-section permissions, masked RFID numbers, audit-logged (`dataimport/export.py`, `test_export.py`)
 -   [x] Verify report totals (`reports/test_reports.py` compares totals with the fuel, maintenance, trip and vehicle summaries; every report and format tested)
 
 **Phase gate:** Client verifies that required official reports contain
@@ -628,6 +628,64 @@ Results, defects fixed and UAT scenarios: `docs/QA.md`. Demo/QA data: `manage.py
 -   [ ] Fix blocking/critical defects
 -   [ ] Retest
 -   [ ] Obtain UAT sign-off
+
+------------------------------------------------------------------------
+
+# Phase 17A --- Vehicle Requests (Requester Portal)
+
+Added 2026-11-04, outside the original spec. Employees request a vehicle; fleet staff approve it, and approving creates
+a SCHEDULED trip, so the existing trip lifecycle, odometer rules and TV board all apply unchanged. Numbered 17A so
+the deployment phases keep their numbers.
+
+## Decisions (made 2026-11-04)
+
+-   [x] Approval chain: Fleet Administrator only (no supervisor step)
+-   [x] Accounts: one per employee (role Requester, created by the System Administrator)
+-   [x] Availability: requesters see only the outcome, not the fleet schedule
+-   [x] Driver: optional at approval, required at dispatch (same rule as scheduling)
+
+## Backend
+
+-   [x] `Requester` role in `seed_reference` (own requests, notifications and map search only; no fleet, fuel, RFID, reports or audit access). Fleet Administrator gets `approve_vehiclerequest`
+-   [x] `VehicleRequest` model: requester, office, purpose, needed/return date-time, origin, destination, passengers, remarks, map route (shared `RoutePlan` base with Trip), linked trip, decision note; DB checks (return after needed, approved has a trip)
+-   [x] Status flow in `operations/requests.py`: PENDING → APPROVED / DECLINED (reason required) / CANCELLED (requester, while pending or approved before dispatch; cancels the trip too); afterwards `progress` follows the trip (dispatched, completed)
+-   [x] Approve = pick vehicle (driver optional), books a SCHEDULED trip via `operations/trips.py` (locks vehicle row), copying route, passengers and requesting office
+-   [x] Conflict checks on approve: the trip booking rules (overlap, unserviceable/disposed, future time, driver license); nothing saved on failure
+-   [x] API `/api/vehicle-requests/`: requester sees only own (others 404), approvers office-scoped; `progress`/`mine` filters; `summary/`; actions via `require(...)`; no DELETE
+-   [x] Travel order attachment (`AttachmentsMixin`; `config/media.py` uses the model's `visible_to()`, so another requester gets 404)
+-   [x] Notifications: new request (approvers of that office), approved, declined, dispatched (requester); `VEHICLE_REQUEST` type links to the request
+-   [x] Audit logging on submit/approve/decline/cancel
+-   [x] Tests: `operations/test_requests.py` (flow, permissions, scoping, conflicts, attachment privacy); `test_security` `far` fixture; `seed_demo` requests so `test_performance` covers the list (that test still fails on the unrelated maintenance-history report, see Phase 17)
+
+## Frontend
+
+-   [x] Requester layout/nav (Vehicle requests, Notifications, Password; lands on /requests, no dashboard)
+-   [x] Request list: status cards (Pending / Approved / On trip / Completed / Declined / Cancelled) + table with search; "My vehicle requests" for requesters, "Vehicle requests" queue for approvers
+-   [x] New Request form with place search and route estimate (maps allowed for requesters)
+-   [x] Request detail: progress timeline, booked vehicle/plate/photo, driver name/contact (or "to be assigned"), decline reason, cancel button, route map, travel order attachments
+-   [x] Approve dialog (vehicle + optional driver, booked/unavailable ones disabled, conflict warnings) and Decline (reason)
+-   [x] Dashboard banner "N vehicle requests waiting for approval" for approvers (now a tile in the Phase 17B "Today" section)
+-   [ ] Mobile layout check at 390 px (layouts reuse the responsive patterns; not yet checked in a browser)
+-   [x] Vitest coverage: requester nav, request detail (requester/approver/declined), request list
+
+## Docs
+
+-   [x] `docs/ERD.md`, `README.md` (endpoints, role), `docs/QA.md` (UAT U19–U23), `seed_demo` `qa_requester` login, `CLAUDE.md`
+
+------------------------------------------------------------------------
+
+# Phase 17B --- Fleet Desk (Fleet Administrator dashboard)
+
+Added 2026-11-04. The dashboard opens with what needs action today, for everyone with trip access (Fleet Administrator,
+Field Office User, System Administrator); the rest of the Phase 12 dashboard is unchanged below it.
+
+-   [x] `/api/dashboard/` `dispatch` section: requests to approve (approvers only), trips without a driver, to dispatch today, overdue returns, RFID accounts below `RFID_LOW_BALANCE` (default ₱500); office filter applies
+-   [x] Shared rules in `operations/trips.py` (`NEEDS_DRIVER`, `overdue_q`: past the expected return, or still out after the departure day) and `operations/toll.py` (`low_balance`), so the counts match the lists
+-   [x] List filters: `/trips/?needs_driver=true&overdue=true`, `/rfid-accounts/?low_balance=true`, with filter chips on the Trips and RFID pages
+-   [x] Dashboard "Today": action tiles linking to the filtered lists, then the Trips page's "Leaving today" (dispatch with odometer) and "Out right now" (record return) boards; replaces the pending-requests banner
+-   [x] Approve form shows booked vehicles/drivers (already built in 17A)
+-   [x] Tests: `dashboard/test_dashboard.py::test_dispatch_counts_match_the_lists`, `src/pages/Dashboard.test.jsx`
+-   [ ] Mobile layout check at 390 px in a browser
 
 ------------------------------------------------------------------------
 

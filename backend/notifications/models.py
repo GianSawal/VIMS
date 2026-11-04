@@ -13,6 +13,7 @@ class Notification(models.Model):
         MAINTENANCE_DUE = 'MAINTENANCE_DUE', 'Maintenance due'
         MAINTENANCE_OVERDUE = 'MAINTENANCE_OVERDUE', 'Maintenance overdue'
         ASSIGNMENT = 'ASSIGNMENT', 'Assignment'
+        VEHICLE_REQUEST = 'VEHICLE_REQUEST', 'Vehicle request'
 
     recipient = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='notifications')
     type = models.CharField(max_length=30, choices=Type.choices)

@@ -28,6 +28,23 @@ export function mapsLink(origin, destination) {
 
 export const EMPTY_PLACE = { text: '', place_id: null, lat: null, lon: null }
 
+/** "Use map" switch: off = origin and destination are typed as plain text (no suggestions, no route). */
+export function MapSwitch({ on, onChange, className = '' }) {
+  return (
+    <label className={`flex cursor-pointer items-center justify-between gap-3 rounded-lg border border-slate-200 px-3 py-2 text-sm ${className}`}>
+      <span>
+        <span className="block font-medium text-ink">Use map</span>
+        <span className="block text-xs text-slate-500">
+          {on ? 'Search places and see the route, distance and travel time.' : 'Off: type the origin and destination as plain text.'}
+        </span>
+      </span>
+      <input type="checkbox" role="switch" checked={on} onChange={(e) => onChange(e.target.checked)} className="peer sr-only" />
+      <span aria-hidden="true"
+        className="relative h-6 w-11 shrink-0 rounded-full bg-slate-300 transition-colors peer-checked:bg-brand peer-focus-visible:ring-2 peer-focus-visible:ring-brand peer-focus-visible:ring-offset-2 after:absolute after:top-0.5 after:left-0.5 after:h-5 after:w-5 after:rounded-full after:bg-white after:shadow after:transition-transform peer-checked:after:translate-x-5" />
+    </label>
+  )
+}
+
 /**
  * Text input with place suggestions (LocationIQ or Geoapify, Philippines). Works as a plain input when maps are off.
  * value: { text, place_id, lat, lon }  onChange(next value)

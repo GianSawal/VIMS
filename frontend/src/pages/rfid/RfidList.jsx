@@ -30,7 +30,6 @@ export function accountColumns({ withVehicle = true } = {}) {
     { key: 'balance', label: 'Balance', className: 'text-right', render: (a) => (
       <div className="tabular-nums">
         <div className="font-semibold">{formatPeso(a.current_balance)}</div>
-        {a.balance != null && <div className="text-xs text-slate-500">Portal {formatPeso(a.balance)}</div>}
       </div>
     ) },
     { key: 'txns', label: 'Transactions', className: 'text-right tabular-nums', render: (a) => a.transaction_count },
@@ -83,7 +82,7 @@ export default function RfidList() {
   }, [search, set])
 
   const common = { search: f.search, office: f.office, provider: f.provider }
-  const accounts = useList('/rfid-accounts/', { page, ...common, is_active: f.active, unassigned: f.unassigned })
+  const accounts = useList('/rfid-accounts/', { page, ...common, is_active: f.active, unassigned: f.unassigned, low_balance: f.low_balance })
   const tollList = useList('/toll-transactions/', { page, ...common, kind: f.kind, date_from: f.date_from, date_to: f.date_to })
   const tollSummary = useList('/toll-transactions/summary/', common)
 
@@ -94,6 +93,7 @@ export default function RfidList() {
     f.provider && ['provider', `Provider: ${providerLabel[f.provider] ?? f.provider}`],
     !tolls && f.active && ['active', f.active === 'true' ? 'Active only' : 'Inactive only'],
     !tolls && f.unassigned && ['unassigned', 'Unassigned'],
+    !tolls && f.low_balance && ['low_balance', 'Low balance'], // dashboard link
     tolls && f.kind && ['kind', f.kind === 'credit' ? 'Loads only' : 'Charges only'],
     tolls && f.date_from && ['date_from', `From ${f.date_from}`],
     tolls && f.date_to && ['date_to', `To ${f.date_to}`],

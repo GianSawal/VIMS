@@ -81,6 +81,11 @@ class UserSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError({'password': e.messages})
         else:
             attrs.pop('password', None)  # changed only via reset-password
+        # A requester asks for vehicles for their own office, so they need one.
+        role = attrs['role'].name if 'role' in attrs else self.instance and role_of(self.instance)
+        offices = attrs['offices'] if 'offices' in attrs else self.instance and list(self.instance.offices.all())
+        if role == 'Requester' and not offices:
+            raise serializers.ValidationError({'offices': 'Select the office this requester belongs to.'})
         return attrs
 
     def create(self, data):
