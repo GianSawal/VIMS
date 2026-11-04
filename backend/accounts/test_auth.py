@@ -120,3 +120,14 @@ def test_admin_manages_offices_without_delete(offices):
     assert r.status_code == 201 and r.json()['code'] == 'FO3'
     assert c.patch(f'/api/offices/{r.json()["id"]}/', {'is_active': False}, format='json').status_code == 200
     assert c.delete(f'/api/offices/{r.json()["id"]}/').status_code == 405
+
+
+def test_requester_needs_an_office(offices):
+    _, fo1, _ = offices
+    c = client_for(make_user('admin1', 'System Administrator'))
+    body = {'username': 'req1', 'password': PW, 'role': 'Requester', 'offices': []}
+    r = c.post('/api/users/', body, format='json')
+    assert r.status_code == 400 and 'offices' in r.json()
+    r = c.post('/api/users/', {**body, 'offices': [fo1.pk]}, format='json')
+    assert r.status_code == 201, r.json()
+    assert c.patch(f'/api/users/{r.json()["id"]}/', {'offices': []}, format='json').status_code == 400

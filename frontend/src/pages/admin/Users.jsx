@@ -3,7 +3,7 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { Car, Eye, KeyRound, MapPin, Pencil, Plus, Power, ShieldCheck, Users as UsersIcon } from 'lucide-react'
+import { Car, ClipboardPen, Eye, KeyRound, MapPin, Pencil, Plus, Power, ShieldCheck, Users as UsersIcon } from 'lucide-react'
 import { api, applyFieldErrors, errorMessage, useList } from '../../api'
 import { useMe } from '../../auth'
 import DataTable from '../../components/DataTable'
@@ -12,8 +12,8 @@ import { Badge, Button, ConfirmDialog, Field, formatDateTime, inputClass, Modal,
 import { useToast } from '../../components/toast'
 import { useAllOffices } from './Offices'
 
-export const ROLES = ['System Administrator', 'Fleet Administrator', 'Field Office User', 'Viewer']
-const roleTone = { 'System Administrator': 'red', 'Fleet Administrator': 'blue', 'Field Office User': 'gold', Viewer: 'gray' }
+export const ROLES = ['System Administrator', 'Fleet Administrator', 'Field Office User', 'Viewer', 'Requester']
+const roleTone = { 'System Administrator': 'red', 'Fleet Administrator': 'blue', 'Field Office User': 'gold', Viewer: 'gray', Requester: 'green' }
 
 const ROLE_CARDS = {
   ALL: [UsersIcon, 'bg-slate-100 text-slate-700', 'All users'],
@@ -21,6 +21,7 @@ const ROLE_CARDS = {
   'Fleet Administrator': [Car, 'bg-brand-light text-brand', 'Fleet admins'],
   'Field Office User': [MapPin, 'bg-amber-50 text-amber-700', 'Field office'],
   Viewer: [Eye, 'bg-slate-100 text-slate-600', 'Viewers'],
+  Requester: [ClipboardPen, 'bg-green-50 text-green-700', 'Requesters'],
 }
 const roleCard = (r) => ({ icon: ROLE_CARDS[r][0], tint: ROLE_CARDS[r][1], label: ROLE_CARDS[r][2] })
 
@@ -163,8 +164,11 @@ const baseSchema = {
   role: z.string().min(1, 'Select a role'),
   offices: z.array(z.string()),
 }
-const createSchema = z.object({ ...baseSchema, password: z.string().min(10, 'At least 10 characters') })
-const editSchema = z.object(baseSchema)
+// A requester asks for vehicles for their office, so they need one (the API checks it too).
+const needsOffice = (v) => v.role !== 'Requester' || v.offices.length > 0
+const officeRule = { path: ['offices'], message: 'Select the office this requester belongs to' }
+const createSchema = z.object({ ...baseSchema, password: z.string().min(10, 'At least 10 characters') }).refine(needsOffice, officeRule)
+const editSchema = z.object(baseSchema).refine(needsOffice, officeRule)
 
 function UserForm({ user, onClose }) {
   const isNew = !user.id
@@ -220,7 +224,9 @@ function UserForm({ user, onClose }) {
       <fieldset className="sm:col-span-2">
         <legend className="mb-1 text-sm font-medium">Offices</legend>
         <p className="mb-2 text-xs text-slate-500">
-          {role === 'Field Office User'
+          {role === 'Requester'
+            ? 'The office this person requests vehicles for. They only see their own requests.'
+            : role === 'Field Office User'
             ? 'This user can only access records of the offices selected here.'
             : 'This role can access all offices; selection is informational.'}
         </p>
