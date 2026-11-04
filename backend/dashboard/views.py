@@ -9,6 +9,7 @@ list page its card links to (vehicle/document/schedule/driver summaries), so the
 from datetime import date, datetime, time, timedelta
 from decimal import Decimal
 
+from django.conf import settings
 from django.db.models import Count, F, Q, Sum
 from django.db.models.functions import Coalesce, TruncMonth
 from django.utils import timezone
@@ -22,7 +23,10 @@ from fleet import documents
 from fleet.models import Driver, Vehicle, VehicleDocument
 from maintenance import service as maintenance_service
 from maintenance.models import MaintenanceRecord, MaintenanceSchedule
-from operations.models import FuelRecord, Trip
+from operations import requests as request_service
+from operations import toll as toll_service
+from operations import trips as trip_service
+from operations.models import FuelRecord, RFIDAccount, Trip, VehicleRequest
 
 TREND_MONTHS = 6
 ITEMS = 5           # rows in each "what needs attention" widget
@@ -62,6 +66,8 @@ class DashboardView(APIView):
             return qs.filter(**{field: self.office}) if self.office else qs
 
         out = {'month': self.start.strftime('%Y-%m'), 'office': self.office, 'today': self.today}
+        if user.has_perm('operations.view_trip'):
+            out['dispatch'] = self._dispatch(user, scoped(Trip.objects.all(), 'vehicle__office'))
         activity = []
         if user.has_perm('fleet.view_vehicle'):
             vehicles = scoped(Vehicle.objects.filter(is_archived=False), 'office')
@@ -116,6 +122,28 @@ class DashboardView(APIView):
         return [_add_months(self.start, -i) for i in range(TREND_MONTHS - 1, -1, -1)]
 
     # ---- sections ------------------------------------------------------------------------------
+
+    def _dispatch(self, user, trips):
+        """Today's to-do counts for whoever runs the trips; each matches the list filter its tile links to."""
+        day = _aware(self.today)
+        out = trips.order_by().aggregate(
+            needs_driver=Count('id', filter=trip_service.NEEDS_DRIVER),
+            due_today=Count('id', filter=Q(status=Trip.Status.SCHEDULED, scheduled_departure__gte=day,
+                                           scheduled_departure__lt=day + timedelta(days=1))),
+            overdue=Count('id', filter=trip_service.overdue_q()),
+        )
+        if user.has_perm(request_service.APPROVE):
+            requests = VehicleRequest.objects.visible_to(user).filter(status=VehicleRequest.Status.PENDING)
+            out['pending_requests'] = (requests.filter(office=self.office) if self.office else requests).count()
+        if user.has_perm('operations.view_rfidaccount'):
+            accounts = RFIDAccount.objects.all()  # unassigned accounts are everyone's, as in the RFID list
+            if not user.has_perm('accounts.view_all_offices'):
+                accounts = accounts.filter(Q(vehicle__office__in=user.offices.all()) | Q(vehicle__isnull=True))
+            if self.office:
+                accounts = accounts.filter(vehicle__office=self.office)
+            out['low_rfid'] = toll_service.low_balance(accounts).count()
+            out['low_rfid_below'] = settings.RFID_LOW_BALANCE
+        return out
 
     def _vehicles(self, qs):
         S = Vehicle.Status

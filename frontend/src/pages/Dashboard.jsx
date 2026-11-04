@@ -1,16 +1,16 @@
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { motion } from 'motion/react'
 import {
-  Ban, Car, ChevronRight, CircleCheck, ClipboardPen, FileText, Fuel, IdCard, Navigation, PackageX, Route as RouteIcon, ShieldCheck,
-  TriangleAlert, Wrench,
+  Ban, CalendarClock, Car, CircleCheck, ClipboardPen, Clock, CreditCard, FileText, Fuel, IdCard, Navigation, PackageX, Route as RouteIcon,
+  ShieldCheck, TriangleAlert, UserX, Wrench,
 } from 'lucide-react'
-import { useQuery } from '@tanstack/react-query'
-import { api, useList } from '../api'
+import { useList } from '../api'
 import { useCan, useMe } from '../auth'
 import { RankBars, TimeBars } from '../components/charts'
 import { selectClass } from '../components/filters'
 import { PageHeader } from '../components/ui'
 import { useAllOffices } from './admin/Offices'
+import { LeavingToday, OpenTrips } from './trips/TripList'
 import { formatDate, formatKm, formatPeso } from './vehicles/common'
 
 /*
@@ -88,8 +88,6 @@ export default function Dashboard() {
         </div>
       }>{d?.today ? dayLong.format(new Date(`${d.today}T00:00:00`)) : 'Fleet overview'}</PageHeader>
 
-      <PendingRequests />
-
       {query.isError ? (
         <p className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-danger">The dashboard could not be loaded. Please refresh the page.</p>
       ) : query.isLoading ? (
@@ -98,6 +96,8 @@ export default function Dashboard() {
         // Fades in over the skeleton, and dims while an office/month change is loading (useList keeps the old data on screen).
         <motion.div className="space-y-6" aria-busy={query.isPlaceholderData}
           initial={{ opacity: 0 }} animate={{ opacity: query.isPlaceholderData ? 0.6 : 1 }} transition={{ duration: 0.2, ease: 'easeOut' }}>
+          {d.dispatch && <Today d={d} office={office} />}
+
           {d.vehicles && (
             // Fleet status beside the per-office breakdown; the breakdown only earns a card with 2+ offices.
             <div className={`grid gap-4 ${multiOffice ? 'xl:grid-cols-3' : ''}`}>
@@ -139,24 +139,44 @@ export default function Dashboard() {
   )
 }
 
-/** Approvers: vehicle requests waiting for a decision (hidden when there are none). */
-function PendingRequests() {
+/**
+ * Fleet desk: what to act on today (counts link to the same filters on the lists), then the Trips page's
+ * leaving-today and out-now boards so dispatch and returns can be recorded from here.
+ */
+function Today({ d, office }) {
   const can = useCan()
-  const approver = can('operations.approve_vehiclerequest')
-  const q = useQuery({
-    queryKey: ['/vehicle-requests/summary/', {}],
-    queryFn: () => api.get('/vehicle-requests/summary/').then((r) => r.data),
-    enabled: approver,
-  })
-  const n = approver ? q.data?.pending ?? 0 : 0
-  if (!n) return null
+  const navigate = useNavigate()
+  const x = d.dispatch
+  const tiles = [
+    x.pending_requests != null && ['Requests to approve', x.pending_requests, ClipboardPen, '/requests?progress=PENDING'],
+    ['Trips without a driver', x.needs_driver, UserX, href('/trips', { needs_driver: 'true' }, office)],
+    ['To dispatch today', x.due_today, CalendarClock, href('/trips', { status: 'SCHEDULED', view: 'list', date_from: d.today, date_to: d.today }, office)],
+    ['Overdue returns', x.overdue, Clock, href('/trips', { overdue: 'true' }, office), true],
+    x.low_rfid != null && [`RFID below ${formatPeso(x.low_rfid_below)}`, x.low_rfid, CreditCard, href('/rfid', { low_balance: 'true' }, office)],
+  ].filter(Boolean)
+  const canChange = can('operations.change_trip')
   return (
-    <Link to="/requests?progress=PENDING"
-      className="mb-4 flex items-center gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-amber-900 shadow-sm hover:border-amber-300">
-      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white text-amber-700"><ClipboardPen size={18} aria-hidden="true" /></span>
-      <span className="font-medium">{plural(n, 'vehicle request')} waiting for approval</span>
-      <ChevronRight size={18} className="ml-auto" aria-hidden="true" />
-    </Link>
+    <Section title="Today">
+      <ul className={`mb-4 grid grid-cols-2 gap-3 sm:grid-cols-3 ${tiles.length > 4 ? 'xl:grid-cols-5' : 'xl:grid-cols-4'}`}>
+        {tiles.map(([label, n, Icon, to, urgent]) => (
+          <li key={label}>
+            <Link to={to} className={`flex h-full items-center gap-3 rounded-xl border bg-white px-3 py-3 shadow-sm transition hover:shadow ${
+              !n ? 'border-slate-200' : urgent ? 'border-red-200' : 'border-amber-200'}`}>
+              <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${
+                !n ? 'bg-slate-100 text-slate-400' : urgent ? 'bg-red-50 text-danger' : 'bg-amber-50 text-amber-700'}`}>
+                <Icon size={18} aria-hidden="true" />
+              </span>
+              <span className="min-w-0">
+                <span className={`block text-xl leading-none font-semibold tabular-nums ${n ? 'text-ink' : 'text-slate-400'}`}>{num.format(n)}</span>
+                <span className="mt-1 block text-xs text-slate-500">{label}</span>
+              </span>
+            </Link>
+          </li>
+        ))}
+      </ul>
+      <LeavingToday canChange={canChange} office={office} />
+      <OpenTrips canChange={canChange} office={office} onViewAll={() => navigate(href('/trips', { status: 'DISPATCHED' }, office))} />
+    </Section>
   )
 }
 

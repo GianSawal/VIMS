@@ -39,6 +39,8 @@ class TripFilter(filters.FilterSet):
     # Date range matches the actual departure, or the scheduled one for trips that haven't left.
     date_from = filters.DateFilter(method='on_or_after')
     date_to = filters.DateFilter(method='on_or_before')
+    needs_driver = filters.BooleanFilter(method='flag')
+    overdue = filters.BooleanFilter(method='flag')
 
     class Meta:
         model = Trip
@@ -49,6 +51,10 @@ class TripFilter(filters.FilterSet):
 
     def on_or_before(self, qs, name, value):
         return qs.alias(_to=Coalesce('departed_at', 'scheduled_departure')).filter(_to__date__lte=value)
+
+    def flag(self, qs, name, value):
+        q = trip_service.NEEDS_DRIVER if name == 'needs_driver' else trip_service.overdue_q()
+        return qs.filter(q) if value else qs.exclude(q)
 
 
 class TripViewSet(AttachmentsMixin, OfficeScopedMixin, mixins.ListModelMixin, mixins.RetrieveModelMixin,
@@ -428,10 +434,15 @@ def toll_snapshot(x):
 class RFIDAccountFilter(filters.FilterSet):
     office = filters.NumberFilter(field_name='vehicle__office')
     unassigned = filters.BooleanFilter(field_name='vehicle', lookup_expr='isnull')
+    low_balance = filters.BooleanFilter(method='low')
 
     class Meta:
         model = RFIDAccount
         fields = ['provider', 'is_active', 'vehicle']
+
+    def low(self, qs, name, value):
+        ids = toll_service.low_balance().values('pk')  # fresh queryset: the list's own sums would double up
+        return qs.filter(pk__in=ids) if value else qs.exclude(pk__in=ids)
 
 
 class RFIDAccountViewSet(OfficeScopedMixin, mixins.ListModelMixin, mixins.RetrieveModelMixin,

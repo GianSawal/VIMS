@@ -156,6 +156,34 @@ def test_sections_follow_module_permissions(fleet, fo1):
     assert {a['kind'] for a in d['activity']} == {'vehicle'}
 
 
+def test_dispatch_counts_match_the_lists(fleet, fo1, settings):
+    from operations.models import RFIDAccount, TollTransaction
+    settings.RFID_LOW_BALANCE = 500
+    now = timezone.now()
+    a, b, c = (fleet[k] for k in 'abc')
+    base = dict(origin='A', destination='B', purpose='P')
+    Trip.objects.create(ticket_number='S1', vehicle=a, status='SCHEDULED', scheduled_departure=now + timedelta(days=3), **base)
+    Trip.objects.create(ticket_number='S2', vehicle=c, driver=fleet['d2'], status='SCHEDULED', scheduled_departure=now + timedelta(days=3), **base)
+    late = now - timedelta(days=2)
+    Trip.objects.create(ticket_number='D1', vehicle=b, driver=fleet['d1'], status='DISPATCHED', departed_at=late, odometer_start=1, **base)
+    Trip.objects.create(ticket_number='D2', vehicle=c, driver=fleet['d2'], status='DISPATCHED', departed_at=now,
+                        scheduled_return=now + timedelta(hours=3), odometer_start=1, **base)
+    low = RFIDAccount.objects.create(provider='EASYTRIP', account_number='1111', vehicle=a)
+    ok = RFIDAccount.objects.create(provider='AUTOSWEEP', account_number='2222', vehicle=b)
+    TollTransaction.objects.create(account=ok, vehicle=b, transacted_at=now, description='Load', credit=1000)
+    TollTransaction.objects.create(account=low, vehicle=a, transacted_at=now, description='Load', credit=600)
+    TollTransaction.objects.create(account=low, vehicle=a, transacted_at=now, description='Toll', debit=200)
+
+    c_ = as_role('Fleet Administrator')
+    d = c_.get('/api/dashboard/').json()['dispatch']
+    assert (d['needs_driver'], d['overdue'], d['low_rfid'], d['pending_requests']) == (1, 1, 1, 0)
+    ids = lambda path, **p: [r['id'] for r in c_.get(path, p).json()['results']]
+    assert ids('/api/trips/', needs_driver='true') == [Trip.objects.get(ticket_number='S1').pk]
+    assert ids('/api/trips/', overdue='true') == [Trip.objects.get(ticket_number='D1').pk]
+    assert ids('/api/rfid-accounts/', low_balance='true') == [low.pk]
+    assert 'dispatch' not in as_role('Requester', [fo1]).get('/api/dashboard/').json()
+
+
 def test_logged_out_gets_401(api):
     assert api.get('/api/dashboard/').status_code == 401
 

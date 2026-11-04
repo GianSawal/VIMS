@@ -664,13 +664,28 @@ the deployment phases keep their numbers.
 -   [x] New Request form with place search and route estimate (maps allowed for requesters)
 -   [x] Request detail: progress timeline, booked vehicle/plate/photo, driver name/contact (or "to be assigned"), decline reason, cancel button, route map, travel order attachments
 -   [x] Approve dialog (vehicle + optional driver, booked/unavailable ones disabled, conflict warnings) and Decline (reason)
--   [x] Dashboard banner "N vehicle requests waiting for approval" for approvers
+-   [x] Dashboard banner "N vehicle requests waiting for approval" for approvers (now a tile in the Phase 17B "Today" section)
 -   [ ] Mobile layout check at 390 px (layouts reuse the responsive patterns; not yet checked in a browser)
 -   [x] Vitest coverage: requester nav, request detail (requester/approver/declined), request list
 
 ## Docs
 
 -   [x] `docs/ERD.md`, `README.md` (endpoints, role), `docs/QA.md` (UAT U19–U23), `seed_demo` `qa_requester` login, `CLAUDE.md`
+
+------------------------------------------------------------------------
+
+# Phase 17B --- Fleet Desk (Fleet Administrator dashboard)
+
+Added 2026-11-04. The dashboard opens with what needs action today, for everyone with trip access (Fleet Administrator,
+Field Office User, System Administrator); the rest of the Phase 12 dashboard is unchanged below it.
+
+-   [x] `/api/dashboard/` `dispatch` section: requests to approve (approvers only), trips without a driver, to dispatch today, overdue returns, RFID accounts below `RFID_LOW_BALANCE` (default ₱500); office filter applies
+-   [x] Shared rules in `operations/trips.py` (`NEEDS_DRIVER`, `overdue_q`: past the expected return, or still out after the departure day) and `operations/toll.py` (`low_balance`), so the counts match the lists
+-   [x] List filters: `/trips/?needs_driver=true&overdue=true`, `/rfid-accounts/?low_balance=true`, with filter chips on the Trips and RFID pages
+-   [x] Dashboard "Today": action tiles linking to the filtered lists, then the Trips page's "Leaving today" (dispatch with odometer) and "Out right now" (record return) boards; replaces the pending-requests banner
+-   [x] Approve form shows booked vehicles/drivers (already built in 17A)
+-   [x] Tests: `dashboard/test_dashboard.py::test_dispatch_counts_match_the_lists`, `src/pages/Dashboard.test.jsx`
+-   [ ] Mobile layout check at 390 px in a browser
 
 ------------------------------------------------------------------------
 

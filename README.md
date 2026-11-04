@@ -84,7 +84,7 @@ Django session in an HttpOnly cookie plus CSRF token. The SPA calls `GET /api/au
 | `/media/<path>` | GET | uploaded files: photos public; documents and attachments need login, the record's view permission and office (else 401/403/404) |
 | `/api/users/` | CRUD (no delete) | System Administrator only; `POST /api/users/{id}/reset-password/` |
 | `/api/offices/` | CRUD (no delete) | scoped to the user's offices |
-| `/api/dashboard/` | GET | `?office= &month=YYYY-MM`; vehicle status/office counts, LTO and GSIS/insurance renewals, maintenance due, driver licenses, fuel and maintenance cost (month + 6-month trend), utilization, recent activity. Office-scoped; each section only for users who may view that module |
+| `/api/dashboard/` | GET | `?office= &month=YYYY-MM`; `dispatch` (users with trip access: requests to approve, trips without a driver, to dispatch today, overdue returns, RFID accounts below `RFID_LOW_BALANCE`), vehicle status/office counts, LTO and GSIS/insurance renewals, maintenance due, driver licenses, fuel and maintenance cost (month + 6-month trend), utilization, recent activity. Office-scoped; each section only for users who may view that module |
 | `/api/reports/` | GET | Reports this user may run, with each one's filters (status choices, group-by options, required filters) |
 | `/api/audit-logs/` | GET | Read-only audit trail, newest first (System Administrator only). `?action= &entity_type= &entity_id= &username= &date_from= &date_to= &search=`; `/{id}/` for one entry; `/facets/` lists actions, record types and users with counts. No write methods |
 | `/api/export/vehicle-record/` | GET | `?office=`; the system's records in the old VEHICLE RECORD layout (.xlsx): RO3 vehicle and driver lists, one sheet per plate (info, maintenance, fuel, RFID/trip log), Sheet20 PO log. Needs `fleet.view_vehicle`; each section needs its own view permission; office-scoped; RFID numbers masked without `change_rfidaccount`; audit-logged |
@@ -94,7 +94,7 @@ Django session in an HttpOnly cookie plus CSRF token. The SPA calls `GET /api/au
 | `/api/vehicles/{id}/archive/` · `/reactivate/` | POST | needs `fleet.change_vehicle` |
 | `/api/vehicles/{id}/assignments/` | GET history / POST assign or reassign | POST needs `add` + `change` on `vehicleassignment`; ends the current assignment on the start date |
 | `/api/vehicles/{id}/end-assignment/` | POST `{end_date}` | leaves the vehicle unassigned |
-| `/api/trips/` | GET list · POST dispatch · PATCH descriptive fields | `?status= &vehicle= &driver= &office= &date_from= &date_to= &search=`; `GET /api/trips/summary/` for counts and distance |
+| `/api/trips/` | GET list · POST dispatch · PATCH descriptive fields | `?status= &vehicle= &driver= &office= &date_from= &date_to= &needs_driver=true &overdue=true &search=`; `GET /api/trips/summary/` for counts and distance |
 | `/api/trips/schedule/` | POST | book ahead: `{vehicle, driver, scheduled_departure, scheduled_return?, origin, destination, purpose, …}`; no odometer |
 | `/api/trips/{id}/dispatch/` | POST `{odometer_start, departed_at?, driver?}` | scheduled trips only, **on the scheduled day**; odometer read then; `driver` required if the booking has none |
 | `/api/trips/{id}/reschedule/` | POST `{vehicle, driver, scheduled_departure, scheduled_return?}` | scheduled trips only; no double-booking |
@@ -119,7 +119,7 @@ Django session in an HttpOnly cookie plus CSRF token. The SPA calls `GET /api/au
 | `/api/documents/{id}/renew/` | POST `{reference_number, issue_date, expiry_date, file?, remarks}` | new current document; the old one becomes `SUPERSEDED` (needs add + change) |
 | `/api/documents/{id}/cancel/` | POST `{reason}` | wrong entry: kept, stops alerting |
 | `/api/documents/summary/` | GET | current documents per expiry band and per type |
-| `/api/rfid-accounts/` | CRUD (no delete) | Easytrip/Autosweep accounts; `?provider= &is_active= &vehicle= &unassigned=true &office= &search=`; account number masked unless you have `change_rfidaccount`; no passwords stored |
+| `/api/rfid-accounts/` | CRUD (no delete) | Easytrip/Autosweep accounts; `?provider= &is_active= &vehicle= &unassigned=true &low_balance=true &office= &search=`; account number masked unless you have `change_rfidaccount`; no passwords stored |
 | `/api/rfid-accounts/{id}/transactions/` | GET | that account's toll transactions with a running balance, plus load/charge/net totals and the current balance |
 | `/api/trips/{id}/` | GET | the ticket includes a `toll` summary (loads, charges, net) for transactions linked to it |
 | `/api/toll-transactions/batch/` | POST `{account, vehicle, trip?, transacted_at, items:[{kind, amount, description, reference_number}]}` | records a reload and/or several tolls from one trip as separate rows, all-or-nothing |

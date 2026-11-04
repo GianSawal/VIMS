@@ -115,6 +115,8 @@ MAINTENANCE_DUE_SOON_DAYS = env.int('MAINTENANCE_DUE_SOON_DAYS', default=30)
 MAINTENANCE_DUE_SOON_KM = env.int('MAINTENANCE_DUE_SOON_KM', default=500)
 # Document expiry alert thresholds in days (60, 30, 15 and 7 days before; 'expired' is always on).
 DOCUMENT_ALERT_DAYS = sorted(env.list('DOCUMENT_ALERT_DAYS', cast=int, default=[60, 30, 15, 7]), reverse=True)
+# An active RFID account below this balance (pesos) is flagged for reload on the dashboard.
+RFID_LOW_BALANCE = env.int('RFID_LOW_BALANCE', default=500)
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 

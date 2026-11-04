@@ -87,6 +87,19 @@ def _mark_in_use(vehicle):
         vehicle.save(update_fields=['status', 'updated_at'])
 
 
+# ---------------------------------------------------------------- dispatch desk filters (trip list + dashboard)
+
+NEEDS_DRIVER = Q(status=Trip.Status.SCHEDULED, driver__isnull=True)
+
+
+def overdue_q(now=None):
+    """Out past the expected return, or (without one) still out after the departure day, as booking_window reads it."""
+    now = now or timezone.now()
+    day_start = timezone.make_aware(datetime.combine(timezone.localtime(now).date(), time.min))
+    return Q(status=Trip.Status.DISPATCHED) & (
+        Q(scheduled_return__lt=now) | Q(scheduled_return__isnull=True, departed_at__lt=day_start))
+
+
 # ---------------------------------------------------------------- scheduling
 
 def booking_window(start, end):
