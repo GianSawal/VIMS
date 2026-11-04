@@ -631,6 +631,49 @@ Results, defects fixed and UAT scenarios: `docs/QA.md`. Demo/QA data: `manage.py
 
 ------------------------------------------------------------------------
 
+# Phase 17A --- Vehicle Requests (Requester Portal)
+
+Added 2026-11-04, outside the original spec. Employees request a vehicle; fleet staff approve it, and approving creates
+a SCHEDULED trip, so the existing trip lifecycle, odometer rules and TV board all apply unchanged. Numbered 17A so
+the deployment phases keep their numbers.
+
+## Decisions (confirm with client before building)
+
+-   [ ] Approval chain: Fleet Admin only, or division chief/supervisor first (travel order)
+-   [ ] Accounts: one per employee, or one requester account per division/office
+-   [ ] Availability: can requesters see fully booked days before submitting
+-   [ ] Driver: always assigned by fleet staff, or self-drive allowed for licensed requesters
+
+## Backend
+
+-   [ ] `Requester` role in `seed_reference` (own requests only; no fleet, fuel, RFID, reports or audit access)
+-   [ ] `VehicleRequest` model: requester, office, purpose, needed/return date-time, origin, destination, passengers, remarks, linked trip, decline reason
+-   [ ] Status flow in a service module: PENDING → APPROVED / DECLINED (reason required) / CANCELLED (requester, while PENDING); COMPLETED follows the linked trip
+-   [ ] Approve = pick vehicle + driver, create SCHEDULED trip via `operations/trips.py` (locks vehicle row)
+-   [ ] Conflict checks on approve: overlapping trip, vehicle under maintenance/unserviceable
+-   [ ] API: requester sees only own requests (others 404); fleet roles see office-scoped queue; custom actions via `require(...)`; no DELETE
+-   [ ] Travel order attachment (`AttachmentsMixin`, added to `config/media.py` rules)
+-   [ ] Notifications: approved, declined, dispatched (to requester); new request (to fleet admins)
+-   [ ] Audit logging on submit/approve/decline/cancel
+-   [ ] Tests: status flow, permissions, scoping, conflict checks; `test_security` `far` fixture and `test_performance` entries
+
+## Frontend
+
+-   [ ] Requester layout/nav (only My Requests and notifications)
+-   [ ] My Requests: status cards (Pending / Approved / Upcoming / Done) + list
+-   [ ] New Request form with place search and route preview (TripMap)
+-   [ ] Request detail: timeline, assigned vehicle/plate/photo, driver name/contact, decline reason, cancel button
+-   [ ] Fleet Admin request queue with Approve (vehicle + driver picker, conflict warnings) and Decline (reason)
+-   [ ] Dashboard card "pending requests"
+-   [ ] Mobile layout check at 390 px
+-   [ ] Vitest coverage for request list/form/detail and queue
+
+## Docs
+
+-   [ ] `docs/ERD.md`, `README.md` (endpoints, role), `docs/QA.md` (requester UAT scenarios), `seed_demo` requester login
+
+------------------------------------------------------------------------
+
 # Phase 18 --- Deployment
 
 -   [ ] Provision production server/environment
