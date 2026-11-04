@@ -21,9 +21,9 @@ const REFRESH_MS = 60_000
 const PAGE_MS = 12_000
 const COMPLETED_SHOWN = 4
 const FONT = 'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap'
-const NAVY = '#060a1c'
-const BACKDROP = `linear-gradient(180deg, #0c1436 0%, #080d26 45%, ${NAVY} 100%)`
-const panel = 'bg-white/[0.04] ring-1 ring-white/[0.08]'
+const NAVY = '#0b0d12' // near-black graphite; also the plate lettering
+const BACKDROP = `linear-gradient(180deg, #161a22 0%, #0f1218 50%, ${NAVY} 100%)`
+const panel = 'bg-white/[0.035] ring-1 ring-white/[0.07]'
 
 const timeFmt = new Intl.DateTimeFormat('en-PH', { hour: 'numeric', minute: '2-digit' })
 const dayFmt = new Intl.DateTimeFormat('en-PH', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })
@@ -182,7 +182,7 @@ export default function TripDisplay() {
       {/* Today at a glance: one bar, four figures */}
       <dl className={`mx-14 mt-6 grid shrink-0 grid-cols-4 divide-x divide-white/[0.08] overflow-hidden rounded-2xl ${panel}`} aria-label="Today">
         <Stat icon={Navigation} label="On the road" value={onRoad} color="text-sky-300" />
-        <Stat icon={Clock} label="Leaving later today" value={active.length - onRoad} color="text-gold" />
+        <Stat icon={Clock} label="Leaving later" value={active.length - onRoad} color="text-gold" />
         <Stat icon={CircleCheck} label="Returned today" value={completed.length} color="text-emerald-300" />
         <Stat icon={TriangleAlert} label="Running late" value={late} color={late ? 'text-red-300' : 'text-white/35'} alert={late > 0} />
       </dl>
@@ -193,7 +193,6 @@ export default function TripDisplay() {
           <div className="mb-4 flex items-center gap-4">
             <h2 id="active-title" className="text-[26px] font-bold tracking-tight text-white">Active Trips</h2>
             <span className="rounded-md bg-white/10 px-2.5 py-0.5 text-[17px] font-bold text-white tabular-nums">{active.length}</span>
-            <span className="text-[18px] text-white/45">On the road and leaving today</span>
             {pages > 1 && (
               <span className="ml-auto flex items-center gap-2" aria-label={`Page ${page + 1} of ${pages}`}>
                 {Array.from({ length: pages }, (_, i) => <span key={i} className={`h-2 rounded-full transition-all duration-300 ${i === page ? 'w-8 bg-gold' : 'w-2 bg-white/25'}`} />)}
@@ -228,10 +227,7 @@ export default function TripDisplay() {
           <section className={`flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl ${panel}`} aria-labelledby="next-title">
             <PanelHead id="next-title" icon={CalendarDays} iconColor="text-gold" title="Next 7 Days" count={`${upcoming.length} booked`} />
             {upcoming.length === 0 ? (
-              <div className="flex flex-1 flex-col items-center justify-center px-6 text-center">
-                <p className="text-[21px] font-semibold text-white/75">No upcoming bookings</p>
-                <p className="mt-1 text-[16px] text-white/45">New schedules appear here automatically.</p>
-              </div>
+              <div className="flex flex-1 items-center justify-center text-[20px] font-medium text-white/45">No upcoming bookings</div>
             ) : (
               <div className="min-h-0 overflow-hidden pb-2">
                 {agenda.map((g) => <AgendaDay key={g.key} g={g} now={now} />)}
@@ -244,16 +240,13 @@ export default function TripDisplay() {
         </aside>
       </main>
 
-      <footer className="mx-14 flex h-[52px] shrink-0 items-center gap-6 border-t border-white/10 text-[16px] text-white/45">
-        <span className="font-semibold text-white/70">{q.data?.screen ?? 'Lobby TV'}</span>
-        <span className="h-4 w-px bg-white/15" aria-hidden="true" />
-        <span className="mr-auto">For trip changes, please coordinate with the Fleet Administrator.</span>
+      <footer className="mx-14 flex h-[48px] shrink-0 items-center justify-end border-t border-white/10 text-[16px] text-white/45">
         <span className="flex items-center gap-2.5 tabular-nums">
           <span className="relative flex h-2.5 w-2.5" aria-hidden="true">
             {!offline && q.data && <span className="absolute inset-0 rounded-full bg-emerald-400 motion-safe:animate-ping" />}
             <span className={`relative h-2.5 w-2.5 rounded-full ${offline || !q.data ? 'bg-amber-400' : 'bg-emerald-400'}`} />
           </span>
-          {offline ? 'Reconnecting…' : q.data ? `Live · updated ${t(q.data.generated_at)}` : 'Connecting…'}
+          {offline ? 'Reconnecting…' : q.data ? `Updated ${t(q.data.generated_at)}` : 'Connecting…'}
         </span>
       </footer>
     </Stage>
@@ -309,10 +302,7 @@ function TripCard({ r, now, featured, wide }) {
         {r.purpose && (
           <p className={`flex min-w-0 items-start gap-2.5 leading-snug ${featured ? 'text-[22px]' : 'text-[18px]'}`} title={r.purpose}>
             <ClipboardList size={featured ? 24 : 20} className="mt-0.5 shrink-0 text-white/40" aria-hidden="true" />
-            <span className={featured ? 'line-clamp-2' : 'line-clamp-1'}>
-              <span className="font-semibold tracking-[0.08em] text-white/40 uppercase">Purpose </span>
-              <span className="font-medium text-white/80">{r.purpose}</span>
-            </span>
+            <span className={`font-medium text-white/75 ${featured ? 'line-clamp-2' : 'line-clamp-1'}`}>{r.purpose}</span>
           </p>
         )}
 
@@ -322,10 +312,7 @@ function TripCard({ r, now, featured, wide }) {
           <div className="mt-auto flex items-end gap-4 border-t border-white/10 pt-3.5">
             <div className="flex min-w-0 items-center gap-3">
               <Avatar name={r.driver_name} src={r.driver_photo_url} size={featured ? 56 : 46} />
-              <div className="min-w-0">
-                <div className="text-[13px] font-semibold tracking-[0.12em] text-white/40 uppercase">Driver</div>
-                <div className={`font-semibold text-white/90 ${featured ? 'text-[24px]' : 'text-[20px]'}`}>{r.driver_name ?? 'Driver TBA'}</div>
-              </div>
+              <div className={`min-w-0 font-semibold text-white/90 ${featured ? 'text-[24px]' : 'text-[20px]'}`}>{r.driver_name ?? 'Driver TBA'}</div>
             </div>
             <div className="ml-auto text-right">
               <div className="text-[13px] font-semibold tracking-[0.12em] text-white/40 uppercase">
@@ -486,10 +473,9 @@ function Empty({ next, now }) {
         <CircleCheck size={40} strokeWidth={1.75} aria-hidden="true" />
       </span>
       <p className="mt-7 text-[38px] font-bold tracking-tight text-white">All vehicles are at the motor pool</p>
-      <p className="mt-3 text-[22px] text-white/55">No trips on the road and no more departures today.</p>
       {next && (
         <div className="mt-12 w-full max-w-[880px] border-t border-white/10 pt-8">
-          <div className="text-[14px] font-semibold tracking-[0.18em] text-white/45 uppercase">Next scheduled trip</div>
+          <div className="text-[14px] font-semibold tracking-[0.18em] text-white/45 uppercase">Next trip</div>
           <div className="mt-4 flex items-center justify-center gap-5">
             <span className="text-[28px] font-bold text-white tabular-nums">{wk.format(new Date(next.scheduled_departure))}, {when(next.scheduled_departure, now)}</span>
             <span className="h-7 w-px bg-white/15" aria-hidden="true" />
