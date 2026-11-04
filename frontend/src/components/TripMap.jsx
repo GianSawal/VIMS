@@ -41,7 +41,9 @@ export default function TripMap({ origin, destination, route, originLabel, desti
       role="region" aria-label={`Map of the route from ${originLabel ?? 'origin'} to ${destinationLabel ?? 'destination'}`}>
       <MapContainer center={center} zoom={11} scrollWheelZoom={false} className="h-full w-full">
         <TileLayer
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
+          // OSM blocks tiles without a Referer; the page's same-origin policy would strip it, so send the origin only
+          referrerPolicy="strict-origin-when-cross-origin"
           attribution={`&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors${credit}`} />
         {route?.length > 1 && <Polyline positions={route} pathOptions={{ color: ROUTE_COLOR, weight: 5, opacity: 0.85 }} />}
         {origin && <Marker position={origin} icon={ORIGIN_PIN}><Tooltip>From: {originLabel}</Tooltip></Marker>}
