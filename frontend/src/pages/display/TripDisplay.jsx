@@ -17,7 +17,9 @@ import { initials } from '../../components/filters'
 
 const W = 1920
 const H = 1080
-const REFRESH_MS = 60_000
+// Near real time: new, dispatched and returned trips appear within a few seconds. One cheap request per poll,
+// well under the 'display' throttle (120/min per screen).
+const REFRESH_MS = 5_000
 const PAGE_MS = 12_000
 const COMPLETED_SHOWN = 4
 const FONT = 'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap'
@@ -130,10 +132,9 @@ export default function TripDisplay() {
     agendaCount++
   }
 
-  // Content-driven layout: one trip is a wide featured card; a few stack; many use a 2-column grid and page.
-  const featured = active.length === 1
+  // Compact cards: up to 3 stack in one column; 4 or more use a 2-column grid (3 rows) and page every PAGE_MS.
   const cols = active.length >= 4 ? 2 : 1
-  const perPage = featured ? 1 : cols === 2 ? 4 : 3
+  const perPage = cols === 2 ? 6 : 3
   const [page, pages] = usePager(active.length, perPage)
   const shown = active.slice(page * perPage, (page + 1) * perPage)
   const offline = q.isError && !!q.data
@@ -212,7 +213,7 @@ export default function TripDisplay() {
               <motion.div key={page} className={`grid items-start gap-5 ${cols === 2 ? 'grid-cols-2' : 'grid-cols-1'}`}
                 initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
                 transition={{ duration: 0.45, ease: [0.23, 1, 0.32, 1] }}>
-                {shown.map((r) => <TripCard key={r.ticket_number} r={r} now={now} featured={featured} wide={cols === 1} />)}
+                {shown.map((r) => <TripCard key={r.ticket_number} r={r} now={now} wide={cols === 1} />)}
               </motion.div>
             </AnimatePresence>
           )}
@@ -255,96 +256,68 @@ export default function TripDisplay() {
 }
 
 /**
- * Horizontal trip card: vehicle image, then plate / model, status, destination (wraps), purpose, and driver +
- * departure time. `featured` = the single-trip hero (bigger image and type). Height is driven by content;
- * cards are never stretched to fill the board.
+ * Compact horizontal trip card: vehicle photo, then plate / model / status, destination, purpose, and a footer
+ * with the driver and the departure time. Same size whether one trip or many are showing; `wide` (single
+ * column) adds the expected-return time, which is cut in the 2-column grid to keep rows short.
  */
-function TripCard({ r, now, featured, wide }) {
+function TripCard({ r, now, wide }) {
   const [label, pill, dot] = statusOf(r)
   const out = r.status === 'DISPATCHED'
   const late = !!r.flag
   const [verb, time] = out ? ['Departed', r.departed_at] : ['Departs', r.scheduled_departure]
+  const leavesIn = minutes(now, r.scheduled_departure)
   const sub = out
     ? (r.flag === 'OVERDUE' ? `${span(minutes(r.scheduled_return, now))} overdue` : `On the road ${span(minutes(r.departed_at, now))}`)
-    : (r.flag === 'DELAYED' ? `${span(minutes(r.scheduled_departure, now))} past schedule` : `Leaves in ${span(minutes(now, r.scheduled_departure))}`)
-  const back = r.scheduled_return && r.flag !== 'OVERDUE' ? `${out ? 'Expected back' : 'Back by'} ${when(r.scheduled_return, now)}` : null
+    : (r.flag === 'DELAYED' ? `${span(-leavesIn)} past schedule` : leavesIn <= 1 ? 'Leaving now' : `Leaves in ${span(leavesIn)}`)
+  const back = wide && r.scheduled_return && r.flag !== 'OVERDUE' ? `${out ? 'Back' : 'Back by'} ${when(r.scheduled_return, now)}` : null
   const progress = out && r.scheduled_return
     ? Math.min(1, Math.max(0, minutes(r.departed_at, now) / Math.max(1, minutes(r.departed_at, r.scheduled_return)))) : null
-  // On-time scheduled trips get a clear countdown pill instead of a plain "leaves in" line.
-  const countdown = !out && !late ? (minutes(now, r.scheduled_departure) <= 1 ? 'Leaving now' : `Leaves in ${span(minutes(now, r.scheduled_departure))}`) : null
-  const timeColor = late ? 'text-red-600' : 'text-slate-900'
+  const subColor = late ? 'font-semibold text-red-600' : out ? 'text-slate-500' : 'font-semibold text-amber-700'
 
   return (
-    <article className={`relative flex min-w-0 gap-5 overflow-hidden rounded-2xl p-3 pl-4 ${late ? 'bg-red-50 ring-1 ring-red-300' : panel}`}>
+    <article className={`relative flex min-w-0 gap-4 overflow-hidden rounded-2xl p-3 pl-4 ${late ? 'bg-red-50 ring-1 ring-red-300' : panel}`}>
       <span className={`absolute inset-y-0 left-0 w-1.5 ${dot}`} aria-hidden="true" />
-      <VehicleImage r={r} className={featured ? 'w-[380px]' : 'w-[230px]'} />
+      <VehicleImage r={r} className={wide ? 'w-[210px]' : 'w-[160px]'} />
 
-      <div className={`flex min-w-0 flex-1 flex-col ${featured ? 'gap-4 py-4 pr-5' : 'gap-2.5 py-2 pr-3'}`}>
-        {/* Plate + model, status */}
-        <div className="flex items-start gap-4">
-          <div className="min-w-0">
-            <Plate size={featured ? 'lg' : 'sm'}>{r.plate_number}</Plate>
-            <div className={`mt-2 text-slate-600 ${featured ? 'text-[22px]' : 'text-[18px]'}`}>{r.vehicle_label}</div>
-          </div>
-          <span className={`ml-auto inline-flex shrink-0 items-center gap-2 rounded-full px-4 py-1.5 font-semibold ring-1 ${pill} ${featured ? 'text-[19px]' : 'text-[17px]'}`}>
-            <span className="relative flex h-2.5 w-2.5" aria-hidden="true">
+      <div className="flex min-w-0 flex-1 flex-col gap-1.5 py-1 pr-1">
+        <div className="flex min-w-0 items-center gap-3">
+          <Plate size="md">{r.plate_number}</Plate>
+          <span className="min-w-0 truncate text-[16px] text-slate-500">{r.vehicle_label}</span>
+          <span className={`ml-auto inline-flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1 text-[15px] font-semibold ring-1 ${pill}`}>
+            <span className="relative flex h-2 w-2" aria-hidden="true">
               {out && !late && <span className={`absolute inset-0 rounded-full ${dot} motion-safe:animate-ping`} />}
-              <span className={`relative h-2.5 w-2.5 rounded-full ${dot}`} />
+              <span className={`relative h-2 w-2 rounded-full ${dot}`} />
             </span>
             {label}
           </span>
         </div>
 
-        {/* Destination (hero, wraps) and purpose (why the trip is made) */}
-        <div className="flex min-w-0 items-start gap-2.5">
-          <MapPin size={featured ? 32 : 26} className="mt-0.5 shrink-0 text-brand" aria-hidden="true" />
-          <p className={`leading-[1.12] font-bold tracking-tight text-slate-900 ${featured ? 'line-clamp-3 text-[42px]' : 'line-clamp-2 text-[28px]'}`}>{r.destination}</p>
+        <div className="mt-1 flex min-w-0 items-center gap-2" title={r.destination}>
+          <MapPin size={22} className="shrink-0 text-brand" aria-hidden="true" />
+          <p className="truncate text-[25px] leading-tight font-bold tracking-tight text-slate-900">{r.destination}</p>
         </div>
         {r.purpose && (
-          <p className={`flex min-w-0 items-start gap-2.5 leading-snug ${featured ? 'text-[22px]' : 'text-[18px]'}`} title={r.purpose}>
-            <ClipboardList size={featured ? 24 : 20} className="mt-0.5 shrink-0 text-slate-400" aria-hidden="true" />
-            <span className={`font-medium text-slate-700 ${featured ? 'line-clamp-2' : 'line-clamp-1'}`}>{r.purpose}</span>
+          <p className="flex min-w-0 items-center gap-2 text-[16px]" title={r.purpose}>
+            <ClipboardList size={18} className="shrink-0 text-slate-400" aria-hidden="true" />
+            <span className="truncate font-medium text-slate-600">{r.purpose}</span>
           </p>
         )}
 
-        {/* Driver + departure time. Wide cards place them on one row; narrow (2-col) cards stack them so
-            driver names and times never get squeezed. */}
-        {wide ? (
-          <div className="mt-auto flex items-end gap-4 border-t border-slate-200 pt-3.5">
-            <div className="flex min-w-0 items-center gap-3">
-              <Avatar name={r.driver_name} src={r.driver_photo_url} size={featured ? 56 : 46} />
-              <div className={`min-w-0 font-semibold text-slate-800 ${featured ? 'text-[24px]' : 'text-[20px]'}`}>{r.driver_name ?? 'Driver TBA'}</div>
+        <div className="mt-auto flex items-center gap-3 border-t border-slate-200 pt-2.5">
+          <Avatar name={r.driver_name} src={r.driver_photo_url} size={36} />
+          <span className="min-w-0 flex-1 truncate text-[17px] font-semibold text-slate-800" title={r.driver_name ?? 'Driver TBA'}>{r.driver_name ?? 'Driver TBA'}</span>
+          <div className="shrink-0 text-right">
+            <div className="flex items-baseline justify-end gap-2">
+              <span className="text-[12px] font-semibold tracking-[0.1em] text-slate-400 uppercase">
+                {verb}{!sameDay(new Date(time), now) && ` · ${shortDay.format(new Date(time))}`}
+              </span>
+              <span className={`text-[28px] leading-none font-bold tracking-tight tabular-nums ${late ? 'text-red-600' : 'text-slate-900'}`}>{t(time)}</span>
             </div>
-            <div className="ml-auto text-right">
-              <div className="text-[13px] font-semibold tracking-[0.12em] text-slate-400 uppercase">
-                {verb}{!sameDay(new Date(time), now) && <span className="text-slate-700"> · {shortDay.format(new Date(time))}</span>}
-              </div>
-              <div className={`leading-none font-bold tracking-tight whitespace-nowrap tabular-nums ${featured ? 'text-[48px]' : 'text-[38px]'} ${timeColor}`}>{t(time)}</div>
-              {countdown ? (
-                <div className="mt-2 flex flex-col items-end gap-1">
-                  <span className={`inline-flex items-center gap-1.5 rounded-full bg-amber-50 font-semibold text-amber-700 ring-1 ring-amber-200 ${featured ? 'px-3.5 py-1 text-[18px]' : 'px-3 py-0.5 text-[15px]'}`}><Clock size={featured ? 18 : 14} aria-hidden="true" /> {countdown}</span>
-                  {back && <span className={`text-slate-500 ${featured ? 'text-[16px]' : 'text-[14px]'}`}>{back}</span>}
-                </div>
-              ) : (
-                <div className={`mt-1.5 whitespace-nowrap ${featured ? 'text-[18px]' : 'text-[16px]'} ${late ? 'font-semibold text-red-600' : 'text-slate-600'}`}>{sub}{back && !late ? ` · ${back}` : ''}</div>
-              )}
+            <div className={`mt-1 text-[14px] whitespace-nowrap ${subColor}`}>
+              {sub}{back && <span className="font-normal text-slate-500"> · {back}</span>}
             </div>
           </div>
-        ) : (
-          <div className="mt-2 border-t border-slate-200 pt-3">
-            <div className="flex items-center gap-2.5">
-              <Avatar name={r.driver_name} src={r.driver_photo_url} size={40} />
-              <span className="min-w-0 flex-1 truncate text-[19px] font-semibold text-slate-800" title={r.driver_name ?? 'Driver TBA'}>{r.driver_name ?? 'Driver TBA'}</span>
-            </div>
-            <div className="mt-2.5 flex items-center gap-2.5">
-              <span className="text-[12px] font-semibold tracking-[0.1em] text-slate-400 uppercase">{verb}</span>
-              <span className={`text-[30px] leading-none font-bold tabular-nums ${timeColor}`}>{t(time)}</span>
-              {countdown
-                ? <span className="ml-auto inline-flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-0.5 text-[14px] font-semibold text-amber-700 ring-1 ring-amber-200"><Clock size={13} aria-hidden="true" /> {countdown}</span>
-                : <span className={`ml-auto text-right text-[16px] ${late ? 'font-semibold text-red-600' : 'text-slate-600'}`}>{sub}</span>}
-            </div>
-          </div>
-        )}
+        </div>
       </div>
 
       {progress != null && (
@@ -428,7 +401,7 @@ function Avatar({ name, src, size }) {
 }
 
 /** Plate tag: white plate with a thin border, dark letters, spaced like a real plate. */
-const PLATE_SIZES = { sm: 'rounded-md px-2 text-[15px] leading-7', md: 'rounded-lg px-3 py-0.5 text-[24px] leading-tight', lg: 'rounded-lg px-4 py-1 text-[44px] leading-tight' }
+const PLATE_SIZES = { sm: 'rounded-md px-2 text-[15px] leading-7', md: 'rounded-lg px-3 py-0.5 text-[24px] leading-tight' }
 function Plate({ children, size = 'sm' }) {
   return (
     <span className={`inline-block shrink-0 bg-white font-extrabold ring-1 ring-slate-300 tracking-[0.1em] whitespace-nowrap ${PLATE_SIZES[size]}`} style={{ color: INK }}>

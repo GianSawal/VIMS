@@ -204,7 +204,7 @@ python manage.py import_workbook filled.xlsx --user admin --commit     # import 
 3. To revoke a screen, untick **is active**; the TV then shows "Display not set up".
 
 The board shows today's trips (scheduled, on trip, returned, cancelled) and the next 7 days of bookings, refreshes
-every minute, pages long lists, flags delayed departures and overdue returns, and never receives passengers,
+every 5 seconds (no reload needed), pages long lists, flags delayed departures and overdue returns, and never receives passengers,
 purpose, remarks or odometer readings.
 
 ## Trip map: place search, route and distance (LocationIQ or Geoapify + OpenStreetMap)
