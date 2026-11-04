@@ -374,7 +374,8 @@ function CompletedToday({ trips, now }) {
       <PanelHead id="done-title" icon={CircleCheck} iconColor="text-emerald-600" title="Returned Today" count={trips.length} />
       <ul>
         {trips.slice(0, COMPLETED_SHOWN).map((r) => (
-          <li key={r.ticket_number} className="flex items-center gap-4 border-t border-slate-100 px-6 py-3 first:border-t-0">
+          <li key={r.ticket_number} className="flex items-center gap-4 border-t border-slate-100 px-6 py-2.5 first:border-t-0">
+            <Thumb r={r} className="h-[48px] w-[68px]" />
             <Plate>{r.plate_number}</Plate>
             <span className="min-w-0 flex-1 truncate text-[17px] text-slate-700" title={r.destination}>{r.destination}</span>
             <span className="shrink-0 text-[17px] font-semibold text-emerald-600 tabular-nums">{when(r.returned_at, now)}</span>
@@ -385,6 +386,17 @@ function CompletedToday({ trips, now }) {
         <div className="border-t border-slate-100 px-6 py-2.5 text-[16px] font-medium text-slate-500">+{trips.length - COMPLETED_SHOWN} more returned today</div>
       )}
     </section>
+  )
+}
+
+/** Small fixed-size vehicle photo for list rows; a car icon when the vehicle has no photo. */
+function Thumb({ r, className }) {
+  return (
+    <div className={`shrink-0 overflow-hidden rounded-lg bg-gradient-to-b from-slate-50 to-slate-100 ring-1 ring-slate-200 ${className}`}>
+      {r.vehicle_photo_url
+        ? <img src={r.vehicle_photo_url} alt={`${r.vehicle_label ?? ''} ${r.plate_number}`.trim()} className="h-full w-full object-contain p-1.5 mix-blend-multiply" />
+        : <div className="flex h-full items-center justify-center text-slate-400"><Car size={28} strokeWidth={1.5} aria-hidden="true" /></div>}
+    </div>
   )
 }
 
@@ -449,14 +461,15 @@ function AgendaDay({ g, now }) {
       </div>
       <ul>
         {g.trips.map((r) => (
-          <li key={r.ticket_number} className="flex items-start gap-4 border-t border-slate-100 px-6 py-3 first:border-t-0">
-            <span className="w-[96px] shrink-0 pt-0.5 text-[19px] font-bold text-slate-900 tabular-nums">{t(r.scheduled_departure)}</span>
+          <li key={r.ticket_number} className="flex items-center gap-4 border-t border-slate-100 px-6 py-3 first:border-t-0">
+            <Thumb r={r} className="h-[72px] w-[104px]" />
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-3">
+                <span className="text-[19px] font-bold text-slate-900 tabular-nums">{t(r.scheduled_departure)}</span>
                 <Plate>{r.plate_number}</Plate>
-                <span className="min-w-0 truncate text-[18px] font-semibold text-slate-800" title={r.destination}>{r.destination}</span>
               </div>
-              <div className="mt-1 truncate text-[15px] text-slate-500" title={r.purpose}>
+              <div className="mt-1 truncate text-[18px] font-semibold text-slate-800" title={r.destination}>{r.destination}</div>
+              <div className="mt-0.5 truncate text-[15px] text-slate-500" title={r.purpose}>
                 {[r.purpose, r.driver_name].filter(Boolean).join(' · ') || 'Driver to be assigned'}
               </div>
             </div>
@@ -477,11 +490,16 @@ function Empty({ next, now }) {
       {next && (
         <div className="mt-12 w-full max-w-[880px] border-t border-slate-200 pt-8">
           <div className="text-[14px] font-semibold tracking-[0.18em] text-slate-500 uppercase">Next trip</div>
-          <div className="mt-4 flex items-center justify-center gap-5">
-            <span className="text-[28px] font-bold text-slate-900 tabular-nums">{wk.format(new Date(next.scheduled_departure))}, {when(next.scheduled_departure, now)}</span>
-            <span className="h-7 w-px bg-slate-200" aria-hidden="true" />
-            <Plate size="md">{next.plate_number}</Plate>
-            <span className="max-w-[380px] truncate text-[24px] font-medium text-slate-700">{next.destination}</span>
+          <div className="mt-5 flex items-center justify-center gap-7 text-left">
+            <Thumb r={next} className="h-[132px] w-[200px]" />
+            <div className="min-w-0">
+              <div className="text-[28px] font-bold text-slate-900 tabular-nums">{wk.format(new Date(next.scheduled_departure))}, {when(next.scheduled_departure, now)}</div>
+              <div className="mt-3 flex items-center gap-4">
+                <Plate size="md">{next.plate_number}</Plate>
+                <span className="max-w-[380px] truncate text-[24px] font-medium text-slate-700" title={next.destination}>{next.destination}</span>
+              </div>
+              {next.vehicle_label && <div className="mt-2 text-[18px] text-slate-500">{next.vehicle_label}</div>}
+            </div>
           </div>
         </div>
       )}
