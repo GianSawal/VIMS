@@ -160,6 +160,7 @@ Tokens are in `frontend/src/index.css` (`@theme`), used as Tailwind classes such
 | `danger` | `#C40002` | Darkened red for error text and destructive buttons |
 | `gold` | `#FFC603` | Logo stars. Focus ring, highlights |
 | `ink` | `#2F2F2F` | Logo wordmark. Body text |
+| `pearl` | `#F7F5EF` | Page background (pearl white with a soft sheen); cards stay white |
 
 ## Deploy (Coolify, Docker Compose)
 

@@ -52,7 +52,7 @@ export default function Login() {
   const checkCaps = (e) => setCapsLock(e.getModifierState?.('CapsLock') ?? false)
 
   return (
-    <div className="flex min-h-screen bg-slate-50">
+    <div className="flex min-h-screen">
       {/* Brand panel (desktop) */}
       <aside className="relative hidden w-[46%] max-w-2xl overflow-hidden bg-gradient-to-br from-brand to-brand-dark px-12 py-10 text-white lg:flex lg:flex-col">
         {/* Shapes echo the logo's triangle and red/gold accents; purely decorative. */}
