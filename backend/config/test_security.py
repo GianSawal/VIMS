@@ -179,7 +179,7 @@ def test_field_office_user_cannot_create_records_on_another_offices_vehicle(fo1,
     c = as_role('Field Office User', [fo1])
     v, d = far['vehicles'], far['drivers']
     attempts = {
-        '/api/trips/': {'vehicle': v.pk, 'driver': d.pk, 'origin': 'A', 'destination': 'B', 'purpose': 'x',
+        '/api/trips/': {'vehicle': v.pk, 'driver': d.pk, 'origin': 'A', 'destination': 'B', 'purpose': 'x', 'requesting_division': 'IMSD',
                         'departed_at': timezone.now().isoformat(), 'odometer_start': 5000},
         '/api/fuel-records/': {'vehicle': v.pk, 'date': str(date.today()), 'fuel_type': 'GASOLINE', 'liters': '5',
                                'unit_price': '60', 'odometer': 5100},

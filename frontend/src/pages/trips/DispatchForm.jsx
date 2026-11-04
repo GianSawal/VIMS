@@ -9,7 +9,7 @@ import { useToast } from '../../components/toast'
 import PlaceSearch, { EMPTY_PLACE, MapSwitch, useMapsEnabled } from '../../components/PlaceSearch'
 import RouteEstimate from '../../components/RouteEstimate'
 import { useAllOffices } from '../admin/Offices'
-import { bookingLabel, bookingWindow, endOfDay, fromLocalInput, km, toLocalInput } from './common'
+import { DIVISIONS, bookingLabel, bookingWindow, endOfDay, fromLocalInput, km, toLocalInput } from './common'
 import { odometerField } from '../vehicles/common'
 
 const DISPATCHABLE = ['SERVICEABLE', 'IN_USE']
@@ -20,6 +20,7 @@ const common = {
   vehicle: z.string().min(1, 'Select a vehicle'),
   driver: z.string().min(1, 'Select a driver'),
   requesting_office: z.string(),
+  requesting_division: z.enum(DIVISIONS, { error: 'Select the requesting division' }),
   passengers: z.string(),
   origin: z.string().trim().min(1, 'Origin is required').max(200),
   destination: z.string().trim().min(1, 'Destination is required').max(255),
@@ -255,6 +256,12 @@ export default function DispatchForm({ vehicle, mode = 'dispatch', onClose, onSa
             onChange={(p) => { setDest(p); setEstimate(null); setValue('destination', p.text, { shouldValidate: !!errors.destination }) }} />
         </Field>
         {(mapsOn || !mapsAvailable) && <RouteEstimate origin={origin} destination={dest} enabled={mapsOn} onEstimate={setEstimate} />}
+        <Field label="Requesting division *" htmlFor="requesting_division" error={errors.requesting_division?.message}>
+          <select id="requesting_division" className={inputClass} {...register('requesting_division')}>
+            <option value="">Select a division...</option>
+            {DIVISIONS.map((d) => <option key={d} value={d}>{d}</option>)}
+          </select>
+        </Field>
         <div className="sm:col-span-2">
           <Field label="Purpose *" htmlFor="purpose" error={errors.purpose?.message}>
             <textarea id="purpose" rows={2} className={inputClass} placeholder="e.g. Labor inspection, document delivery" {...register('purpose')} />

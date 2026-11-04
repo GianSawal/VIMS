@@ -127,7 +127,7 @@ def test_under_maintenance_vehicle_cannot_be_dispatched(vehicle, pms, fo1):
     c = as_role('Fleet Administrator')
     move(c, create(c, vehicle, [pms]).json()['id'], 'IN_PROGRESS')
     d = make_driver(fo1)
-    r = c.post('/api/trips/', {'vehicle': vehicle.pk, 'driver': d.pk, 'origin': 'a', 'destination': 'b', 'purpose': 'x',
+    r = c.post('/api/trips/', {'vehicle': vehicle.pk, 'driver': d.pk, 'origin': 'a', 'destination': 'b', 'purpose': 'x', 'requesting_division': 'IMSD',
                                'departed_at': timezone.now().isoformat(), 'odometer_start': 20000}, format='json')
     assert r.status_code == 400 and 'vehicle' in r.json()
 

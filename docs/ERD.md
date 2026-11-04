@@ -47,6 +47,7 @@ erDiagram
     }
     Trip {
         string ticket_number UK
+        enum requesting_division "IMSD, TSSD-1, TSSD-2, MALSU"
         int odometer_start
         int odometer_end ">= start"
         int distance_km "generated"

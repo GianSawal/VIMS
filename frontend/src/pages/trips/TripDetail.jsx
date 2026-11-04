@@ -15,7 +15,7 @@ import { Button, Field, formatDateTime, inputClass, Modal } from '../../componen
 import { useToast } from '../../components/toast'
 import { NotFound } from '../Errors'
 import { useAllOffices } from '../admin/Offices'
-import { bookingLabel, fromLocalInput, km, toLocalInput, tripDuration, TripStatusBadge } from './common'
+import { DIVISIONS, bookingLabel, fromLocalInput, km, toLocalInput, tripDuration, TripStatusBadge } from './common'
 import { useAvailability } from './DispatchForm'
 import { formatPeso, odometerField, parseKm, VehiclePhoto } from '../vehicles/common'
 import { isLoad } from '../rfid/common'
@@ -157,6 +157,7 @@ export default function TripDetail() {
                   ? <Link to={`/drivers/${t.driver}`} className="font-semibold text-brand hover:underline">{t.driver_name}</Link>
                   : <span className="font-medium text-amber-700">To be assigned at dispatch</span>}</dd></div>
               </div>
+              <Item label="Requesting division" value={t.requesting_division || '—'} />
               <Item label="Requesting office" value={t.requesting_office_name ?? '—'} />
             </dl>
           </Card>
@@ -333,6 +334,7 @@ function CancelForm({ trip, onClose }) {
 
 const editSchema = z.object({
   requesting_office: z.string(),
+  requesting_division: z.string(),
   passengers: z.string(),
   origin: z.string().trim().min(1, 'Origin is required').max(200),
   destination: z.string().trim().min(1, 'Destination is required').max(255),
@@ -346,6 +348,7 @@ function EditForm({ trip, onClose }) {
     resolver: zodResolver(editSchema),
     defaultValues: {
       requesting_office: trip.requesting_office ? String(trip.requesting_office) : '', passengers: trip.passengers,
+      requesting_division: trip.requesting_division ?? '',
       origin: trip.origin, destination: trip.destination, purpose: trip.purpose, remarks: trip.remarks,
     },
   })
@@ -368,6 +371,12 @@ function EditForm({ trip, onClose }) {
         <select id="requesting_office" className={inputClass} {...register('requesting_office')}>
           <option value="">None</option>
           {offices.data?.results.map((o) => <option key={o.id} value={o.id}>{o.code} - {o.name}</option>)}
+        </select>
+      </Field>
+      <Field label="Requesting division" htmlFor="requesting_division" error={errors.requesting_division?.message}>
+        <select id="requesting_division" className={inputClass} {...register('requesting_division')}>
+          <option value="">Not recorded</option>
+          {DIVISIONS.map((d) => <option key={d} value={d}>{d}</option>)}
         </select>
       </Field>
       <div className="sm:col-span-2">{area('destination', 'Destination / places visited *')}</div>

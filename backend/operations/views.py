@@ -44,7 +44,7 @@ class TripFilter(filters.FilterSet):
 
     class Meta:
         model = Trip
-        fields = ['status', 'vehicle', 'driver', 'requesting_office']
+        fields = ['status', 'vehicle', 'driver', 'requesting_office', 'requesting_division']
 
     def on_or_after(self, qs, name, value):
         return qs.alias(_from=Coalesce('departed_at', 'scheduled_departure')).filter(_from__date__gte=value)

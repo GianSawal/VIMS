@@ -560,12 +560,14 @@ def trip_history(ctx):
     local = lambda dt: timezone.localtime(dt) if dt else None
     rows = [{'ticket_number': t.ticket_number, 'departure': local(t.departed_at or t.scheduled_departure),
              'returned': local(t.returned_at), 'plate_number': t.vehicle.plate_number, 'driver': t.driver.full_name if t.driver else '',
-             'requesting_office': t.requesting_office.code if t.requesting_office else '', 'origin': t.origin,
+             'requesting_office': t.requesting_office.code if t.requesting_office else '',
+             'requesting_division': t.requesting_division, 'origin': t.origin,
              'destination': t.destination, 'purpose': t.purpose, 'status': t.get_status_display(),
              'odometer_start': t.odometer_start, 'odometer_end': t.odometer_end, 'distance_km': t.distance_km}
             for t in qs.order_by(Coalesce('departed_at', 'scheduled_departure').asc(), 'id')]
     return result([col('ticket_number', 'Ticket no.'), col('departure', 'Departure', 'datetime'), col('returned', 'Returned', 'datetime'),
                    col('plate_number', 'Plate no.'), col('driver', 'Driver'), col('requesting_office', 'Requested by'),
+                   col('requesting_division', 'Division'),
                    col('origin', 'Origin'), col('destination', 'Destination'), col('purpose', 'Purpose'), col('status', 'Status'),
                    col('odometer_start', 'Odo. start', 'km'), col('odometer_end', 'Odo. end', 'km'), col('distance_km', 'Distance', 'km')],
                   rows, {'distance_km': sum(r['distance_km'] or 0 for r in rows)},

@@ -126,7 +126,7 @@ def test_trip_saves_locations_route_and_estimate():
     c = as_role('Fleet Administrator')
     line = [[15.032933, 120.689117], [15.1, 120.6], [15.180947, 120.530099]]
     r = c.post('/api/trips/', {'vehicle': v.pk, 'driver': d.pk, 'origin': 'DOLE RO III', 'destination': 'Royce Hotel',
-                               'purpose': 'Meeting', 'departed_at': timezone.now().isoformat(), 'odometer_start': 1000,
+                               'purpose': 'Meeting', 'requesting_division': 'IMSD', 'departed_at': timezone.now().isoformat(), 'odometer_start': 1000,
                                'estimated_distance_km': '36.7', 'estimated_duration_min': 31,
                                'origin_lat': '15.032933', 'origin_lng': '120.689117',
                                'destination_lat': '15.180947', 'destination_lng': '120.530099', 'route_geometry': line}, format='json')
@@ -136,7 +136,7 @@ def test_trip_saves_locations_route_and_estimate():
     assert r.json()['route_geometry'] == line
     bad = c.post('/api/trips/schedule/', {'vehicle': make_vehicle(fo, 'MAP 2').pk, 'driver': make_driver(fo, 'Juan', 'L-2').pk,
                                           'scheduled_departure': (timezone.now() + timedelta(days=2)).isoformat(),
-                                          'origin': 'a', 'destination': 'b', 'purpose': 'x', 'route_geometry': [['x', 1]]}, format='json')
+                                          'origin': 'a', 'destination': 'b', 'purpose': 'x', 'requesting_division': 'IMSD', 'route_geometry': [['x', 1]]}, format='json')
     assert bad.status_code == 400 and 'route_geometry' in bad.json()
     # editing the destination later can update the saved route too
     r = c.patch(f'/api/trips/{t.pk}/', {'destination': 'Clark', 'route_geometry': line[:2], 'estimated_distance_km': '20.0'}, format='json')

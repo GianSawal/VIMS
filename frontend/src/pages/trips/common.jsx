@@ -3,6 +3,9 @@ import { Badge } from '../../components/ui'
 export const TRIP_STATUSES = [['SCHEDULED', 'Scheduled', 'gold'], ['DISPATCHED', 'On trip', 'blue'], ['COMPLETED', 'Completed', 'green'], ['CANCELLED', 'Cancelled', 'gray']]
 const tone = Object.fromEntries(TRIP_STATUSES.map(([v, , t]) => [v, t]))
 /** Scheduled trips may be booked before a driver is chosen; the driver is required at dispatch. */
+// Mirrors Trip.Division on the server.
+export const DIVISIONS = ['IMSD', 'TSSD-1', 'TSSD-2', 'MALSU']
+
 export const driverLabel = (t) => t.driver_name ?? 'Driver to be assigned'
 
 export const tripStatusLabel = Object.fromEntries(TRIP_STATUSES.map(([v, l]) => [v, l]))

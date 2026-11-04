@@ -12,7 +12,7 @@ from fleet.models import Driver, Vehicle
 from . import fuel
 from .models import DisplayScreen, FuelRecord, RFIDAccount, TollTransaction, Trip, VehicleRequest
 
-DESCRIPTIVE = ['requesting_office', 'passengers', 'origin', 'destination', 'purpose', 'remarks',
+DESCRIPTIVE = ['requesting_office', 'requesting_division', 'passengers', 'origin', 'destination', 'purpose', 'remarks',
                'estimated_distance_km', 'estimated_duration_min', 'origin_lat', 'origin_lng', 'destination_lat',
                'destination_lng', 'route_geometry']
 
@@ -47,7 +47,7 @@ class TripSerializer(serializers.ModelSerializer):
     class Meta:
         model = Trip
         fields = ['id', 'ticket_number', 'vehicle', 'plate_number', 'vehicle_label', 'office_code', 'vehicle_photo_url', 'driver_photo_url', 'driver',
-                  'driver_name', 'requesting_office', 'requesting_office_name', 'passengers', 'origin', 'destination',
+                  'driver_name', 'requesting_office', 'requesting_office_name', 'requesting_division', 'passengers', 'origin', 'destination',
                   'purpose', 'scheduled_departure', 'scheduled_return', 'schedule_day', 'departed_at', 'returned_at',
                   'odometer_start', 'odometer_end', 'distance_km', 'estimated_distance_km', 'estimated_duration_min',
                   'origin_lat', 'origin_lng', 'destination_lat', 'destination_lng', 'route_geometry', 'status', 'status_display', 'toll', 'remarks',
@@ -89,6 +89,7 @@ class DispatchSerializer(serializers.Serializer):
     driver = serializers.PrimaryKeyRelatedField(queryset=Driver.objects.all())
     requesting_office = serializers.PrimaryKeyRelatedField(queryset=Office.objects.filter(is_active=True),
                                                            required=False, allow_null=True)
+    requesting_division = serializers.ChoiceField(choices=Trip.Division.choices, help_text='Division requesting the trip.')
     passengers = serializers.CharField(required=False, allow_blank=True, default='')
     origin = serializers.CharField(max_length=200)
     destination = serializers.CharField(max_length=255)
@@ -128,6 +129,7 @@ class ScheduleSerializer(serializers.Serializer):
     scheduled_return = serializers.DateTimeField(required=False, allow_null=True)
     requesting_office = serializers.PrimaryKeyRelatedField(queryset=Office.objects.filter(is_active=True),
                                                            required=False, allow_null=True)
+    requesting_division = serializers.ChoiceField(choices=Trip.Division.choices, help_text='Division requesting the trip.')
     passengers = serializers.CharField(required=False, allow_blank=True, default='')
     origin = serializers.CharField(max_length=200)
     destination = serializers.CharField(max_length=255)

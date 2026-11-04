@@ -38,11 +38,19 @@ class Trip(Tracked, RoutePlan):
         COMPLETED = 'COMPLETED', 'Completed'
         CANCELLED = 'CANCELLED', 'Cancelled'
 
+    class Division(models.TextChoices):
+        IMSD = 'IMSD', 'IMSD'
+        TSSD_1 = 'TSSD-1', 'TSSD-1'
+        TSSD_2 = 'TSSD-2', 'TSSD-2'
+        MALSU = 'MALSU', 'MALSU'
+
     ticket_number = models.CharField(max_length=40, unique=True)
     vehicle = models.ForeignKey(Vehicle, on_delete=models.PROTECT, related_name='trips')
     # Optional while SCHEDULED (the driver may not be known when booking); required from dispatch on.
     driver = models.ForeignKey(Driver, null=True, blank=True, on_delete=models.PROTECT, related_name='trips')
     requesting_office = models.ForeignKey(Office, null=True, blank=True, on_delete=models.PROTECT, related_name='+')
+    # Required when scheduling or dispatching (serializers); blank only on older and imported trips.
+    requesting_division = models.CharField(max_length=10, choices=Division.choices, blank=True, db_index=True)
     passengers = models.TextField(blank=True)
     origin = models.CharField(max_length=200)
     destination = models.CharField(max_length=255)

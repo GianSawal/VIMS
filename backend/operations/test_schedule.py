@@ -52,7 +52,7 @@ def book(c, vehicle, driver, start, end=None, **kw):
     return c.post('/api/trips/schedule/', {
         'vehicle': vehicle.pk, 'driver': driver and driver.pk, 'scheduled_departure': start.isoformat(),
         'scheduled_return': end.isoformat() if end else None, 'origin': 'RO', 'destination': 'Tarlac',
-        'purpose': 'Inspection', **kw}, format='json')
+        'purpose': 'Inspection', 'requesting_division': 'IMSD', **kw}, format='json')
 
 
 def make_scheduled(vehicle, driver, start, end=None):
@@ -256,7 +256,7 @@ def test_dispatch_now_blocked_inside_someone_elses_booking(vehicle, driver, fo1)
     now = timezone.now()
     booked = make_scheduled(vehicle, driver, now - timedelta(minutes=30), now + timedelta(hours=2))
     walk_in_driver, walk_in_vehicle = make_driver(fo1, 'Juan', 'L-2'), make_vehicle(fo1, 'SCH 2')
-    body = {'origin': 'RO', 'destination': 'X', 'purpose': 'Errand', 'departed_at': now.isoformat(), 'odometer_start': 20000}
+    body = {'origin': 'RO', 'destination': 'X', 'purpose': 'Errand', 'requesting_division': 'MALSU', 'departed_at': now.isoformat(), 'odometer_start': 20000}
     r = c.post('/api/trips/', {**body, 'vehicle': vehicle.pk, 'driver': walk_in_driver.pk}, format='json')
     assert r.status_code == 400 and f'reserved for {booked.ticket_number}' in r.json()['vehicle'][0]
     r = c.post('/api/trips/', {**body, 'vehicle': walk_in_vehicle.pk, 'driver': driver.pk, 'odometer_start': 0}, format='json')

@@ -47,7 +47,7 @@ def driver(fo1):
 
 def body(vehicle, driver, **kw):
     return {'vehicle': vehicle.pk, 'driver': driver.pk, 'origin': 'Regional Office', 'destination': 'Field Office 1',
-            'purpose': 'Monitoring', 'departed_at': ago(5), 'odometer_start': vehicle.current_odometer, **kw}
+            'purpose': 'Monitoring', 'requesting_division': 'TSSD-1', 'departed_at': ago(5), 'odometer_start': vehicle.current_odometer, **kw}
 
 
 def dispatch(c, vehicle, driver, **kw):
@@ -156,6 +156,21 @@ def test_patch_changes_only_descriptive_fields(vehicle, driver):
     assert r.json()['odometer_start'] == 10000 and r.json()['status'] == 'DISPATCHED'
     assert AuditLog.objects.get(action='update').changes == {'destination': ['Field Office 1', 'Provincial Office']}
     assert as_role('System Administrator').delete(f'/api/trips/{t["id"]}/').status_code == 405
+
+
+def test_requesting_division_required_and_editable(vehicle, driver):
+    c = as_role('Fleet Administrator')
+    missing = body(vehicle, driver)
+    del missing['requesting_division']
+    assert 'requesting_division' in c.post('/api/trips/', missing, format='json').json()
+    assert 'requesting_division' in dispatch(c, vehicle, driver, requesting_division='HR').json()
+    t = dispatch(c, vehicle, driver, requesting_division='TSSD-2').json()
+    assert t['requesting_division'] == 'TSSD-2'
+    assert c.get('/api/trips/', {'requesting_division': 'TSSD-2'}).json()['count'] == 1
+    assert c.get('/api/trips/', {'requesting_division': 'IMSD'}).json()['count'] == 0
+    r = c.patch(f'/api/trips/{t["id"]}/', {'requesting_division': 'MALSU'}, format='json')
+    assert r.status_code == 200 and r.json()['requesting_division'] == 'MALSU'
+    assert AuditLog.objects.get(action='update').changes == {'requesting_division': ['TSSD-2', 'MALSU']}
 
 
 def test_office_scoping(vehicle, driver, fo2):
