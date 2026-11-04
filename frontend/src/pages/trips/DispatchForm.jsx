@@ -6,7 +6,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { api, applyFieldErrors, invalidatePrefix, useList } from '../../api'
 import { Button, Field, inputClass } from '../../components/ui'
 import { useToast } from '../../components/toast'
-import PlaceSearch, { EMPTY_PLACE, useMapsEnabled } from '../../components/PlaceSearch'
+import PlaceSearch, { EMPTY_PLACE, MapSwitch, useMapsEnabled } from '../../components/PlaceSearch'
 import RouteEstimate from '../../components/RouteEstimate'
 import { useAllOffices } from '../admin/Offices'
 import { bookingLabel, bookingWindow, endOfDay, fromLocalInput, km, toLocalInput } from './common'
@@ -243,20 +243,7 @@ export default function DispatchForm({ vehicle, mode = 'dispatch', onClose, onSa
       <Section step="3" title="Route and purpose">
         <input type="hidden" {...register('origin')} />
         <input type="hidden" {...register('destination')} />
-        {mapsAvailable && (
-          <label className="flex cursor-pointer items-center justify-between gap-3 rounded-lg border border-slate-200 px-3 py-2 text-sm sm:col-span-2">
-            <span>
-              <span className="block font-medium text-ink">Use map</span>
-              <span className="block text-xs text-slate-500">
-                {useMap ? 'Search places and see the route, distance and travel time.' : 'Off: type the origin and destination as plain text.'}
-              </span>
-            </span>
-            <input type="checkbox" role="switch" checked={useMap} onChange={(e) => toggleMap(e.target.checked)}
-              className="peer sr-only" />
-            <span aria-hidden="true"
-              className="relative h-6 w-11 shrink-0 rounded-full bg-slate-300 transition-colors peer-checked:bg-brand peer-focus-visible:ring-2 peer-focus-visible:ring-brand peer-focus-visible:ring-offset-2 after:absolute after:top-0.5 after:left-0.5 after:h-5 after:w-5 after:rounded-full after:bg-white after:shadow after:transition-transform peer-checked:after:translate-x-5" />
-          </label>
-        )}
+        {mapsAvailable && <MapSwitch on={useMap} onChange={toggleMap} className="sm:col-span-2" />}
         <Field label="Origin *" htmlFor="origin-search" error={errors.origin?.message}>
           <PlaceSearch id="origin-search" value={origin} enabled={mapsOn} invalid={!!errors.origin}
             placeholder={mapsOn ? 'Search a place, e.g. DOLE Regional Office III, San Fernando' : 'e.g. DOLE Regional Office'}

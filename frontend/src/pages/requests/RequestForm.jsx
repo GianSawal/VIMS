@@ -7,7 +7,7 @@ import { api, applyFieldErrors, invalidatePrefix } from '../../api'
 import { useMe } from '../../auth'
 import { Button, Field, inputClass } from '../../components/ui'
 import { useToast } from '../../components/toast'
-import PlaceSearch, { EMPTY_PLACE, useMapsEnabled } from '../../components/PlaceSearch'
+import PlaceSearch, { EMPTY_PLACE, MapSwitch, useMapsEnabled } from '../../components/PlaceSearch'
 import RouteEstimate from '../../components/RouteEstimate'
 import { fromLocalInput, toLocalInput } from '../trips/common'
 
@@ -31,7 +31,15 @@ export default function RequestForm({ onClose, onSaved }) {
   const offices = me?.offices ?? []
   const qc = useQueryClient()
   const toast = useToast()
-  const mapsOn = useMapsEnabled()
+  const mapsAvailable = useMapsEnabled()
+  const [useMap, setUseMap] = useState(true) // the requester can skip the map and type places as plain text
+  const mapsOn = mapsAvailable && useMap
+  const toggleMap = (on) => {
+    setUseMap(on)
+    setEstimate(null) // nothing from the map is saved when it is off
+    setOrigin((p) => ({ ...EMPTY_PLACE, text: p.text }))
+    setDest((p) => ({ ...EMPTY_PLACE, text: p.text }))
+  }
   const [origin, setOrigin] = useState(EMPTY_PLACE)
   const [dest, setDest] = useState(EMPTY_PLACE)
   const [estimate, setEstimate] = useState(null)
@@ -92,6 +100,7 @@ export default function RequestForm({ onClose, onSaved }) {
 
       <input type="hidden" {...register('origin')} />
       <input type="hidden" {...register('destination')} />
+      {mapsAvailable && <MapSwitch on={useMap} onChange={toggleMap} className="sm:col-span-2" />}
       <Field label="Pick-up / origin *" htmlFor="origin-search" error={errors.origin?.message}>
         <PlaceSearch id="origin-search" value={origin} enabled={mapsOn} invalid={!!errors.origin}
           placeholder={mapsOn ? 'Search a place, e.g. DOLE Regional Office III' : 'e.g. DOLE Regional Office'}
