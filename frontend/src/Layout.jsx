@@ -2,15 +2,16 @@ import { useState } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { AnimatePresence, motion } from 'motion/react'
 import {
-  Bell, Building2, Car, ClipboardList, CreditCard, FileSpreadsheet, FileText, Fuel, IdCard, KeyRound, LayoutDashboard, LogOut, Menu,
+  Bell, Building2, Car, ClipboardList, ClipboardPen, CreditCard, FileSpreadsheet, FileText, Fuel, IdCard, KeyRound, LayoutDashboard, LogOut, Menu,
   Route as RouteIcon, ScrollText, Users, Wrench, X,
 } from 'lucide-react'
-import { useCan, useLogout, useMe } from './auth'
+import { seesDashboard, useCan, useLogout, useMe } from './auth'
 import { useUnreadCount } from './notifications'
 
-// [path, label, icon, permission needed to see it (null = everyone)]
+// [path, label, icon, permission needed to see it (null = everyone, or a rule taking `can`)]
 const nav = [
-  ['/dashboard', 'Dashboard', LayoutDashboard, null],
+  ['/dashboard', 'Dashboard', LayoutDashboard, seesDashboard],
+  ['/requests', 'Vehicle requests', ClipboardPen, 'operations.view_vehiclerequest'],
   ['/vehicles', 'Vehicles', Car, 'fleet.view_vehicle'],
   ['/drivers', 'Drivers', IdCard, 'fleet.view_driver'],
   ['/trips', 'Trips', RouteIcon, 'operations.view_trip'],
@@ -56,7 +57,7 @@ export default function Layout() {
           </button>
         </div>
         <nav className="flex-1 space-y-1 p-3" aria-label="Main">
-          {nav.filter(([, , , perm]) => !perm || can(perm)).map(([to, label, Icon]) => (
+          {nav.filter(([, , , perm]) => !perm || (typeof perm === 'function' ? perm(can) : can(perm))).map(([to, label, Icon]) => (
             <NavLink
               key={to}
               to={to}

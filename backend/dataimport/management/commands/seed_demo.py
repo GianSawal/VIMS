@@ -29,14 +29,15 @@ from accounts.models import Office, User
 from fleet.models import Attachment, Driver, Vehicle, VehicleAssignment, VehicleDocument
 from maintenance.models import MaintenanceCategory, MaintenanceRecord, MaintenanceSchedule
 from notifications.services import generate
-from operations.models import DisplayScreen, FuelRecord, RFIDAccount, TollTransaction, Trip
+from operations.models import DisplayScreen, FuelRecord, RFIDAccount, TollTransaction, Trip, VehicleRequest
 
 OFFICES = [('R03', 'DOLE Regional Office III', 'REGIONAL', None), ('TAR', 'Tarlac Field Office', 'FIELD', 'R03'),
            ('PAM', 'Pampanga Field Office', 'FIELD', 'R03'), ('BUL', 'Bulacan Field Office', 'FIELD', 'R03'),
            ('NEC', 'Nueva Ecija Field Office', 'FIELD', 'R03')]
 # username -> (role, offices); a Field Office User sees TAR only.
 ACCOUNTS = {'qa_sysadmin': ('System Administrator', []), 'qa_fleetadmin': ('Fleet Administrator', []),
-            'qa_field': ('Field Office User', ['TAR']), 'qa_viewer': ('Viewer', []), 'qa_norole': (None, ['TAR'])}
+            'qa_field': ('Field Office User', ['TAR']), 'qa_viewer': ('Viewer', []), 'qa_norole': (None, ['TAR']),
+            'qa_requester': ('Requester', ['TAR'])}
 MODELS = [('Toyota', 'Hiace', 'Commuter 3.0', 'VAN', 'DIESEL'), ('Toyota', 'Innova', 'E 2.8 AT', 'SUV', 'DIESEL'),
           ('Mitsubishi', 'L300', 'FB', 'VAN', 'DIESEL'), ('Toyota', 'Vios', '1.3 XLE', 'SEDAN', 'GASOLINE'),
           ('Isuzu', 'Traviz', 'Utility Van', 'VAN', 'DIESEL'), ('Nissan', 'Navara', 'EL 4x2', 'PICKUP', 'DIESEL'),
@@ -120,7 +121,7 @@ class Command(BaseCommand):
         cats = {c.name: c for c in MaintenanceCategory.objects.all()}
         plates = set()
         counts = dict.fromkeys(['vehicles', 'drivers', 'documents', 'fuel records', 'maintenance jobs', 'trips',
-                                'toll rows'], 0)
+                                'toll rows', 'vehicle requests'], 0)
         ticket = Trip.objects.count()  # continue numbering when more offices are added (performance test)
         for code, office in offices.items():
             drivers = []
@@ -166,7 +167,29 @@ class Command(BaseCommand):
                 v.save()
                 counts['vehicles'] += 1
             DisplayScreen.objects.create(name=f'Lobby TV, {office.name}', office=office)
+            counts['vehicle requests'] += self.requests(office, admin)
         return counts
+
+    def requests(self, office, admin):
+        """Pending, approved (linked to one of the office's bookings) and declined requests. TAR's are qa_requester's."""
+        rng = self.rng
+        who = User.objects.filter(username='qa_requester', offices=office).first() or admin
+        booked = Trip.objects.filter(vehicle__office=office, status='SCHEDULED', request__isnull=True).first()
+        rows = [('PENDING', None, ''), ('DECLINED', None, 'No vehicle available that day')]
+        if booked:
+            rows.append(('APPROVED', booked, ''))
+        for status, trip, note in rows:
+            when = trip.scheduled_departure if trip else self.at(self.today + timedelta(days=rng.randint(1, 10)), 8)
+            req = VehicleRequest.objects.create(
+                reference_number=f'VR-DEMO-{office.code}-{status}', requester=who, office=office, status=status,
+                trip=trip, purpose=trip.purpose if trip else rng.choice(PURPOSES), origin=PLACES[0],
+                destination=trip.destination if trip else rng.choice(PLACES[1:]), needed_at=when,
+                return_at=when + timedelta(hours=8), passengers='Labor inspectors (2)', decision_note=note,
+                decided_by=None if status == 'PENDING' else admin,
+                decided_at=None if status == 'PENDING' else timezone.now(), created_by=who)
+            req.reference_number = f'VR-{when:%Y}-{req.pk:05d}'
+            req.save(update_fields=['reference_number'])
+        return len(rows)
 
     def documents(self, v, i, admin):
         today, n = self.today, 0

@@ -637,40 +637,40 @@ Added 2026-11-04, outside the original spec. Employees request a vehicle; fleet 
 a SCHEDULED trip, so the existing trip lifecycle, odometer rules and TV board all apply unchanged. Numbered 17A so
 the deployment phases keep their numbers.
 
-## Decisions (confirm with client before building)
+## Decisions (made 2026-11-04)
 
--   [ ] Approval chain: Fleet Admin only, or division chief/supervisor first (travel order)
--   [ ] Accounts: one per employee, or one requester account per division/office
--   [ ] Availability: can requesters see fully booked days before submitting
--   [ ] Driver: always assigned by fleet staff, or self-drive allowed for licensed requesters
+-   [x] Approval chain: Fleet Administrator only (no supervisor step)
+-   [x] Accounts: one per employee (role Requester, created by the System Administrator)
+-   [x] Availability: requesters see only the outcome, not the fleet schedule
+-   [x] Driver: optional at approval, required at dispatch (same rule as scheduling)
 
 ## Backend
 
--   [ ] `Requester` role in `seed_reference` (own requests only; no fleet, fuel, RFID, reports or audit access)
--   [ ] `VehicleRequest` model: requester, office, purpose, needed/return date-time, origin, destination, passengers, remarks, linked trip, decline reason
--   [ ] Status flow in a service module: PENDING → APPROVED / DECLINED (reason required) / CANCELLED (requester, while PENDING); COMPLETED follows the linked trip
--   [ ] Approve = pick vehicle + driver, create SCHEDULED trip via `operations/trips.py` (locks vehicle row)
--   [ ] Conflict checks on approve: overlapping trip, vehicle under maintenance/unserviceable
--   [ ] API: requester sees only own requests (others 404); fleet roles see office-scoped queue; custom actions via `require(...)`; no DELETE
--   [ ] Travel order attachment (`AttachmentsMixin`, added to `config/media.py` rules)
--   [ ] Notifications: approved, declined, dispatched (to requester); new request (to fleet admins)
--   [ ] Audit logging on submit/approve/decline/cancel
--   [ ] Tests: status flow, permissions, scoping, conflict checks; `test_security` `far` fixture and `test_performance` entries
+-   [x] `Requester` role in `seed_reference` (own requests, notifications and map search only; no fleet, fuel, RFID, reports or audit access). Fleet Administrator gets `approve_vehiclerequest`
+-   [x] `VehicleRequest` model: requester, office, purpose, needed/return date-time, origin, destination, passengers, remarks, map route (shared `RoutePlan` base with Trip), linked trip, decision note; DB checks (return after needed, approved has a trip)
+-   [x] Status flow in `operations/requests.py`: PENDING → APPROVED / DECLINED (reason required) / CANCELLED (requester, while pending or approved before dispatch; cancels the trip too); afterwards `progress` follows the trip (dispatched, completed)
+-   [x] Approve = pick vehicle (driver optional), books a SCHEDULED trip via `operations/trips.py` (locks vehicle row), copying route, passengers and requesting office
+-   [x] Conflict checks on approve: the trip booking rules (overlap, unserviceable/disposed, future time, driver license); nothing saved on failure
+-   [x] API `/api/vehicle-requests/`: requester sees only own (others 404), approvers office-scoped; `progress`/`mine` filters; `summary/`; actions via `require(...)`; no DELETE
+-   [x] Travel order attachment (`AttachmentsMixin`; `config/media.py` uses the model's `visible_to()`, so another requester gets 404)
+-   [x] Notifications: new request (approvers of that office), approved, declined, dispatched (requester); `VEHICLE_REQUEST` type links to the request
+-   [x] Audit logging on submit/approve/decline/cancel
+-   [x] Tests: `operations/test_requests.py` (flow, permissions, scoping, conflicts, attachment privacy); `test_security` `far` fixture; `seed_demo` requests so `test_performance` covers the list (that test still fails on the unrelated maintenance-history report, see Phase 17)
 
 ## Frontend
 
--   [ ] Requester layout/nav (only My Requests and notifications)
--   [ ] My Requests: status cards (Pending / Approved / Upcoming / Done) + list
--   [ ] New Request form with place search and route preview (TripMap)
--   [ ] Request detail: timeline, assigned vehicle/plate/photo, driver name/contact, decline reason, cancel button
--   [ ] Fleet Admin request queue with Approve (vehicle + driver picker, conflict warnings) and Decline (reason)
--   [ ] Dashboard card "pending requests"
--   [ ] Mobile layout check at 390 px
--   [ ] Vitest coverage for request list/form/detail and queue
+-   [x] Requester layout/nav (Vehicle requests, Notifications, Password; lands on /requests, no dashboard)
+-   [x] Request list: status cards (Pending / Approved / On trip / Completed / Declined / Cancelled) + table with search; "My vehicle requests" for requesters, "Vehicle requests" queue for approvers
+-   [x] New Request form with place search and route estimate (maps allowed for requesters)
+-   [x] Request detail: progress timeline, booked vehicle/plate/photo, driver name/contact (or "to be assigned"), decline reason, cancel button, route map, travel order attachments
+-   [x] Approve dialog (vehicle + optional driver, booked/unavailable ones disabled, conflict warnings) and Decline (reason)
+-   [x] Dashboard banner "N vehicle requests waiting for approval" for approvers
+-   [ ] Mobile layout check at 390 px (layouts reuse the responsive patterns; not yet checked in a browser)
+-   [x] Vitest coverage: requester nav, request detail (requester/approver/declined), request list
 
 ## Docs
 
--   [ ] `docs/ERD.md`, `README.md` (endpoints, role), `docs/QA.md` (requester UAT scenarios), `seed_demo` requester login
+-   [x] `docs/ERD.md`, `README.md` (endpoints, role), `docs/QA.md` (UAT U19–U23), `seed_demo` `qa_requester` login, `CLAUDE.md`
 
 ------------------------------------------------------------------------
 

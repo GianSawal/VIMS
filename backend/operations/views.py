@@ -15,18 +15,20 @@ from rest_framework.response import Response
 from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 
-from accounts.permissions import OfficeScopedMixin, PasswordChangeNotRequired, require
+from accounts.permissions import ModelPermissions, OfficeScopedMixin, PasswordChangeNotRequired, require, require_any
 from audit.services import diff, log
 from fleet.attachments_api import AttachmentsMixin
 
 from . import fuel as fuel_service
 from . import maps
+from . import requests as request_service
 from . import toll as toll_service
 from . import trips as trip_service
-from .models import DisplayScreen, FuelRecord, RFIDAccount, TollTransaction, Trip
-from .serializers import (DESCRIPTIVE, CancelSerializer, CompleteSerializer, DispatchScheduledSerializer,
+from .models import DisplayScreen, FuelRecord, RFIDAccount, TollTransaction, Trip, VehicleRequest
+from .serializers import (DESCRIPTIVE, ApproveRequestSerializer, CancelSerializer, CompleteSerializer, DispatchScheduledSerializer,
                           DispatchSerializer, DisplayScreenSerializer, DisplayTripSerializer, FuelRecordSerializer, RescheduleSerializer,
-                          RFIDAccountSerializer, ScheduleSerializer, TollTransactionSerializer, TripSerializer)
+                          RFIDAccountSerializer, ScheduleSerializer, TollTransactionSerializer, TripSerializer,
+                          VehicleRequestInputSerializer, VehicleRequestSerializer)
 
 CAN_CHANGE_TRIP = [require('operations.change_trip'), PasswordChangeNotRequired]
 CAN_ADD_TRIP = [require('operations.add_trip'), PasswordChangeNotRequired]
@@ -135,6 +137,7 @@ class TripViewSet(AttachmentsMixin, OfficeScopedMixin, mixins.ListModelMixin, mi
         log(request, 'trip_dispatch', trip,
             f'Dispatched scheduled trip {trip.ticket_number}: {trip.vehicle.plate_number} with {trip.driver.full_name}',
             {'odometer_start': [None, trip.odometer_start]})
+        request_service.trip_dispatched(trip)
         return Response(TripSerializer(trip).data)
 
     @action(detail=True, methods=['post'], permission_classes=CAN_CHANGE_TRIP)
@@ -369,8 +372,8 @@ class MapsRouteInput(drf_serializers.Serializer):
 
 
 class MapsView(APIView):
-    """Place search and driving route for trip forms (Geoapify). Needs operations.add_trip; the key never leaves the server."""
-    permission_classes = [require('operations.add_trip'), PasswordChangeNotRequired]
+    """Place search and driving route for trip and request forms. Needs add_trip or add_vehiclerequest; the key never leaves the server."""
+    permission_classes = [require_any('operations.add_trip', 'operations.add_vehiclerequest'), PasswordChangeNotRequired]
     throttle_classes = [ScopedRateThrottle]
     throttle_scope = 'maps'
 
@@ -574,3 +577,98 @@ class TollTransactionViewSet(OfficeScopedMixin, mixins.ListModelMixin, mixins.Re
         agg = self.filter_queryset(self.get_queryset()).order_by().aggregate(credit=Sum('credit'), debit=Sum('debit'), n=Count('id'))
         credit, debit = Decimal(str(agg['credit'] or 0)), Decimal(str(agg['debit'] or 0))
         return Response({'total': agg['n'], 'credit': _money(credit), 'debit': _money(debit), 'net': _money(credit - debit)})
+
+
+# ---------------------------------------------------------------- vehicle requests
+
+R = VehicleRequest.Status
+# "Progress": the request status, or the trip's once approved. Shared by the filter and the summary cards.
+PROGRESS = {
+    'PENDING': Q(status=R.PENDING),
+    'APPROVED': Q(status=R.APPROVED, trip__status=Trip.Status.SCHEDULED),
+    'DISPATCHED': Q(status=R.APPROVED, trip__status=Trip.Status.DISPATCHED),
+    'COMPLETED': Q(status=R.APPROVED, trip__status=Trip.Status.COMPLETED),
+    'DECLINED': Q(status=R.DECLINED),
+    'CANCELLED': Q(status=R.CANCELLED) | Q(status=R.APPROVED, trip__status=Trip.Status.CANCELLED),
+}
+CAN_APPROVE = [require(request_service.APPROVE), PasswordChangeNotRequired]
+CAN_VIEW_REQUEST = [require('operations.view_vehiclerequest'), PasswordChangeNotRequired]
+
+
+class VehicleRequestFilter(filters.FilterSet):
+    progress = filters.ChoiceFilter(choices=[(k, k) for k in PROGRESS], method='by_progress')
+    mine = filters.BooleanFilter(method='only_mine', help_text='Only requests I submitted.')
+    date_from = filters.DateFilter(field_name='needed_at', lookup_expr='date__gte')
+    date_to = filters.DateFilter(field_name='needed_at', lookup_expr='date__lte')
+
+    class Meta:
+        model = VehicleRequest
+        fields = ['status', 'office']
+
+    def by_progress(self, qs, name, value):
+        return qs.filter(PROGRESS[value])
+
+    def only_mine(self, qs, name, value):
+        return qs.filter(requester=self.request.user) if value else qs
+
+
+class VehicleRequestViewSet(AttachmentsMixin, mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.GenericViewSet):
+    """
+    Vehicle requests. POST submits (any user with add_vehiclerequest). Requesters see only their own;
+    approvers see their offices' requests. /approve/ books a scheduled trip, /decline/ needs a reason,
+    /cancel/ is the requester withdrawing. No PATCH or DELETE.
+    """
+    queryset = VehicleRequest.objects.select_related('requester', 'office', 'decided_by', 'trip', 'trip__vehicle', 'trip__driver')
+    serializer_class = VehicleRequestSerializer
+    permission_classes = [ModelPermissions, PasswordChangeNotRequired]
+    office_field = 'office'  # for config/media.py; reads go through visible_to()
+    filterset_class = VehicleRequestFilter
+    search_fields = ['reference_number', 'destination', 'purpose', 'requester__first_name', 'requester__last_name']
+    ordering_fields = ['needed_at', 'created_at']
+
+    def get_queryset(self):
+        return self.queryset.visible_to(self.request.user)
+
+    def create(self, request, *args, **kwargs):
+        s = VehicleRequestInputSerializer(data=request.data)
+        s.is_valid(raise_exception=True)
+        req = request_service.submit(user=request.user, **s.validated_data)
+        log(request, 'request_submit', req, f'Submitted vehicle request {req.reference_number} to {req.destination}')
+        return Response(VehicleRequestSerializer(req).data, status=status.HTTP_201_CREATED)
+
+    @action(detail=False, methods=['get'])
+    def summary(self, request):
+        """Counts per progress for the same filters as the list (omit `progress`)."""
+        qs = self.filter_queryset(self.get_queryset()).order_by()
+        return Response(qs.aggregate(total=Count('id'), **{k.lower(): Count('id', filter=q) for k, q in PROGRESS.items()}))
+
+    def _done(self, req, code=status.HTTP_200_OK):
+        return Response(VehicleRequestSerializer(self.get_queryset().get(pk=req.pk)).data, status=code)
+
+    @action(detail=True, methods=['post'], permission_classes=CAN_APPROVE)
+    def approve(self, request, pk=None):
+        req = self.get_object()  # office check before reading the input
+        s = ApproveRequestSerializer(data=request.data)
+        s.is_valid(raise_exception=True)
+        req = request_service.approve(req, user=request.user, **s.validated_data)
+        log(request, 'request_approve', req,
+            f'Approved vehicle request {req.reference_number}: {req.trip.vehicle.plate_number}, trip {req.trip.ticket_number}')
+        return self._done(req)
+
+    @action(detail=True, methods=['post'], permission_classes=CAN_APPROVE)
+    def decline(self, request, pk=None):
+        req = self.get_object()
+        s = CancelSerializer(data=request.data)
+        s.is_valid(raise_exception=True)
+        req = request_service.decline(req, user=request.user, **s.validated_data)
+        log(request, 'request_decline', req, f'Declined vehicle request {req.reference_number}: {req.decision_note}')
+        return self._done(req)
+
+    @action(detail=True, methods=['post'], permission_classes=CAN_VIEW_REQUEST)
+    def cancel(self, request, pk=None):
+        req = self.get_object()
+        s = CancelSerializer(data=request.data)
+        s.is_valid(raise_exception=True)
+        req = request_service.cancel(req, user=request.user, **s.validated_data)
+        log(request, 'request_cancel', req, f'Cancelled vehicle request {req.reference_number}: {req.decision_note}')
+        return self._done(req)

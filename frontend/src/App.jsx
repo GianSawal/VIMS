@@ -1,5 +1,5 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
-import { RequireAuth, RequirePerm } from './auth'
+import { RequireAuth, RequirePerm, seesDashboard, useCan } from './auth'
 import Layout from './Layout'
 import Login from './pages/Login'
 import ChangePassword from './pages/ChangePassword'
@@ -28,9 +28,17 @@ import RfidDetail from './pages/rfid/RfidDetail'
 import { ReportCatalog, ReportPage, ReportPrint } from './pages/reports/Reports'
 import AuditLogs from './pages/admin/AuditLogs'
 import DataImport from './pages/admin/DataImport'
+import RequestList from './pages/requests/RequestList'
+import RequestDetail from './pages/requests/RequestDetail'
 
 // Each route gets a real page as its phase is built; Pending marks what's not built yet.
 const pending = []
+
+/** Landing page: fleet staff get the dashboard, requesters (no fleet access) their requests. */
+function Home() {
+  const can = useCan()
+  return <Navigate to={seesDashboard(can) ? '/dashboard' : '/requests'} replace />
+}
 
 export default function App() {
   return (
@@ -40,7 +48,7 @@ export default function App() {
       <Route element={<RequireAuth />}>
         <Route path="/reports/:slug/print" element={<ReportPrint />} /> {/* bare page for the browser's print dialog */}
         <Route element={<Layout />}>
-          <Route index element={<Navigate to="/dashboard" replace />} />
+          <Route index element={<Home />} />
           <Route path="change-password" element={<ChangePassword />} />
           <Route path="dashboard" element={<Dashboard />} />
           <Route path="notifications" element={<Notifications />} />
@@ -69,6 +77,10 @@ export default function App() {
           <Route element={<RequirePerm perm="operations.view_trip" />}>
             <Route path="trips" element={<TripList />} />
             <Route path="trips/:id" element={<TripDetail />} />
+          </Route>
+          <Route element={<RequirePerm perm="operations.view_vehiclerequest" />}>
+            <Route path="requests" element={<RequestList />} />
+            <Route path="requests/:id" element={<RequestDetail />} />
           </Route>
           <Route element={<RequirePerm perm="operations.view_fuelrecord" />}>
             <Route path="fuel" element={<FuelList />} />

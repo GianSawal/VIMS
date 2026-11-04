@@ -15,7 +15,7 @@ from fleet.views import VehicleViewSet
 from maintenance.views import CategoryViewSet, MaintenanceRecordViewSet, ScheduleViewSet
 from notifications.api import NotificationViewSet
 from operations.views import (DisplayScreenViewSet, DisplayTripsView, FuelRecordViewSet, MapsView,
-                              RFIDAccountViewSet, TollTransactionViewSet, TripViewSet)
+                              RFIDAccountViewSet, TollTransactionViewSet, TripViewSet, VehicleRequestViewSet)
 from reports.views import ReportListView, ReportView
 
 router = DefaultRouter()
@@ -25,6 +25,7 @@ router.register('vehicles', VehicleViewSet)
 router.register('drivers', DriverViewSet)
 router.register('documents', DocumentViewSet)
 router.register('trips', TripViewSet)
+router.register('vehicle-requests', VehicleRequestViewSet)
 router.register('display-screens', DisplayScreenViewSet)
 router.register('fuel-records', FuelRecordViewSet)
 router.register('rfid-accounts', RFIDAccountViewSet)

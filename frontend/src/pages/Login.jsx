@@ -33,7 +33,7 @@ export default function Login() {
   const [capsLock, setCapsLock] = useState(false)
   const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm({ resolver: zodResolver(schema) })
 
-  if (me) return <Navigate to="/dashboard" replace />
+  if (me) return <Navigate to="/" replace />
 
   const onSubmit = async (values) => {
     setError('')
@@ -41,7 +41,7 @@ export default function Login() {
       await api.get('/auth/csrf/')
       const { data } = await api.post('/auth/login/', values)
       qc.setQueryData(['me'], data)
-      navigate(location.state?.from?.pathname || '/dashboard', { replace: true })
+      navigate(location.state?.from?.pathname || '/', { replace: true })
     } catch (err) {
       setError(err.response?.status === 429
         ? 'Too many sign-in attempts. Please wait a minute and try again.'

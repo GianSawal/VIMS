@@ -1,11 +1,12 @@
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { motion } from 'motion/react'
 import {
-  Ban, Car, CircleCheck, FileText, Fuel, IdCard, Navigation, PackageX, Route as RouteIcon, ShieldCheck,
+  Ban, Car, ChevronRight, CircleCheck, ClipboardPen, FileText, Fuel, IdCard, Navigation, PackageX, Route as RouteIcon, ShieldCheck,
   TriangleAlert, Wrench,
 } from 'lucide-react'
-import { useList } from '../api'
-import { useMe } from '../auth'
+import { useQuery } from '@tanstack/react-query'
+import { api, useList } from '../api'
+import { useCan, useMe } from '../auth'
 import { RankBars, TimeBars } from '../components/charts'
 import { selectClass } from '../components/filters'
 import { PageHeader } from '../components/ui'
@@ -87,6 +88,8 @@ export default function Dashboard() {
         </div>
       }>{d?.today ? dayLong.format(new Date(`${d.today}T00:00:00`)) : 'Fleet overview'}</PageHeader>
 
+      <PendingRequests />
+
       {query.isError ? (
         <p className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-danger">The dashboard could not be loaded. Please refresh the page.</p>
       ) : query.isLoading ? (
@@ -133,6 +136,27 @@ export default function Dashboard() {
         </motion.div>
       )}
     </div>
+  )
+}
+
+/** Approvers: vehicle requests waiting for a decision (hidden when there are none). */
+function PendingRequests() {
+  const can = useCan()
+  const approver = can('operations.approve_vehiclerequest')
+  const q = useQuery({
+    queryKey: ['/vehicle-requests/summary/', {}],
+    queryFn: () => api.get('/vehicle-requests/summary/').then((r) => r.data),
+    enabled: approver,
+  })
+  const n = approver ? q.data?.pending ?? 0 : 0
+  if (!n) return null
+  return (
+    <Link to="/requests?progress=PENDING"
+      className="mb-4 flex items-center gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-amber-900 shadow-sm hover:border-amber-300">
+      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white text-amber-700"><ClipboardPen size={18} aria-hidden="true" /></span>
+      <span className="font-medium">{plural(n, 'vehicle request')} waiting for approval</span>
+      <ChevronRight size={18} className="ml-auto" aria-hidden="true" />
+    </Link>
   )
 }
 

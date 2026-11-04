@@ -15,6 +15,7 @@ ROLES = {
         ('fleet', '*', 'add change view'),
         ('fleet', 'vehicle', 'manage'),  # manage_vehicle_photo
         ('operations', '*', 'add change view'),
+        ('operations', 'vehiclerequest', 'approve'),
         ('maintenance', '*', 'add change view'),
         ('notifications', 'notification', 'view change'),
     ],
@@ -28,6 +29,11 @@ ROLES = {
         ('maintenance', 'maintenancerecord', 'add change view'),
         ('maintenance', 'maintenancecategory', 'view'),
         ('maintenance', 'maintenanceschedule', 'view'),
+        ('notifications', 'notification', 'view change'),
+    ],
+    # Employees who ask for vehicles: their own requests only, nothing else of the fleet.
+    'Requester': [
+        ('operations', 'vehiclerequest', 'add change view'),
         ('notifications', 'notification', 'view change'),
     ],
     'Viewer': [

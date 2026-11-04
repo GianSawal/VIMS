@@ -1,10 +1,12 @@
 import secrets
 
+from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models
 from django.db.models.functions import Coalesce
 
 from accounts.models import Office
+from accounts.permissions import VIEW_ALL_OFFICES, scope_to_offices
 from config.base_models import Tracked, non_negative, ordered
 from django.contrib.contenttypes.fields import GenericRelation
 
@@ -15,7 +17,21 @@ def new_display_token():
     return secrets.token_urlsafe(32)
 
 
-class Trip(Tracked):
+class RoutePlan(models.Model):
+    """Map driving estimate (LocationIQ / Geoapify), ONE WAY, captured when the trip or request was planned."""
+    estimated_distance_km = models.DecimalField(max_digits=7, decimal_places=1, null=True, blank=True)
+    estimated_duration_min = models.PositiveIntegerField(null=True, blank=True)
+    origin_lat = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
+    origin_lng = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
+    destination_lat = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
+    destination_lng = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
+    route_geometry = models.JSONField(null=True, blank=True, help_text='Driving route [[lat, lng], ...] (thinned).')
+
+    class Meta:
+        abstract = True
+
+
+class Trip(Tracked, RoutePlan):
     class Status(models.TextChoices):
         SCHEDULED = 'SCHEDULED', 'Scheduled'
         DISPATCHED = 'DISPATCHED', 'Dispatched'
@@ -39,14 +55,6 @@ class Trip(Tracked):
     returned_at = models.DateTimeField(null=True, blank=True)
     odometer_start = models.IntegerField(null=True, blank=True)
     odometer_end = models.IntegerField(null=True, blank=True)
-    # Map driving estimate (Geoapify / OpenStreetMap), ONE WAY, captured when the trip was planned.
-    estimated_distance_km = models.DecimalField(max_digits=7, decimal_places=1, null=True, blank=True)
-    estimated_duration_min = models.PositiveIntegerField(null=True, blank=True)
-    origin_lat = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
-    origin_lng = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
-    destination_lat = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
-    destination_lng = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
-    route_geometry = models.JSONField(null=True, blank=True, help_text='Driving route [[lat, lng], ...] (thinned).')
     distance_km = models.GeneratedField(
         expression=models.F('odometer_end') - models.F('odometer_start'),
         output_field=models.IntegerField(null=True), db_persist=True,
@@ -142,6 +150,54 @@ class TollTransaction(Tracked):
     class Meta:
         ordering = ['-transacted_at']
         constraints = non_negative('credit', 'debit')
+
+
+class VehicleRequestQuerySet(models.QuerySet):
+    def visible_to(self, user):
+        """Approvers and all-office readers see every request in their offices; a requester sees only their own."""
+        if user.has_perm('operations.approve_vehiclerequest') or user.has_perm(VIEW_ALL_OFFICES):
+            return scope_to_offices(self, user, 'office')
+        return self.filter(requester=user)
+
+
+class VehicleRequest(Tracked, RoutePlan):
+    """An employee asks for a vehicle; approving it books a SCHEDULED trip (operations/requests.py)."""
+    class Status(models.TextChoices):
+        PENDING = 'PENDING', 'Pending'
+        APPROVED = 'APPROVED', 'Approved'
+        DECLINED = 'DECLINED', 'Declined'
+        CANCELLED = 'CANCELLED', 'Cancelled'
+
+    reference_number = models.CharField(max_length=40, unique=True)
+    requester = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name='vehicle_requests')
+    office = models.ForeignKey(Office, on_delete=models.PROTECT, related_name='+', help_text='Requesting office.')
+    purpose = models.TextField()
+    origin = models.CharField(max_length=200)
+    destination = models.CharField(max_length=255)
+    passengers = models.TextField(blank=True)
+    needed_at = models.DateTimeField(db_index=True, help_text='Departure date and time needed.')
+    return_at = models.DateTimeField(null=True, blank=True, help_text='Expected return.')
+    remarks = models.TextField(blank=True)
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.PENDING, db_index=True)
+    trip = models.OneToOneField(Trip, null=True, blank=True, on_delete=models.PROTECT, related_name='request')
+    decided_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name='+')
+    decided_at = models.DateTimeField(null=True, blank=True)
+    decision_note = models.TextField(blank=True, help_text='Decline or cancellation reason, or a note on approval.')
+    attachments = GenericRelation(Attachment)  # travel order
+
+    objects = VehicleRequestQuerySet.as_manager()
+
+    class Meta:
+        ordering = ['-created_at', '-id']
+        permissions = [('approve_vehiclerequest', 'Can approve or decline vehicle requests')]
+        constraints = [
+            ordered('needed_at', 'return_at'),
+            models.CheckConstraint(condition=~models.Q(status='APPROVED') | models.Q(trip__isnull=False),
+                                   name='request_approved_has_trip'),
+        ]
+
+    def __str__(self):
+        return self.reference_number
 
 
 class DisplayScreen(models.Model):

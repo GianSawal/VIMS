@@ -29,7 +29,7 @@ export default function ChangePassword() {
       const { data } = await api.post('/auth/change-password/', { current_password, new_password })
       qc.setQueryData(['me'], data)
       toast('Password changed.')
-      navigate('/dashboard', { replace: true })
+      navigate('/', { replace: true })
     } catch (err) {
       setFormError(applyFieldErrors(err, setError, ['current_password', 'new_password']))
     }

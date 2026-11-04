@@ -96,8 +96,12 @@ Django session in an HttpOnly cookie plus CSRF token. The SPA calls `GET /api/au
 | `/api/vehicles/{id}/end-assignment/` | POST `{end_date}` | leaves the vehicle unassigned |
 | `/api/trips/` | GET list · POST dispatch · PATCH descriptive fields | `?status= &vehicle= &driver= &office= &date_from= &date_to= &search=`; `GET /api/trips/summary/` for counts and distance |
 | `/api/trips/schedule/` | POST | book ahead: `{vehicle, driver, scheduled_departure, scheduled_return?, origin, destination, purpose, …}`; no odometer |
-| `/api/trips/{id}/dispatch/` | POST `{odometer_start, departed_at?}` | scheduled trips only, **on the scheduled day**; odometer read then |
+| `/api/trips/{id}/dispatch/` | POST `{odometer_start, departed_at?, driver?}` | scheduled trips only, **on the scheduled day**; odometer read then; `driver` required if the booking has none |
 | `/api/trips/{id}/reschedule/` | POST `{vehicle, driver, scheduled_departure, scheduled_return?}` | scheduled trips only; no double-booking |
+| `/api/vehicle-requests/` | GET list · POST submit | Requesters see only their own; approvers (`approve_vehiclerequest`) and all-office roles see their offices'. POST `{office, purpose, origin, destination, needed_at, return_at?, passengers?, remarks?, map fields?}`. `?progress=PENDING\|APPROVED\|DISPATCHED\|COMPLETED\|DECLINED\|CANCELLED &mine=true &office= &date_from= &date_to= &search=`; `summary/` counts per progress. Detail includes the booked `trip` (plate, driver, contact) |
+| `/api/vehicle-requests/{id}/approve/` | POST `{vehicle, driver?, note?}` | needs `approve_vehiclerequest`; books a SCHEDULED trip with every booking rule (`operations/requests.py`) and notifies the requester |
+| `/api/vehicle-requests/{id}/decline/` · `/cancel/` | POST `{reason}` | decline: approvers, pending only. cancel: the requester only, while pending or approved and not yet dispatched (cancels the trip too) |
+| `/api/vehicle-requests/{id}/attachments/` | GET / POST / DELETE `…/{att_id}/` | travel order; files follow the request's visibility (a requester only sees their own) |
 | `/api/display-screens/` | GET | TV screens and their links (needs `operations.view_displayscreen`); created/revoked in Django admin; Trips page → **TV board** |
 | `/api/display/trips/?token=` | GET (no login) | TV board data: trips on the road, today's departures not yet gone, trips returned today, next 7 days; display-safe fields (incl. vehicle/driver photos); cancelled trips never sent; rate-limited |
 | `/api/trips/{id}/complete/` | POST `{returned_at, odometer_end, remarks?}` | moves the vehicle odometer forward; vehicle back to Serviceable |
@@ -135,6 +139,10 @@ offices get **404**. Users flagged `must_change_password` get 403 everywhere exc
 Role = Django Group (permissions set by `seed_reference`). System Administrator, Fleet Administrator and Viewer hold
 `accounts.view_all_offices`; Field Office Users only see records of offices in `User.offices`. New viewsets get
 this by inheriting `accounts.permissions.OfficeScopedMixin` and setting `office_field`.
+
+**Requester** (Phase 17A): employees who ask for vehicles. Add, view and cancel their own vehicle requests (and their
+travel-order attachments), notifications and map search; no fleet, trip, fuel, RFID, report or audit access. They land
+on **Vehicle requests** instead of the dashboard. Create them in Users with the Requester role and their office.
 
 ## Branding
 

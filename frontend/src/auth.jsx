@@ -21,6 +21,9 @@ export function useCan() {
   return (perm) => !!me && (me.is_superuser || me.permissions.includes(perm))
 }
 
+// Requesters (vehicle requests but no fleet access) land on their requests; everyone else on the dashboard.
+export const seesDashboard = (can) => can('fleet.view_vehicle') || !can('operations.view_vehiclerequest')
+
 export function useLogout() {
   const qc = useQueryClient()
   return async () => {

@@ -33,6 +33,8 @@ class NotificationSerializer(serializers.ModelSerializer):
             return f'/vehicles/{o.vehicle_id}?tab=maintenance'
         if model == 'driver':
             return f'/drivers/{o.pk}'
+        if model == 'vehiclerequest':
+            return f'/requests/{o.pk}'
         return None
 
 

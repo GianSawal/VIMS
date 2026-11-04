@@ -38,10 +38,11 @@ VITE_API_TARGET=http://127.0.0.1:8001 npx vite --port 5174
 - 5 offices with 6 vehicles each;
 - drivers, assignments, and documents in every expiry band;
 - fuel, maintenance (one job open) and schedules;
-- trips in every state, plus RFID accounts with tolls and notifications.
+- trips in every state, plus RFID accounts with tolls and notifications;
+- vehicle requests per office (pending, approved with its booked trip, declined).
 
 It also creates one login per role (`qa_sysadmin`, `qa_fleetadmin`, `qa_field` (Tarlac only), `qa_viewer`,
-`qa_norole`). Their shared random password is written to `backend/qa-accounts.txt` (git-ignored).
+`qa_norole`, `qa_requester` (Tarlac)). Their shared random password is written to `backend/qa-accounts.txt` (git-ignored).
 
 ## Phase 17 QA run (2026-10-28)
 
@@ -117,6 +118,11 @@ scenario lists the role, the steps and the expected result.
 | U16 | Any | Use the app on a phone | Pages fit the screen; menu opens from the top-left button |
 | U17 | System Administrator | Show the TV board link on a lobby screen | Shows today's trips with no login and no sensitive fields; revoking the screen stops it |
 | U18 | Any | Check the dashboard after the daily alert run | Expiring documents, licenses and due maintenance match the lists |
+| U19 | Requester | Log in, request a vehicle for next week with the map, attach the travel order | Lands on Vehicle requests (no fleet menus); request is Pending; Fleet Administrators get a notification |
+| U20 | Fleet Administrator | Approve U19 with a vehicle and no driver | A scheduled trip appears on the calendar with "Driver to be assigned"; the requester is notified and sees the plate |
+| U21 | Fleet Administrator | On the day, dispatch that trip: pick the driver, enter the odometer | Dispatch refuses without a driver; the requester's request shows On trip with the driver's name and number |
+| U22 | Fleet Administrator | Decline another request with a reason | Requester is notified and sees the reason |
+| U23 | Requester | Cancel an approved request before the day | Request and its trip are cancelled; another requester cannot open either request by its link |
 
 ### Issue log
 
