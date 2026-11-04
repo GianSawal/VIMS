@@ -153,7 +153,9 @@ export default function TripDetail() {
               <Item label="Vehicle" value={<Link to={`/vehicles/${t.vehicle}`} className="font-semibold text-brand hover:underline">{t.plate_number}</Link>} hint={`${t.vehicle_label} · ${t.office_code}`} />
               <div className="flex items-center gap-3">
                 <Avatar name={t.driver_name} src={t.driver_photo_url} className="h-12! w-12! text-base" />
-                <div><dt className="text-xs text-slate-500">Driver</dt><dd><Link to={`/drivers/${t.driver}`} className="font-semibold text-brand hover:underline">{t.driver_name}</Link></dd></div>
+                <div><dt className="text-xs text-slate-500">Driver</dt><dd>{t.driver
+                  ? <Link to={`/drivers/${t.driver}`} className="font-semibold text-brand hover:underline">{t.driver_name}</Link>
+                  : <span className="font-medium text-amber-700">To be assigned at dispatch</span>}</dd></div>
               </div>
               <Item label="Requesting office" value={t.requesting_office_name ?? '—'} />
             </dl>
@@ -440,6 +442,7 @@ function Item({ label, value, hint }) {
 }
 
 const dispatchSchema = z.object({
+  driver: z.string().min(1, 'Assign a driver before dispatching'),
   departed_at: z.string().min(1, 'Departure time is required'),
   odometer_start: odometerField(),
 })
@@ -451,19 +454,33 @@ export function DispatchScheduledForm({ trip, onClose }) {
     queryFn: () => api.get(`/vehicles/${trip.vehicle}/`).then((r) => r.data),
   })
   const { register, handleSubmit, setError, setValue, getValues, formState: { errors } } = useForm({
-    resolver: zodResolver(dispatchSchema), defaultValues: { departed_at: toLocalInput(), odometer_start: '' },
+    resolver: zodResolver(dispatchSchema),
+    defaultValues: { driver: trip.driver ? String(trip.driver) : '', departed_at: toLocalInput(), odometer_start: '' },
   })
+  const drivers = useList('/drivers/', { page_size: 500, is_active: true })
+  const avail = useAvailability({ point: new Date(), excludeId: trip.id })
   useEffect(() => {
     if (vehicle.data && !getValues('odometer_start')) setValue('odometer_start', String(vehicle.data.current_odometer))
   }, [vehicle.data, getValues, setValue])
-  const [save, error] = useTripMutation(trip, 'dispatch', 'Trip dispatched. Vehicle is now in use.', onClose, setError, ['departed_at', 'odometer_start'])
+  const [save, error] = useTripMutation(trip, 'dispatch', 'Trip dispatched. Vehicle is now in use.', onClose, setError, ['driver', 'departed_at', 'odometer_start'])
 
   return (
     <form noValidate className="space-y-4" onSubmit={handleSubmit((v) => save.mutate({
-      departed_at: fromLocalInput(v.departed_at), odometer_start: Number(v.odometer_start),
+      driver: Number(v.driver), departed_at: fromLocalInput(v.departed_at), odometer_start: Number(v.odometer_start),
     }))}>
       {error && <div role="alert" className="rounded-md bg-red-50 px-3 py-2 text-sm text-danger">{error}</div>}
-      <p className="text-sm text-slate-600">{trip.plate_number} with {trip.driver_name} to {trip.destination}.</p>
+      <p className="text-sm text-slate-600">{trip.plate_number} to {trip.destination}.</p>
+      <Field label="Driver *" htmlFor="dispatch-driver" error={errors.driver?.message}
+        hint={trip.driver ? 'Booked driver. Change it if someone else is driving.' : 'No driver was assigned when this trip was booked.'}>
+        <select id="dispatch-driver" className={inputClass} {...register('driver')}>
+          <option value="">Select a driver…</option>
+          {drivers.data?.results.map((d) => (
+            <option key={d.id} value={d.id} disabled={d.license_status === 'EXPIRED' || !!avail.driverClash(d.id)}>
+              {d.full_name} ({d.office_code}){avail.driverClash(d.id) ? ` – booked ${bookingLabel(avail.driverClash(d.id))}` : d.license_status === 'EXPIRED' ? ' – license expired' : ''}
+            </option>
+          )) ?? (trip.driver && <option value={trip.driver}>{trip.driver_name}</option>)}
+        </select>
+      </Field>
       <Field label="Current odometer (km) *" htmlFor="odometer_start" error={errors.odometer_start?.message}
         hint={vehicle.data ? `Last recorded: ${km(vehicle.data.current_odometer)}. Read the dashboard now; it cannot be lower.` : 'Read it from the dashboard now.'}>
         <input id="odometer_start" inputMode="numeric" autoFocus className={inputClass} {...register('odometer_start')} />
@@ -481,7 +498,7 @@ export function DispatchScheduledForm({ trip, onClose }) {
 
 const rescheduleSchema = z.object({
   vehicle: z.string().min(1, 'Select a vehicle'),
-  driver: z.string().min(1, 'Select a driver'),
+  driver: z.string(),
   scheduled_departure: z.string().min(1, 'Choose the departure date and time'),
   scheduled_return: z.string(),
 }).refine((v) => !v.scheduled_return || v.scheduled_return >= v.scheduled_departure,
@@ -493,7 +510,7 @@ function RescheduleForm({ trip, onClose }) {
   const { register, handleSubmit, setError, watch, formState: { errors } } = useForm({
     resolver: zodResolver(rescheduleSchema),
     defaultValues: {
-      vehicle: String(trip.vehicle), driver: String(trip.driver),
+      vehicle: String(trip.vehicle), driver: trip.driver ? String(trip.driver) : '',
       scheduled_departure: toLocalInput(trip.scheduled_departure),
       scheduled_return: trip.scheduled_return ? toLocalInput(trip.scheduled_return) : '',
     },
@@ -505,7 +522,7 @@ function RescheduleForm({ trip, onClose }) {
   const [save, error] = useTripMutation(trip, 'reschedule', 'Trip rescheduled.', onClose, setError, Object.keys(rescheduleSchema.shape))
   return (
     <form noValidate className="grid gap-4 sm:grid-cols-2" onSubmit={handleSubmit((v) => save.mutate({
-      vehicle: Number(v.vehicle), driver: Number(v.driver), scheduled_departure: fromLocalInput(v.scheduled_departure),
+      vehicle: Number(v.vehicle), driver: v.driver ? Number(v.driver) : null, scheduled_departure: fromLocalInput(v.scheduled_departure),
       scheduled_return: v.scheduled_return ? fromLocalInput(v.scheduled_return) : null,
     }))}>
       {error && <div role="alert" className="rounded-md bg-red-50 px-3 py-2 text-sm text-danger sm:col-span-2">{error}</div>}
@@ -518,13 +535,14 @@ function RescheduleForm({ trip, onClose }) {
           )) ?? <option value={trip.vehicle}>{trip.plate_number}</option>}
         </select>
       </Field>
-      <Field label="Driver *" htmlFor="driver" error={errors.driver?.message}>
+      <Field label="Driver" htmlFor="driver" error={errors.driver?.message} hint="Optional until dispatch.">
         <select id="driver" className={inputClass} {...register('driver')}>
+          <option value="">To be assigned later</option>
           {drivers.data?.results.map((d) => (
             <option key={d.id} value={d.id} disabled={d.license_status === 'EXPIRED' || !!avail.driverClash(d.id)}>
               {d.full_name} ({d.office_code}){avail.driverClash(d.id) ? ` – booked ${bookingLabel(avail.driverClash(d.id))}` : ''}
             </option>
-          )) ?? <option value={trip.driver}>{trip.driver_name}</option>}
+          )) ?? (trip.driver && <option value={trip.driver}>{trip.driver_name}</option>)}
         </select>
       </Field>
       <Field label="Departure date and time *" htmlFor="scheduled_departure" error={errors.scheduled_departure?.message}>

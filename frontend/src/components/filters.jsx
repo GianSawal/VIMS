@@ -6,7 +6,7 @@ export const selectClass = `${inputBase} h-9 py-0`
 
 // "Atty. SARAH BUENA S. MIRASOL" -> "SM": skips titles/initials that end with a period.
 export const initials = (name) =>
-  name.split(/\s+/).filter((w) => w && !w.endsWith('.')).slice(0, 2).map((w) => w[0]).join('').toUpperCase() || '?'
+  (name ?? '').split(/\s+/).filter((w) => w && !w.endsWith('.')).slice(0, 2).map((w) => w[0]).join('').toUpperCase() || '?'
 
 export function Avatar({ name, src, className = '' }) {
   if (src) {

@@ -24,7 +24,8 @@ class Trip(Tracked):
 
     ticket_number = models.CharField(max_length=40, unique=True)
     vehicle = models.ForeignKey(Vehicle, on_delete=models.PROTECT, related_name='trips')
-    driver = models.ForeignKey(Driver, on_delete=models.PROTECT, related_name='trips')
+    # Optional while SCHEDULED (the driver may not be known when booking); required from dispatch on.
+    driver = models.ForeignKey(Driver, null=True, blank=True, on_delete=models.PROTECT, related_name='trips')
     requesting_office = models.ForeignKey(Office, null=True, blank=True, on_delete=models.PROTECT, related_name='+')
     passengers = models.TextField(blank=True)
     origin = models.CharField(max_length=200)
@@ -68,6 +69,9 @@ class Trip(Tracked):
             models.CheckConstraint(
                 condition=~models.Q(status='SCHEDULED') | models.Q(scheduled_departure__isnull=False),
                 name='trip_scheduled_has_departure_time'),
+            models.CheckConstraint(
+                condition=models.Q(status__in=['SCHEDULED', 'CANCELLED']) | models.Q(driver__isnull=False),
+                name='trip_started_has_driver'),
         ]
 
     def __str__(self):

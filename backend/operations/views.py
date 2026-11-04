@@ -110,7 +110,7 @@ class TripViewSet(AttachmentsMixin, OfficeScopedMixin, mixins.ListModelMixin, mi
         trip = trip_service.schedule(user=request.user, **s.validated_data)
         when = timezone.localtime(trip.scheduled_departure).strftime('%b %d, %Y %I:%M %p')
         log(request, 'trip_schedule', trip,
-            f'Scheduled {trip.vehicle.plate_number} with {trip.driver.full_name} to {trip.destination} on {when} ({trip.ticket_number})')
+            f'Scheduled {trip.vehicle.plate_number} with {trip.driver.full_name if trip.driver else "driver to be assigned"} to {trip.destination} on {when} ({trip.ticket_number})')
         return Response(TripSerializer(trip).data, status=status.HTTP_201_CREATED)
 
     @action(detail=True, methods=['post'], permission_classes=CAN_CHANGE_TRIP)
@@ -119,7 +119,7 @@ class TripViewSet(AttachmentsMixin, OfficeScopedMixin, mixins.ListModelMixin, mi
         s = RescheduleSerializer(data=request.data)
         s.is_valid(raise_exception=True)
         trip, before = trip_service.reschedule(trip, user=request.user, **s.validated_data)
-        after = {'vehicle': trip.vehicle.plate_number, 'driver': trip.driver.full_name,
+        after = {'vehicle': trip.vehicle.plate_number, 'driver': trip.driver.full_name if trip.driver else None,
                  'scheduled_departure': trip.scheduled_departure.isoformat(),
                  'scheduled_return': trip.scheduled_return.isoformat() if trip.scheduled_return else None}
         log(request, 'trip_reschedule', trip, f'Rescheduled trip {trip.ticket_number}', diff(before, after))
@@ -131,7 +131,7 @@ class TripViewSet(AttachmentsMixin, OfficeScopedMixin, mixins.ListModelMixin, mi
         trip = self.get_object()
         s = DispatchScheduledSerializer(data=request.data)
         s.is_valid(raise_exception=True)
-        trip = trip_service.dispatch_scheduled(trip, **s.validated_data)
+        trip = trip_service.dispatch_scheduled(trip, user=request.user, **s.validated_data)
         log(request, 'trip_dispatch', trip,
             f'Dispatched scheduled trip {trip.ticket_number}: {trip.vehicle.plate_number} with {trip.driver.full_name}',
             {'odometer_start': [None, trip.odometer_start]})

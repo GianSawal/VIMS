@@ -13,7 +13,7 @@ import DispatchForm from './DispatchForm'
 import TripCalendar from './TripCalendar'
 import TvScreens from './TvScreens'
 import { CompleteForm, DispatchScheduledForm } from './TripDetail'
-import { km, shortDateTime, TRIP_STATUSES, tripDuration, tripStatusLabel, TripStatusBadge } from './common'
+import { driverLabel, km, shortDateTime, TRIP_STATUSES, tripDuration, tripStatusLabel, TripStatusBadge } from './common'
 
 const CARDS = {
   ALL: [RouteIcon, 'bg-slate-100 text-slate-700', 'All trips'],
@@ -36,7 +36,7 @@ function TripIdentity({ t }) {
         <div className="truncate text-xs text-slate-500">{t.vehicle_label}</div>
         <div className="mt-2 flex items-center gap-2">
           <Avatar name={t.driver_name} src={t.driver_photo_url} className="h-8! w-8! text-xs" />
-          <span className="min-w-0"><span className="block text-[11px] leading-none text-slate-500">Driver</span><span className="block truncate text-sm font-medium">{t.driver_name}</span></span>
+          <span className="min-w-0"><span className="block text-[11px] leading-none text-slate-500">Driver</span><span className="block truncate text-sm font-medium">{driverLabel(t)}</span></span>
         </div>
       </div>
     </div>
@@ -83,11 +83,11 @@ export function tripColumns({ withVehicle = true } = {}) {
         <div className="min-w-0">
           <div className="font-semibold tracking-wide">{t.plate_number}</div>
           <div className="truncate text-xs text-slate-500">{t.vehicle_label}</div>
-          <div className="mt-1 flex items-center gap-1.5 truncate text-xs text-slate-600"><Avatar name={t.driver_name} src={t.driver_photo_url} className="h-5! w-5! text-[9px]" />{t.driver_name}</div>
+          <div className="mt-1 flex items-center gap-1.5 truncate text-xs text-slate-600"><Avatar name={t.driver_name} src={t.driver_photo_url} className="h-5! w-5! text-[9px]" />{driverLabel(t)}</div>
         </div>
       </div>
     ) }] : [{ key: 'driver', label: 'Driver', render: (t) => (
-      <span className="flex items-center gap-2"><Avatar name={t.driver_name} src={t.driver_photo_url} className="h-7! w-7! text-[10px]" />{t.driver_name}</span>
+      <span className="flex items-center gap-2"><Avatar name={t.driver_name} src={t.driver_photo_url} className="h-7! w-7! text-[10px]" />{driverLabel(t)}</span>
     ) }]),
     { key: 'route', label: 'Route', render: (t) => (
       <ol className="relative max-w-64 space-y-1 pl-4 text-sm" aria-label={`From ${t.origin} to ${t.destination}`}>

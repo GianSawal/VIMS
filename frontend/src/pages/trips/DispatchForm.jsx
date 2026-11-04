@@ -34,6 +34,7 @@ const schemas = {
   }),
   schedule: z.object({
     ...common,
+    driver: z.string(), // may be unknown when booking; required at dispatch
     scheduled_departure: z.string().min(1, 'Choose the departure date and time'),
     scheduled_return: z.string(),
   }).refine((v) => !v.scheduled_return || v.scheduled_return >= v.scheduled_departure,
@@ -132,7 +133,7 @@ export default function DispatchForm({ vehicle, mode = 'dispatch', onClose, onSa
     destination_lng: estimate ? estimate.destination[1].toFixed(6) : null,
     route_geometry: estimate ? estimate.geometry : null,
     vehicle: Number(v.vehicle),
-    driver: Number(v.driver),
+    driver: v.driver ? Number(v.driver) : null,
     requesting_office: v.requesting_office ? Number(v.requesting_office) : null,
     ...(scheduling
       ? { scheduled_departure: fromLocalInput(v.scheduled_departure),
@@ -185,10 +186,11 @@ export default function DispatchForm({ vehicle, mode = 'dispatch', onClose, onSa
             </select>
           </Field>
         )}
-        <Field label="Driver *" htmlFor="driver" error={errors.driver?.message}
-          hint={chosenDriver?.license_status === 'EXPIRING' ? `License expires ${chosenDriver.license_expiry_date}. Remind the driver to renew.` : undefined}>
+        <Field label={scheduling ? 'Driver' : 'Driver *'} htmlFor="driver" error={errors.driver?.message}
+          hint={chosenDriver?.license_status === 'EXPIRING' ? `License expires ${chosenDriver.license_expiry_date}. Remind the driver to renew.`
+            : scheduling && !chosenDriver ? 'Optional now. A driver must be assigned when the trip is dispatched.' : undefined}>
           <select id="driver" className={inputClass} {...register('driver')}>
-            <option value="">Select a driver…</option>
+            <option value="">{scheduling ? 'To be assigned later' : 'Select a driver…'}</option>
             {drivers.data?.results.map((d) => (
               <option key={d.id} value={d.id} disabled={d.license_status === 'EXPIRED' || !!avail.driverClash(d.id)}>
                 {d.full_name} ({d.office_code}){avail.driverClash(d.id) ? ` – booked ${bookingLabel(avail.driverClash(d.id))}` : d.license_status === 'EXPIRED' ? ' – license expired' : d.license_status === 'EXPIRING' ? ' – license expiring' : ''}

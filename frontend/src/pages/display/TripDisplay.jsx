@@ -333,7 +333,7 @@ function TripCard({ r, now, featured, wide }) {
               <Avatar name={r.driver_name} src={r.driver_photo_url} size={featured ? 56 : 46} />
               <div className="min-w-0">
                 <div className="text-[13px] font-semibold tracking-[0.12em] text-white/40 uppercase">Driver</div>
-                <div className={`font-semibold text-white/90 ${featured ? 'text-[24px]' : 'text-[20px]'}`}>{r.driver_name}</div>
+                <div className={`font-semibold text-white/90 ${featured ? 'text-[24px]' : 'text-[20px]'}`}>{r.driver_name ?? 'Driver TBA'}</div>
               </div>
             </div>
             <div className="ml-auto text-right">
@@ -355,7 +355,7 @@ function TripCard({ r, now, featured, wide }) {
           <div className="mt-2 border-t border-white/10 pt-3">
             <div className="flex items-center gap-2.5">
               <Avatar name={r.driver_name} src={r.driver_photo_url} size={40} />
-              <span className="min-w-0 flex-1 truncate text-[19px] font-semibold text-white/90" title={r.driver_name}>{r.driver_name}</span>
+              <span className="min-w-0 flex-1 truncate text-[19px] font-semibold text-white/90" title={r.driver_name ?? 'Driver TBA'}>{r.driver_name ?? 'Driver TBA'}</span>
             </div>
             <div className="mt-2.5 flex items-center gap-2.5">
               <span className="text-[12px] font-semibold tracking-[0.1em] text-white/40 uppercase">{verb}</span>

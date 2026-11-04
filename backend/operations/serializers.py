@@ -37,7 +37,7 @@ class TripSerializer(serializers.ModelSerializer):
     office_code = serializers.CharField(source='vehicle.office.code', read_only=True)
     vehicle_photo_url = serializers.SerializerMethodField()
     driver_photo_url = serializers.SerializerMethodField()
-    driver_name = serializers.CharField(source='driver.full_name', read_only=True)
+    driver_name = serializers.CharField(source='driver.full_name', read_only=True, default=None)
     requesting_office = serializers.PrimaryKeyRelatedField(queryset=Office.objects.all(), required=False, allow_null=True)
     requesting_office_name = serializers.CharField(source='requesting_office.name', read_only=True, default=None)
     status_display = serializers.CharField(source='get_status_display', read_only=True)
@@ -64,7 +64,7 @@ class TripSerializer(serializers.ModelSerializer):
         return t.vehicle.photo.url if t.vehicle.photo else None
 
     def get_driver_photo_url(self, t):
-        return t.driver.photo.url if t.driver.photo else None
+        return t.driver.photo.url if t.driver and t.driver.photo else None
 
     def get_schedule_day(self, t):
         if t.status != Trip.Status.SCHEDULED:
@@ -122,7 +122,8 @@ class ScheduleSerializer(serializers.Serializer):
     """Book a trip ahead: no odometer and no actual departure yet."""
     ticket_number = serializers.CharField(max_length=40, required=False, allow_blank=True, default='')
     vehicle = serializers.PrimaryKeyRelatedField(queryset=Vehicle.objects.all())
-    driver = serializers.PrimaryKeyRelatedField(queryset=Driver.objects.all())
+    driver = serializers.PrimaryKeyRelatedField(queryset=Driver.objects.all(), required=False, allow_null=True,
+                                                help_text='Optional when booking; required at dispatch.')
     scheduled_departure = serializers.DateTimeField()
     scheduled_return = serializers.DateTimeField(required=False, allow_null=True)
     requesting_office = serializers.PrimaryKeyRelatedField(queryset=Office.objects.filter(is_active=True),
@@ -146,7 +147,8 @@ class ScheduleSerializer(serializers.Serializer):
 
 class RescheduleSerializer(serializers.Serializer):
     vehicle = serializers.PrimaryKeyRelatedField(queryset=Vehicle.objects.all())
-    driver = serializers.PrimaryKeyRelatedField(queryset=Driver.objects.all())
+    driver = serializers.PrimaryKeyRelatedField(queryset=Driver.objects.all(), required=False, allow_null=True,
+                                                help_text='Optional when booking; required at dispatch.')
     scheduled_departure = serializers.DateTimeField()
     scheduled_return = serializers.DateTimeField(required=False, allow_null=True)
 
@@ -154,6 +156,8 @@ class RescheduleSerializer(serializers.Serializer):
 class DispatchScheduledSerializer(serializers.Serializer):
     odometer_start = serializers.IntegerField(min_value=0)
     departed_at = serializers.DateTimeField(required=False, help_text='Defaults to now.')
+    driver = serializers.PrimaryKeyRelatedField(queryset=Driver.objects.all(), required=False, allow_null=True,
+                                                help_text="Required if the trip was booked without one; otherwise replaces it.")
 
 
 class DisplayScreenSerializer(serializers.ModelSerializer):
@@ -171,7 +175,7 @@ class DisplayTripSerializer(serializers.ModelSerializer):
     plate_number = serializers.CharField(source='vehicle.plate_number')
     vehicle_label = serializers.SerializerMethodField()
     vehicle_photo_url = serializers.SerializerMethodField()
-    driver_name = serializers.CharField(source='driver.full_name')
+    driver_name = serializers.CharField(source='driver.full_name', default=None)
     driver_photo_url = serializers.SerializerMethodField()
     office_code = serializers.CharField(source='vehicle.office.code')
     flag = serializers.SerializerMethodField(help_text='DELAYED (late to leave) or OVERDUE (late to return).')
@@ -188,7 +192,7 @@ class DisplayTripSerializer(serializers.ModelSerializer):
         return t.vehicle.photo.url if t.vehicle.photo else None
 
     def get_driver_photo_url(self, t):
-        return t.driver.photo.url if t.driver.photo else None
+        return t.driver.photo.url if t.driver and t.driver.photo else None
 
     def get_flag(self, t):
         now = timezone.now()
