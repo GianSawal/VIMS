@@ -11,7 +11,7 @@ import { useToast } from '../components/toast'
 
 const schema = z.object({
   current_password: z.string().min(1, 'Enter your current password'),
-  new_password: z.string().min(10, 'At least 10 characters'),
+  new_password: z.string().min(8, 'At least 8 characters'),
   confirm: z.string(),
 }).refine((v) => v.new_password === v.confirm, { path: ['confirm'], message: 'Passwords do not match' })
 
@@ -46,7 +46,7 @@ export default function ChangePassword() {
           <input id="current_password" type="password" autoComplete="current-password" className={inputClass} {...register('current_password')} />
         </Field>
         <Field label="New password" htmlFor="new_password" error={errors.new_password?.message}
-          hint="At least 10 characters; not too common or similar to your username.">
+          hint="At least 8 characters.">
           <input id="new_password" type="password" autoComplete="new-password" className={inputClass} {...register('new_password')} />
         </Field>
         <Field label="Confirm new password" htmlFor="confirm" error={errors.confirm?.message}>

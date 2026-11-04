@@ -167,7 +167,7 @@ const baseSchema = {
 // A requester asks for vehicles for their office, so they need one (the API checks it too).
 const needsOffice = (v) => v.role !== 'Requester' || v.offices.length > 0
 const officeRule = { path: ['offices'], message: 'Select the office this requester belongs to' }
-const createSchema = z.object({ ...baseSchema, password: z.string().min(10, 'At least 10 characters') }).refine(needsOffice, officeRule)
+const createSchema = z.object({ ...baseSchema, password: z.string().min(8, 'At least 8 characters') }).refine(needsOffice, officeRule)
 const editSchema = z.object(baseSchema).refine(needsOffice, officeRule)
 
 function UserForm({ user, onClose }) {
@@ -253,7 +253,7 @@ function ResetPasswordForm({ user, onClose }) {
   const qc = useQueryClient()
   const [error, setFormError] = useState('')
   const { register, handleSubmit, setError, formState: { errors } } = useForm({
-    resolver: zodResolver(z.object({ new_password: z.string().min(10, 'At least 10 characters') })),
+    resolver: zodResolver(z.object({ new_password: z.string().min(8, 'At least 8 characters') })),
   })
   const reset = useMutation({
     mutationFn: (body) => api.post(`/users/${user.id}/reset-password/`, body),
