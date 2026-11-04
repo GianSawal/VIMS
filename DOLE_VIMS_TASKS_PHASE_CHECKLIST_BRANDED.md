@@ -294,7 +294,7 @@ correctly and preserves history.
 -   [x] Auto-refresh (about every 60 seconds) with no interaction needed
 -   [x] Auto-page or scroll when the list is longer than the screen (6 rows per page, every 12 s, with a progress bar)
 -   [x] "Connection lost / last updated" indicator if the network drops
--   [x] Motion that marks changes (2026-11-04): counters roll, trips whose status changed since the last refresh pulse a gold outline and carry "Just left" / "Just returned" / "New booking" for 10 minutes, new side-list rows slide in, progress bars move smoothly; stage drifts 2–3 px every 3 minutes against burn-in (`TripDisplay.test.jsx`)
+-   [x] Motion that marks changes (2026-11-04): counters roll, trips whose status changed since the last refresh pulse a gold outline and carry "Just left" / "Just returned" / "New booking" for 10 minutes, new side-list rows slide in, progress bars move smoothly; stage drifts 2–3 px every 3 minutes against burn-in; soft logo-color glows drift slowly in the background (`TripDisplay.test.jsx`)
 -   [ ] Readable at a distance at 1920×1080 landscape; avoid static elements that cause screen burn-in — fixed 1920×1080 stage scaled to any TV (Full HD, 4K, smaller); screenshot-checked at 1920×1080 and 1366×768; light panels on soft blue-gray; Inter font with system fallback; needs checking on the real TV
 -   [x] Tests (display API scoping, token/permission, no sensitive fields) (`operations/test_schedule.py`)
 -   [ ] UAT on the actual TV

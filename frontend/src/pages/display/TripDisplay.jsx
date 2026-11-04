@@ -540,13 +540,35 @@ function Empty({ next, now }) {
 }
 
 /** Fixed 1920x1080 canvas scaled to the screen (letterboxed in navy if the TV isn't 16:9). A thin DOLE tricolor tops it. */
+// Live background: soft glows in the logo colors drifting behind the panels, one cycle a minute or more.
+// Radial gradients moved with transform only (no CSS blur), so weak TV browsers keep up. [color, size, left, top, seconds, path]
+const GLOWS = [
+  ['rgb(3 5 186 / .10)', 1100, -250, -350, 47, 'a'],
+  ['rgb(255 198 3 / .16)', 900, 1250, 350, 61, 'b'],
+  ['rgb(3 5 186 / .08)', 1000, 700, 600, 73, 'c'],
+  ['rgb(255 1 3 / .05)', 800, 1400, -300, 53, 'a'],
+]
+const GLOW_CSS = `
+  @keyframes vrs-a { to { transform: translate(260px, 160px) scale(1.15) } }
+  @keyframes vrs-b { to { transform: translate(-320px, -140px) scale(.9) } }
+  @keyframes vrs-c { to { transform: translate(-200px, -220px) scale(1.1) } }
+  @media (prefers-reduced-motion: reduce) { .vrs-glows > span { animation: none !important } }`
+
 function Stage({ children }) {
   const scale = useStageScale()
   const [dx, dy] = useDrift()
   return (
     <div className="fixed inset-0 overflow-hidden" style={{ background: PAGE }}>
-      <div className="absolute top-1/2 left-1/2 flex flex-col overflow-hidden font-['Inter',ui-sans-serif,system-ui,'Segoe_UI',sans-serif] antialiased transition-transform duration-[2000ms] ease-in-out"
+      <div className="isolate absolute top-1/2 left-1/2 flex flex-col overflow-hidden font-['Inter',ui-sans-serif,system-ui,'Segoe_UI',sans-serif] antialiased transition-transform duration-[2000ms] ease-in-out"
         style={{ width: W, height: H, background: BACKDROP, transform: `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px)) scale(${scale})` }}>
+        <style>{GLOW_CSS}</style>
+        <div className="vrs-glows pointer-events-none absolute inset-0 -z-10" aria-hidden="true">
+          {GLOWS.map(([color, size, left, top, s, path]) => (
+            <span key={`${left},${top}`} className="absolute rounded-full will-change-transform"
+              style={{ width: size, height: size, left, top, background: `radial-gradient(circle, ${color} 0%, transparent 65%)`,
+                       animation: `vrs-${path} ${s}s ease-in-out infinite alternate` }} />
+          ))}
+        </div>
         <div className="flex h-1 shrink-0" aria-hidden="true">
           <span className="flex-1 bg-brand" /><span className="flex-1 bg-accent" /><span className="flex-1 bg-gold" />
         </div>
