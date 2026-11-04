@@ -9,7 +9,7 @@
   --color-danger: #c40002;       /* red darkened for text/buttons (>= 5.9:1) */
   --color-gold: #ffc603;         /* logo stars: highlights, focus ring */
   --color-ink: #2f2f2f;          /* logo wordmark: body text */
-  --color-pearl: #f7f5ef;        /* page background: warm pearl white (cards stay pure white) */
+  --color-pearl: #f5f6f8;        /* page background: neutral pearl white (cards stay pure white) */
   --color-chart: #2b31e0;       /* logo blue stepped lighter for chart marks (passes the dataviz lightness band) */
   /* Vehicle-status marks (dashboard fleet bar), adjacent pairs validated with the dataviz script.
      Always paired with an icon + label; never used for text. */
@@ -26,11 +26,13 @@
   @keyframes backdrop-in { from { opacity: 0 } }
 }
 
-/* Pearl: the base color with a soft white sheen from the top left, fixed so long pages don't stretch it. */
+/* Pearl: the base color with a soft white sheen from the top left and a faint cool lilac/blue shimmer toward the
+   bottom right (no warm tones, so it never reads yellow). Fixed so long pages don't stretch it. */
 body {
   @apply bg-pearl text-ink antialiased;
-  background-image: radial-gradient(ellipse 90% 70% at 15% 0%, rgb(255 255 255 / .85), transparent 70%),
-                    linear-gradient(160deg, transparent 40%, rgb(236 232 222 / .55));
+  background-image: radial-gradient(ellipse 90% 70% at 15% 0%, rgb(255 255 255 / .9), transparent 70%),
+                    radial-gradient(ellipse 60% 50% at 90% 85%, rgb(232 230 245 / .7), transparent 70%),
+                    linear-gradient(160deg, transparent 45%, rgb(229 233 241 / .6));
   background-attachment: fixed;
 }
 
