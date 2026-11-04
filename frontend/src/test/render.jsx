@@ -12,11 +12,12 @@ export function renderApp(ui, { me = meWith(), path = '/', routes, data = {} } =
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: Infinity, queryFn: () => new Promise(() => {}) } } })
   qc.setQueryData(['me'], me)
   for (const [key, value] of Object.entries(data)) qc.setQueryData(JSON.parse(key), value)
-  return render(
+  const view = render(
     <QueryClientProvider client={qc}>
       <MemoryRouter initialEntries={[path]}>
         {routes ? <Routes>{routes}</Routes> : <Routes><Route path="*" element={ui} /></Routes>}
       </MemoryRouter>
     </QueryClientProvider>,
   )
+  return { ...view, qc } // qc: push new query data to simulate a refresh
 }

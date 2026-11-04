@@ -64,6 +64,36 @@ function useClock() {
   return now
 }
 
+const FRESH_MS = 10 * 60_000 // how long a "Just left / Just returned / New booking" tag stays
+const EASE = [0.23, 1, 0.32, 1]
+
+/**
+ * ticket -> time its status last changed between refreshes (not on the first load), so the board can point at
+ * what just happened. Derived during render from the previous snapshot, no effect needed.
+ */
+function useChanges(data, now) {
+  const [snap, setSnap] = useState({ data: undefined, status: null, at: {} })
+  if (data && data !== snap.data) {
+    const status = Object.fromEntries([...data.today, ...data.upcoming].map((r) => [r.ticket_number, r.status]))
+    const at = { ...snap.at }
+    if (snap.status) for (const [k, s] of Object.entries(status)) if (snap.status[k] !== s) at[k] = now.getTime()
+    setSnap({ data, status, at })
+  }
+  return (ticket) => snap.at[ticket] != null && now.getTime() - snap.at[ticket] < FRESH_MS
+}
+
+const SHIFT = [[0, 0], [3, 2], [-2, 3], [-3, -2], [2, -3]]
+const SHIFT_MS = 3 * 60_000
+/** Burn-in protection: the stage drifts a few pixels every few minutes. Too small and slow to notice. */
+function useDrift() {
+  const [i, setI] = useState(0)
+  useEffect(() => {
+    const id = setInterval(() => setI((n) => (n + 1) % SHIFT.length), SHIFT_MS)
+    return () => clearInterval(id)
+  }, [])
+  return SHIFT[i]
+}
+
 function usePager(count, size) {
   const [page, setPage] = useState(0)
   const pages = Math.max(1, Math.ceil(count / size))
@@ -108,6 +138,7 @@ export default function TripDisplay() {
     enabled: !!token,
   })
 
+  const fresh = useChanges(q.data, now)
   const rows = q.data?.today ?? []
   // On the road first (longest out first), then today's departures by time.
   const active = rows.filter((r) => r.status === 'DISPATCHED' || r.status === 'SCHEDULED')
@@ -155,7 +186,9 @@ export default function TripDisplay() {
 
   return (
     <Stage>
-      <style>{'@keyframes vrs-page { from { transform: scaleX(0) } to { transform: scaleX(1) } }'}</style>
+      <style>{`@keyframes vrs-page { from { transform: scaleX(0) } to { transform: scaleX(1) } }
+        @keyframes vrs-glow { 0%, 100% { outline-color: transparent } 30%, 60% { outline-color: var(--color-gold) } }
+        @media (prefers-reduced-motion: reduce) { * { animation-iteration-count: 1 !important } }`}</style>
 
       {/* Header: identity on the left, clock on the right */}
       <header className="flex h-[128px] shrink-0 items-center gap-6 px-14">
@@ -213,7 +246,7 @@ export default function TripDisplay() {
               <motion.div key={page} className={`grid items-start gap-5 ${cols === 2 ? 'grid-cols-2' : 'grid-cols-1'}`}
                 initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
                 transition={{ duration: 0.45, ease: [0.23, 1, 0.32, 1] }}>
-                {shown.map((r) => <TripCard key={r.ticket_number} r={r} now={now} wide={cols === 1} />)}
+                {shown.map((r) => <TripCard key={r.ticket_number} r={r} now={now} wide={cols === 1} fresh={fresh(r.ticket_number)} />)}
               </motion.div>
             </AnimatePresence>
           )}
@@ -232,13 +265,13 @@ export default function TripDisplay() {
               <div className="flex flex-1 items-center justify-center text-[20px] font-medium text-slate-500">No upcoming bookings</div>
             ) : (
               <div className="min-h-0 overflow-hidden pb-2">
-                {agenda.map((g) => <AgendaDay key={g.key} g={g} now={now} />)}
+                {agenda.map((g) => <AgendaDay key={g.key} g={g} now={now} fresh={fresh} />)}
                 {upcoming.length > agendaCount && <div className="border-t border-slate-100 px-6 pt-3 text-[16px] font-medium text-slate-500">+{upcoming.length - agendaCount} more this week</div>}
               </div>
             )}
           </section>
 
-          {completed.length > 0 && <CompletedToday trips={completed} now={now} />}
+          {completed.length > 0 && <CompletedToday trips={completed} now={now} fresh={fresh} />}
         </aside>
       </main>
 
@@ -260,7 +293,20 @@ export default function TripDisplay() {
  * with the driver and the departure time. Same size whether one trip or many are showing; `wide` (single
  * column) adds the expected-return time, which is cut in the 2-column grid to keep rows short.
  */
-function TripCard({ r, now, wide }) {
+const FRESH_TAG = { DISPATCHED: 'Just left', COMPLETED: 'Just returned', SCHEDULED: 'New booking' }
+// Gold outline that pulses three times when a trip just changed (replays when its page rotates back in).
+const glow = (on, inset) => (on ? { outline: '4px solid transparent', outlineOffset: inset ? -4 : 2, animation: 'vrs-glow 2s ease-in-out 3' } : undefined)
+
+function FreshTag({ r, className = 'px-3 py-1 text-[15px]' }) {
+  return (
+    <motion.span initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.4, ease: EASE }}
+      className={`inline-flex shrink-0 items-center rounded-full bg-gold font-bold text-slate-900 ${className}`}>
+      {FRESH_TAG[r.status]}
+    </motion.span>
+  )
+}
+
+function TripCard({ r, now, wide, fresh }) {
   const [label, pill, dot] = statusOf(r)
   const out = r.status === 'DISPATCHED'
   const late = !!r.flag
@@ -275,7 +321,7 @@ function TripCard({ r, now, wide }) {
   const subColor = late ? 'font-semibold text-red-600' : out ? 'text-slate-500' : 'font-semibold text-amber-700'
 
   return (
-    <article className={`relative flex min-w-0 gap-4 overflow-hidden rounded-2xl p-3 pl-4 ${late ? 'bg-red-50 ring-1 ring-red-300' : panel}`}>
+    <article style={glow(fresh)} className={`relative flex min-w-0 gap-4 overflow-hidden rounded-2xl p-3 pl-4 ${late ? 'bg-red-50 ring-1 ring-red-300' : panel}`}>
       <span className={`absolute inset-y-0 left-0 w-1.5 ${dot}`} aria-hidden="true" />
       <VehicleImage r={r} className={wide ? 'w-[210px]' : 'w-[160px]'} />
 
@@ -283,7 +329,8 @@ function TripCard({ r, now, wide }) {
         <div className="flex min-w-0 items-center gap-3">
           <Plate size="md">{r.plate_number}</Plate>
           <span className="min-w-0 truncate text-[16px] text-slate-500">{r.vehicle_label}</span>
-          <span className={`ml-auto inline-flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1 text-[15px] font-semibold ring-1 ${pill}`}>
+          {fresh && <FreshTag r={r} className="ml-auto px-3 py-1 text-[15px]" />}
+          <span className={`${fresh ? '' : 'ml-auto'} inline-flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1 text-[15px] font-semibold ring-1 ${pill}`}>
             <span className="relative flex h-2 w-2" aria-hidden="true">
               {out && !late && <span className={`absolute inset-0 rounded-full ${dot} motion-safe:animate-ping`} />}
               <span className={`relative h-2 w-2 rounded-full ${dot}`} />
@@ -322,7 +369,7 @@ function TripCard({ r, now, wide }) {
 
       {progress != null && (
         <span className="absolute inset-x-0 bottom-0 h-1 bg-slate-100" aria-hidden="true">
-          <span className={`block h-full ${dot}`} style={{ width: `${progress * 100}%` }} />
+          <span className={`block h-full transition-[width] duration-1000 ease-linear ${dot}`} style={{ width: `${progress * 100}%` }} />
         </span>
       )}
     </article>
@@ -341,19 +388,26 @@ function PanelHead({ id, icon: Icon, iconColor, title, count }) {
 }
 
 /** Trips completed today: a compact list in the side column. Plate · destination · return time. */
-function CompletedToday({ trips, now }) {
+// List rows that arrive between refreshes slide in (not on first paint: AnimatePresence initial={false}).
+const rowMotion = { layout: 'position', initial: { opacity: 0, x: 24 }, animate: { opacity: 1, x: 0 }, exit: { opacity: 0 }, transition: { duration: 0.5, ease: EASE } }
+
+function CompletedToday({ trips, now, fresh }) {
   return (
     <section className={`shrink-0 overflow-hidden rounded-2xl ${panel}`} aria-labelledby="done-title">
       <PanelHead id="done-title" icon={CircleCheck} iconColor="text-emerald-600" title="Returned Today" count={trips.length} />
       <ul>
-        {trips.slice(0, COMPLETED_SHOWN).map((r) => (
-          <li key={r.ticket_number} className="flex items-center gap-4 border-t border-slate-100 px-6 py-2.5 first:border-t-0">
-            <Thumb r={r} className="h-[48px] w-[68px]" />
-            <Plate>{r.plate_number}</Plate>
-            <span className="min-w-0 flex-1 truncate text-[17px] text-slate-700" title={r.destination}>{r.destination}</span>
-            <span className="shrink-0 text-[17px] font-semibold text-emerald-600 tabular-nums">{when(r.returned_at, now)}</span>
-          </li>
-        ))}
+        <AnimatePresence initial={false}>
+          {trips.slice(0, COMPLETED_SHOWN).map((r) => (
+            <motion.li key={r.ticket_number} {...rowMotion} style={glow(fresh(r.ticket_number), true)}
+              className="flex items-center gap-4 border-t border-slate-100 px-6 py-2.5 first:border-t-0">
+              <Thumb r={r} className="h-[48px] w-[68px]" />
+              <Plate>{r.plate_number}</Plate>
+              <span className="min-w-0 flex-1 truncate text-[17px] text-slate-700" title={r.destination}>{r.destination}</span>
+              {fresh(r.ticket_number) && <FreshTag r={r} className="px-2.5 py-0.5 text-[14px]" />}
+              <span className="shrink-0 text-[17px] font-semibold text-emerald-600 tabular-nums">{when(r.returned_at, now)}</span>
+            </motion.li>
+          ))}
+        </AnimatePresence>
       </ul>
       {trips.length > COMPLETED_SHOWN && (
         <div className="border-t border-slate-100 px-6 py-2.5 text-[16px] font-medium text-slate-500">+{trips.length - COMPLETED_SHOWN} more returned today</div>
@@ -417,13 +471,19 @@ function Stat({ icon: Icon, label, value, color, alert }) {
       <dt className="order-last flex items-center gap-2.5 text-[19px] font-medium text-slate-600">
         <Icon size={22} className={color} aria-hidden="true" />{label}
       </dt>
-      <dd className={`text-[52px] leading-none font-bold tracking-tight tabular-nums ${alert ? 'text-red-600' : 'text-slate-900'}`}>{value}</dd>
+      {/* The number rolls: the old one slides up and out, the new one comes in from below. */}
+      <dd className={`relative overflow-hidden text-[52px] leading-none font-bold tracking-tight tabular-nums ${alert ? 'text-red-600' : 'text-slate-900'}`}>
+        <AnimatePresence mode="popLayout" initial={false}>
+          <motion.span key={value} className="block" initial={{ y: '100%', opacity: 0 }} animate={{ y: 0, opacity: 1 }}
+            exit={{ y: '-100%', opacity: 0 }} transition={{ duration: 0.5, ease: EASE }}>{value}</motion.span>
+        </AnimatePresence>
+      </dd>
     </div>
   )
 }
 
 /** A day's worth of upcoming trips: a slim day header (date shown once), then rows of time · plate · destination. */
-function AgendaDay({ g, now }) {
+function AgendaDay({ g, now, fresh }) {
   const tomorrow = sameDay(g.date, new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1))
   return (
     <div>
@@ -433,21 +493,25 @@ function AgendaDay({ g, now }) {
         {g.trips.length > 1 && <span className="ml-auto text-[14px] font-medium text-slate-400 tabular-nums">{g.trips.length} trips</span>}
       </div>
       <ul>
+        <AnimatePresence initial={false}>
         {g.trips.map((r) => (
-          <li key={r.ticket_number} className="flex items-center gap-4 border-t border-slate-100 px-6 py-3 first:border-t-0">
+          <motion.li key={r.ticket_number} {...rowMotion} style={glow(fresh(r.ticket_number), true)}
+            className="flex items-center gap-4 border-t border-slate-100 px-6 py-3 first:border-t-0">
             <Thumb r={r} className="h-[72px] w-[104px]" />
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-3">
                 <span className="text-[19px] font-bold text-slate-900 tabular-nums">{t(r.scheduled_departure)}</span>
                 <Plate>{r.plate_number}</Plate>
+                {fresh(r.ticket_number) && <FreshTag r={r} className="ml-auto px-2.5 py-0.5 text-[14px]" />}
               </div>
               <div className="mt-1 truncate text-[18px] font-semibold text-slate-800" title={r.destination}>{r.destination}</div>
               <div className="mt-0.5 truncate text-[15px] text-slate-500" title={r.purpose}>
                 {[r.purpose, r.driver_name].filter(Boolean).join(' · ') || 'Driver to be assigned'}
               </div>
             </div>
-          </li>
+          </motion.li>
         ))}
+        </AnimatePresence>
       </ul>
     </div>
   )
@@ -478,10 +542,11 @@ function Empty({ next, now }) {
 /** Fixed 1920x1080 canvas scaled to the screen (letterboxed in navy if the TV isn't 16:9). A thin DOLE tricolor tops it. */
 function Stage({ children }) {
   const scale = useStageScale()
+  const [dx, dy] = useDrift()
   return (
     <div className="fixed inset-0 overflow-hidden" style={{ background: PAGE }}>
-      <div className="absolute top-1/2 left-1/2 flex flex-col overflow-hidden font-['Inter',ui-sans-serif,system-ui,'Segoe_UI',sans-serif] antialiased"
-        style={{ width: W, height: H, background: BACKDROP, transform: `translate(-50%, -50%) scale(${scale})` }}>
+      <div className="absolute top-1/2 left-1/2 flex flex-col overflow-hidden font-['Inter',ui-sans-serif,system-ui,'Segoe_UI',sans-serif] antialiased transition-transform duration-[2000ms] ease-in-out"
+        style={{ width: W, height: H, background: BACKDROP, transform: `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px)) scale(${scale})` }}>
         <div className="flex h-1 shrink-0" aria-hidden="true">
           <span className="flex-1 bg-brand" /><span className="flex-1 bg-accent" /><span className="flex-1 bg-gold" />
         </div>
