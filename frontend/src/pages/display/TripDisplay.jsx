@@ -490,17 +490,12 @@ function Empty({ next, now }) {
       {next && (
         <div className="mt-12 w-full max-w-[880px] border-t border-slate-200 pt-8">
           <div className="text-[14px] font-semibold tracking-[0.18em] text-slate-500 uppercase">Next trip</div>
-          <div className="mt-5 flex items-center justify-center gap-7 text-left">
-            <Thumb r={next} className="h-[132px] w-[200px]" />
-            <div className="min-w-0">
-              <div className="text-[28px] font-bold text-slate-900 tabular-nums">{wk.format(new Date(next.scheduled_departure))}, {when(next.scheduled_departure, now)}</div>
-              <div className="mt-3 flex items-center gap-4">
-                <Plate size="md">{next.plate_number}</Plate>
-                <span className="max-w-[380px] truncate text-[24px] font-medium text-slate-700" title={next.destination}>{next.destination}</span>
-              </div>
-              {next.vehicle_label && <div className="mt-2 text-[18px] text-slate-500">{next.vehicle_label}</div>}
-            </div>
+          <div className="mt-4 text-[28px] font-bold text-slate-900 tabular-nums">{wk.format(new Date(next.scheduled_departure))}, {when(next.scheduled_departure, now)}</div>
+          <div className="mt-3 flex items-center justify-center gap-4">
+            <Plate size="md">{next.plate_number}</Plate>
+            <span className="max-w-[420px] truncate text-[24px] font-medium text-slate-700" title={next.destination}>{next.destination}</span>
           </div>
+          {next.vehicle_label && <div className="mt-2 text-[18px] text-slate-500">{next.vehicle_label}</div>}
         </div>
       )}
     </div>
