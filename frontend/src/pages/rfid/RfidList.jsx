@@ -1,10 +1,10 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { ArrowDownCircle, ArrowUpCircle, CreditCard, Plus, Scale, Wallet } from 'lucide-react'
 import { useList } from '../../api'
 import { useCan, useMe } from '../../auth'
 import DataTable from '../../components/DataTable'
-import { CardGrid, SearchBox, selectClass, StatCard, Toolbar } from '../../components/filters'
+import { CardGrid, SearchBox, selectClass, StatCard, Toolbar, useSetParam } from '../../components/filters'
 import { Badge, Button, formatDateTime, Modal, PageHeader } from '../../components/ui'
 import { useAllOffices } from '../admin/Offices'
 import { formatPeso, VehiclePhoto } from '../vehicles/common'
@@ -69,13 +69,7 @@ export default function RfidList() {
   const page = Number(f.page ?? 1)
   const tolls = f.view === 'transactions'
 
-  const set = useCallback((key, value) => setParams((prev) => {
-    const next = new URLSearchParams(prev)
-    if (value) next.set(key, value)
-    else next.delete(key)
-    if (key !== 'page') next.delete('page')
-    return next
-  }, { replace: true }), [setParams])
+  const set = useSetParam(setParams)
 
   useEffect(() => {
     const t = setTimeout(() => set('search', search.trim()), 350)

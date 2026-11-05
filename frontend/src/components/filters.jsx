@@ -1,5 +1,20 @@
+import { useCallback } from 'react'
 import { Search, X } from 'lucide-react'
 import { inputBase } from './ui'
+
+// `set(key, value)` for list filters kept in the URL (pass useSearchParams' setter). A filter change goes back to
+// page 1; setting a filter to the value it already has does nothing. That matters because the setter changes with
+// every URL change, so effects that call set() (the search box debounce) re-run after paging and must not reset it.
+export function useSetParam(setParams) {
+  return useCallback((key, value) => setParams((prev) => {
+    if ((prev.get(key) ?? '') === String(value ?? '')) return prev
+    const next = new URLSearchParams(prev)
+    if (value) next.set(key, value)
+    else next.delete(key)
+    if (key !== 'page') next.delete('page')
+    return next
+  }, { replace: true }), [setParams])
+}
 
 // Compact control for filter bars (no w-full: callers set their own width).
 export const selectClass = `${inputBase} h-9 py-0`

@@ -1,10 +1,10 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { ClipboardList, Plus } from 'lucide-react'
 import { useList } from '../../api'
 import { useCan } from '../../auth'
 import DataTable from '../../components/DataTable'
-import { CardGrid, SearchBox, StatCard, Toolbar } from '../../components/filters'
+import { CardGrid, SearchBox, StatCard, Toolbar, useSetParam } from '../../components/filters'
 import { Button, formatDateTime, Modal, PageHeader } from '../../components/ui'
 import { APPROVE, PROGRESS, ProgressBadge, progressLabel } from './common'
 import MyRequests from './MyRequests'
@@ -24,13 +24,7 @@ function RequestQueue() {
   const f = Object.fromEntries(params)
   const page = Number(f.page ?? 1)
 
-  const set = useCallback((key, value) => setParams((prev) => {
-    const next = new URLSearchParams(prev)
-    if (value) next.set(key, value)
-    else next.delete(key)
-    if (key !== 'page') next.delete('page')
-    return next
-  }, { replace: true }), [setParams])
+  const set = useSetParam(setParams)
 
   useEffect(() => {
     const t = setTimeout(() => set('search', search.trim()), 350)

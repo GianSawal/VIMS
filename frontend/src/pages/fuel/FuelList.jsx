@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { Banknote, Droplet, FileCheck2, Fuel, Minus, Paperclip, Plus, Receipt, TrendingDown, TrendingUp } from 'lucide-react'
 import { useList } from '../../api'
@@ -6,7 +6,7 @@ import { useCan, useMe } from '../../auth'
 import { RankBars, TimeBars } from '../../components/charts'
 import DataTable from '../../components/DataTable'
 import DateChip from '../../components/DateChip'
-import { SearchBox, selectClass, Toolbar } from '../../components/filters'
+import { SearchBox, selectClass, Toolbar, useSetParam } from '../../components/filters'
 import { Button, Modal, PageHeader } from '../../components/ui'
 import { useAllOffices } from '../admin/Offices'
 import { formatDate, formatKm, formatPeso, FUELS, fuelLabel, VehiclePhoto } from '../vehicles/common'
@@ -119,13 +119,7 @@ export default function FuelList() {
   const page = Number(f.page ?? 1)
   const poLog = f.view === 'po'
 
-  const set = useCallback((key, value) => setParams((prev) => {
-    const next = new URLSearchParams(prev)
-    if (value) next.set(key, value)
-    else next.delete(key)
-    if (key !== 'page') next.delete('page')
-    return next
-  }, { replace: true }), [setParams])
+  const set = useSetParam(setParams)
 
   useEffect(() => {
     const t = setTimeout(() => set('search', search.trim()), 350)

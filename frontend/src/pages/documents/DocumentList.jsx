@@ -1,10 +1,10 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { Archive, Ban, CalendarClock, CalendarX2, FileCheck2, Paperclip, Plus, TriangleAlert } from 'lucide-react'
 import { useList } from '../../api'
 import { useCan, useMe } from '../../auth'
 import DataTable from '../../components/DataTable'
-import { CardGrid, SearchBox, selectClass, StatCard, Toolbar } from '../../components/filters'
+import { CardGrid, SearchBox, selectClass, StatCard, Toolbar, useSetParam } from '../../components/filters'
 import { Button, Modal, PageHeader } from '../../components/ui'
 import { useAllOffices } from '../admin/Offices'
 import { formatDate, VehiclePhoto } from '../vehicles/common'
@@ -70,13 +70,7 @@ export default function DocumentList() {
   const page = Number(f.page ?? 1)
   const status = f.status ?? ''
 
-  const set = useCallback((key, value) => setParams((prev) => {
-    const next = new URLSearchParams(prev)
-    if (value) next.set(key, value)
-    else next.delete(key)
-    if (key !== 'page') next.delete('page')
-    return next
-  }, { replace: true }), [setParams])
+  const set = useSetParam(setParams)
 
   useEffect(() => {
     const t = setTimeout(() => set('search', search.trim()), 350)

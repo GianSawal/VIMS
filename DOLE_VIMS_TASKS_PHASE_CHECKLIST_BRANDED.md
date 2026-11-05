@@ -763,6 +763,7 @@ Added 2026-11-05. Every dropdown can be searched by typing (vehicles, drivers, o
 -   [x] Tests: `src/components/Select.test.jsx`
 -   [ ] Not yet checked in a browser (Chrome/Edge/Firefox) and on a 390 px phone
 -   [x] List tables show 8 rows per page (`PAGE_SIZE` in `src/api.js`: `useList` adds `page_size=8` to any paged request; `DataTable` pages by it). The API default stays 25 for other callers
+-   [x] Fix: Next page jumped back to page 1 on the URL-filtered lists (the search debounce re-ran on every URL change and reset the page). Shared `useSetParam` in `components/filters.jsx` ignores unchanged values; used by all 9 list pages. Test: `src/pages/vehicles/VehicleList.test.jsx`
 ------------------------------------------------------------------------
 
 # Phase 18 --- Deployment

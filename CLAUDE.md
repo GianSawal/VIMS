@@ -69,7 +69,7 @@ MySQL-specific behavior (CHECK constraints, generated columns) was verified manu
 
 - `src/api.js`: `api` (axios with CSRF), `useList(path, params)` (a `page` param without `page_size` gets `PAGE_SIZE` = 8 rows, as list tables show), `applyFieldErrors` (maps DRF errors onto form fields), `invalidatePrefix` (refresh cached queries by API path).
 - Query keys are `[path, params]` for lists and `['/things/', id]` for details, so `invalidatePrefix(qc, '/vehicles/')` refreshes both.
-- List filters live in the URL (`useSearchParams`) so dashboard cards can link to filtered views.
+- List filters live in the URL (`useSearchParams`) so dashboard cards can link to filtered views. Change them with `useSetParam(setParams)` from `components/filters.jsx` (resets the page, ignores unchanged values); don't hand-roll it, or the search debounce sends page 2 back to page 1.
 - Permission UI uses `useCan()` and `<RequirePerm>`; these are hints only, the API enforces the same permissions.
 - Dropdowns use `components/Select.jsx` (`<Select>`, a searchable drop-in for `<select>`: same props and `<option>` children, works with `{...register()}`); never a bare `<select>`.
 - Reuse `components/ui.jsx` (Button, Field, Modal, ConfirmDialog, Badge), `components/DataTable.jsx` (takes a `toolbar` and `onRowClick`) and `components/filters.jsx` (Toolbar, SearchBox, StatCard/CardGrid, Avatar). List pages follow one pattern: status/role cards on top, a toolbar attached to the table card, filter chips. Use `inputBase` (no width) for filter controls and `inputClass` (full width) for form fields; mixing `inputClass` with `w-44` does not work because `w-full` wins. Money is Philippine pesos via `Intl.NumberFormat('en-PH')`.

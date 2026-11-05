@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import {
   Ban, CircleCheck, FileSpreadsheet, LayoutList, Navigation, PackageX, Plus, Search, TriangleAlert, Wrench, X,
@@ -10,6 +10,7 @@ import { Button, inputBase, PageHeader } from '../../components/ui'
 import { useAllOffices } from '../admin/Offices'
 import { formatKm, STATUSES, StatusBadge, TYPES, VehiclePhoto } from './common'
 import { Select } from '../../components/Select'
+import { useSetParam } from '../../components/filters'
 
 // Icon + tint per status card (tints mirror the status badge tones in common.jsx).
 const CARDS = {
@@ -36,13 +37,7 @@ export default function VehicleList() {
   const page = Number(f.page ?? 1)
   const archived = f.archived === '1' ? { is_archived: true } : {}
 
-  const set = useCallback((key, value) => setParams((prev) => {
-    const next = new URLSearchParams(prev)
-    if (value) next.set(key, value)
-    else next.delete(key)
-    if (key !== 'page') next.delete('page')
-    return next
-  }, { replace: true }), [setParams])
+  const set = useSetParam(setParams)
 
   // Search as you type, without a request per keystroke.
   useEffect(() => {

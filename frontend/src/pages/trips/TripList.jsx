@@ -1,11 +1,11 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { CalendarClock, CalendarDays, CalendarPlus, CircleCheck, CircleSlash, Clock, List, MapPin, Milestone, Monitor, Navigation, Plus, Route as RouteIcon } from 'lucide-react'
 import { useList } from '../../api'
 import { useCan, useMe } from '../../auth'
 import DataTable from '../../components/DataTable'
 import DateChip from '../../components/DateChip'
-import { Avatar, CardGrid, SearchBox, selectClass, StatCard, Toolbar } from '../../components/filters'
+import { Avatar, CardGrid, SearchBox, selectClass, StatCard, Toolbar, useSetParam } from '../../components/filters'
 import { Button, Modal, PageHeader } from '../../components/ui'
 import { useAllOffices } from '../admin/Offices'
 import { VehiclePhoto } from '../vehicles/common'
@@ -228,13 +228,7 @@ export default function TripList() {
   const f = Object.fromEntries(params)
   const page = Number(f.page ?? 1)
 
-  const set = useCallback((key, value) => setParams((prev) => {
-    const next = new URLSearchParams(prev)
-    if (value) next.set(key, value)
-    else next.delete(key)
-    if (key !== 'page') next.delete('page')
-    return next
-  }, { replace: true }), [setParams])
+  const set = useSetParam(setParams)
 
   const setRange = (from, to) => setParams((prev) => {
     const next = new URLSearchParams(prev)

@@ -1,9 +1,9 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Link, useSearchParams } from 'react-router-dom'
 import { api, useList } from '../../api'
 import DataTable from '../../components/DataTable'
-import { SearchBox, selectClass, Toolbar } from '../../components/filters'
+import { SearchBox, selectClass, Toolbar, useSetParam } from '../../components/filters'
 import { Badge, formatDateTime, Modal, PageHeader } from '../../components/ui'
 import { Select } from '../../components/Select'
 
@@ -116,13 +116,7 @@ export default function AuditLogs() {
   const f = Object.fromEntries(params)
   const page = Number(f.page ?? 1)
 
-  const set = useCallback((key, value) => setParams((prev) => {
-    const next = new URLSearchParams(prev)
-    if (value) next.set(key, value)
-    else next.delete(key)
-    if (key !== 'page') next.delete('page')
-    return next
-  }, { replace: true }), [setParams])
+  const set = useSetParam(setParams)
 
   useEffect(() => {
     const t = setTimeout(() => set('search', search.trim()), 350)
