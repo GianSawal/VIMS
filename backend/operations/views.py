@@ -492,9 +492,18 @@ class RFIDAccountViewSet(OfficeScopedMixin, mixins.ListModelMixin, mixins.Retrie
     def create(self, request, *args, **kwargs):
         s = self.get_serializer(data=request.data)
         s.is_valid(raise_exception=True)
-        account = toll_service.save_account(user=request.user, data=dict(s.validated_data))
+        # Optional `opening_balance`: what the card already holds, recorded as an 'Opening balance' load.
+        try:
+            opening = drf_serializers.DecimalField(max_digits=12, decimal_places=2, allow_null=True).run_validation(
+                request.data.get('opening_balance') or None)
+        except drf_serializers.ValidationError as e:
+            raise drf_serializers.ValidationError({'opening_balance': e.detail})
+        with db_transaction.atomic():
+            account = toll_service.save_account(user=request.user, data=dict(s.validated_data))
+            if opening:
+                toll_service.opening_balance(account, user=request.user, amount=opening)
         log(request, 'create', account, f'Added RFID account {account.get_provider_display()} {toll_service.mask_account(account.account_number)}',
-            {'after': rfid_snapshot(account)})
+            {'after': {**rfid_snapshot(account), **({'opening_balance': str(opening)} if opening else {})}})
         return self._respond(account, status.HTTP_201_CREATED)
 
     def update(self, request, *args, **kwargs):

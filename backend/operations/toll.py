@@ -98,6 +98,19 @@ def save_transaction(*, user, instance=None, data):
     return instance
 
 
+def opening_balance(account, *, user, amount):
+    """A balance the card already had before it was encoded here: one load (credit) named 'Opening balance', so every
+    balance (live, running, low-balance alert, reports) includes it. Transactions belong to a vehicle, so the account
+    must be assigned to one."""
+    if amount < 0:
+        _fail('opening_balance', 'The starting balance cannot be negative.')
+    if not account.vehicle_id:
+        _fail('opening_balance', 'Assign a vehicle to record a starting balance, or add it later as a load.')
+    return save_transaction(user=user, data={
+        'account': account, 'vehicle': account.vehicle, 'trip': None, 'transacted_at': timezone.now(),
+        'credit': amount, 'debit': Decimal('0'), 'description': 'Opening balance', 'reference_number': ''})
+
+
 def low_balance(accounts=None):
     """Active accounts whose balance (credit - debit) is below RFID_LOW_BALANCE, including ones never loaded."""
     accounts = RFIDAccount.objects.all() if accounts is None else accounts

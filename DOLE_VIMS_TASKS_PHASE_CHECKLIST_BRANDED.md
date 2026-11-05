@@ -764,6 +764,18 @@ Added 2026-11-05. Every dropdown can be searched by typing (vehicles, drivers, o
 -   [ ] Not yet checked in a browser (Chrome/Edge/Firefox) and on a 390 px phone
 -   [x] List tables show 8 rows per page (`PAGE_SIZE` in `src/api.js`: `useList` adds `page_size=8` to any paged request; `DataTable` pages by it). The API default stays 25 for other callers
 -   [x] Fix: Next page jumped back to page 1 on the URL-filtered lists (the search debounce re-ran on every URL change and reset the page). Shared `useSetParam` in `components/filters.jsx` ignores unchanged values; used by all 9 list pages. Test: `src/pages/vehicles/VehicleList.test.jsx`
+
+------------------------------------------------------------------------
+
+# Phase 17I --- RFID starting balance
+
+Added 2026-11-05. Cards that already hold a balance when they are first encoded.
+
+-   [x] `POST /rfid-accounts/` optional `opening_balance`: `toll.opening_balance()` records it as an "Opening balance" load (credit) at creation, in the same transaction, so live/running balances, low-balance alerts and reports include it; audit entry shows the amount
+-   [x] Needs an assigned vehicle (toll transactions belong to a vehicle); otherwise 400 and the account is not created. Negative or non-numeric amounts refused
+-   [x] Add account form: "Starting balance (₱)" (new accounts only; disabled until a vehicle is chosen)
+-   [x] Test: `operations/test_toll.py::test_new_account_can_start_with_an_existing_balance`
+-   [ ] Existing accounts: add the balance as a load (Record toll → Reload, reference "Opening balance")
 ------------------------------------------------------------------------
 
 # Phase 18 --- Deployment

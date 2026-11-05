@@ -120,7 +120,7 @@ Django session in an HttpOnly cookie plus CSRF token. The SPA calls `GET /api/au
 | `/api/documents/{id}/renew/` | POST `{reference_number, issue_date, expiry_date, file?, remarks}` | new current document; the old one becomes `SUPERSEDED` (needs add + change) |
 | `/api/documents/{id}/cancel/` | POST `{reason}` | wrong entry: kept, stops alerting |
 | `/api/documents/summary/` | GET | current documents per expiry band and per type |
-| `/api/rfid-accounts/` | CRUD (no delete) | Easytrip/Autosweep accounts; `?provider= &is_active= &vehicle= &unassigned=true &low_balance=true &office= &search=`; account number masked unless you have `change_rfidaccount`; no passwords stored |
+| `/api/rfid-accounts/` | CRUD (no delete) | Easytrip/Autosweep accounts; `?provider= &is_active= &vehicle= &unassigned=true &low_balance=true &office= &search=`; account number masked unless you have `change_rfidaccount`; no passwords stored. POST accepts optional `opening_balance` (needs a vehicle): recorded as an "Opening balance" load in the same save |
 | `/api/rfid-accounts/{id}/transactions/` | GET | that account's toll transactions with a running balance, plus load/charge/net totals and the current balance |
 | `/api/trips/{id}/` | GET | the ticket includes a `toll` summary (loads, charges, net) for transactions linked to it |
 | `/api/toll-transactions/batch/` | POST `{account, vehicle, trip?, transacted_at, items:[{kind, amount, description, reference_number}]}` | records a reload and/or several tolls from one trip as separate rows, all-or-nothing |

@@ -201,3 +201,22 @@ def test_return_toll_needs_toll_permission(fo1):
     assert c.post(f'/api/trips/{trip.pk}/complete/', body, format='json').status_code == 403
     trip.refresh_from_db()
     assert trip.status == 'DISPATCHED'
+
+
+def test_new_account_can_start_with_an_existing_balance(fo1):
+    v = make_vehicle(fo1, 'OPN 1')
+    c = as_role('Fleet Administrator')
+    r = c.post('/api/rfid-accounts/', account(account_number='OPEN-1', vehicle=v.pk, opening_balance='1250.50'), format='json')
+    assert r.status_code == 201, r.json()
+    assert r.json()['current_balance'] == '1250.50'
+    x = TollTransaction.objects.get(account_id=r.json()['id'])
+    assert (x.description, x.credit, x.vehicle_id) == ('Opening balance', 1250.50, v.pk)
+    assert AuditLog.objects.filter(action='create', changes__after__opening_balance='1250.50').exists()
+    # unassigned accounts can't hold transactions: refused, and the account isn't half-created
+    bad = c.post('/api/rfid-accounts/', account(account_number='OPEN-2', opening_balance='100'), format='json')
+    assert bad.status_code == 400 and 'opening_balance' in bad.json()
+    assert not RFIDAccount.objects.filter(account_number='OPEN-2').exists()
+    assert 'opening_balance' in c.post('/api/rfid-accounts/', account(account_number='OPEN-3', vehicle=v.pk, opening_balance='abc'), format='json').json()
+    # blank or zero: no transaction
+    r = c.post('/api/rfid-accounts/', account(account_number='OPEN-4', vehicle=v.pk, opening_balance=''), format='json')
+    assert r.status_code == 201 and r.json()['transaction_count'] == 0

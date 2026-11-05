@@ -7,7 +7,7 @@ import { useToast } from '../../components/toast'
 import { PROVIDERS } from './common'
 import { Select } from '../../components/Select'
 
-const FIELDS = ['provider', 'account_number', 'vehicle', 'is_active', 'remarks']
+const FIELDS = ['provider', 'account_number', 'vehicle', 'is_active', 'remarks', 'opening_balance']
 
 /** Add or edit an RFID / toll account. `vehicle` locks it to that vehicle (from the vehicle tab). */
 export default function RfidForm({ account, vehicle, onClose, onSaved }) {
@@ -16,11 +16,11 @@ export default function RfidForm({ account, vehicle, onClose, onSaved }) {
   const toast = useToast()
   const vehicles = useList('/vehicles/', { page_size: 500 })
   const [error, setFormError] = useState('')
-  const { register, handleSubmit, setError, formState: { errors } } = useForm({
+  const { register, handleSubmit, setError, watch, formState: { errors } } = useForm({
     defaultValues: account
       ? { provider: account.provider, account_number: account.account_number, vehicle: account.vehicle ? String(account.vehicle) : '',
           is_active: account.is_active, remarks: account.remarks }
-      : { provider: 'EASYTRIP', account_number: '', vehicle: vehicle ? String(vehicle.id) : '', is_active: true, remarks: '' },
+      : { provider: 'EASYTRIP', account_number: '', vehicle: vehicle ? String(vehicle.id) : '', is_active: true, remarks: '', opening_balance: '' },
   })
 
   const save = useMutation({
@@ -37,6 +37,7 @@ export default function RfidForm({ account, vehicle, onClose, onSaved }) {
   const submit = (v) => save.mutate({
     provider: v.provider, account_number: v.account_number, vehicle: v.vehicle ? Number(v.vehicle) : null,
     is_active: v.is_active, remarks: v.remarks,
+    ...(isNew && v.opening_balance?.trim() ? { opening_balance: v.opening_balance.replace(/,/g, '').trim() } : {}),  // disabled (no vehicle) = undefined
   })
 
   return (
@@ -66,6 +67,15 @@ export default function RfidForm({ account, vehicle, onClose, onSaved }) {
             <option value="">Unassigned</option>
             {vehicles.data?.results.map((x) => <option key={x.id} value={x.id}>{x.plate_number} · {x.make} {x.model}</option>)}
           </Select>
+        </Field>
+      )}
+
+      {/* Only when adding: what the card already holds, recorded as an "Opening balance" load. */}
+      {isNew && (
+        <Field label="Starting balance (₱)" htmlFor="rfid-opening" error={errors.opening_balance?.message}
+          hint={watch('vehicle') ? 'The balance already on the card before it was added here. Leave blank if none.'
+            : 'Assign a vehicle to enter a starting balance (toll transactions belong to a vehicle).'}>
+          <input id="rfid-opening" className={inputClass} inputMode="decimal" placeholder="0.00" disabled={!watch('vehicle')} {...register('opening_balance')} />
         </Field>
       )}
 
