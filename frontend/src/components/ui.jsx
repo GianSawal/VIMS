@@ -1,6 +1,8 @@
-import { useEffect, useRef } from 'react'
+import { createElement, useEffect, useRef } from 'react'
+import { useInRouterContext, useLocation } from 'react-router-dom'
 import { AnimatePresence, motion } from 'motion/react'
 import { X } from 'lucide-react'
+import { navFor } from '../nav'
 
 const variants = {
   primary: 'bg-brand text-white hover:bg-brand-dark',
@@ -52,16 +54,31 @@ export function Badge({ tone = 'gray', dot = false, children }) {
   )
 }
 
-export function PageHeader({ title, actions, children }) {
+// Page title with the section's menu icon (from nav.js; pass `icon` to override, or icon={null} for none).
+export function PageHeader({ title, actions, children, icon }) {
+  const sectionIcon = useSectionIcon()
+  const Icon = icon === undefined ? sectionIcon : icon
   return (
-    <div className="mb-4 flex flex-wrap items-center gap-3">
-      <div className="mr-auto">
-        <h1 className="text-2xl font-bold text-brand">{title}</h1>
-        {children && <p className="text-sm text-slate-500">{children}</p>}
+    <div className="mb-5 flex flex-wrap items-center gap-x-4 gap-y-3">
+      {Icon && (
+        <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-brand to-brand-dark text-white shadow-md shadow-brand/25 ring-1 ring-white/40 ring-inset">
+          {createElement(Icon, { size: 24, strokeWidth: 1.75, 'aria-hidden': true })}
+        </span>
+      )}
+      <div className="mr-auto min-w-0">
+        <h1 className="text-2xl leading-tight font-bold tracking-tight text-ink sm:text-[1.7rem]">{title}</h1>
+        {children && <p className="mt-0.5 text-sm text-slate-500">{children}</p>}
       </div>
-      {actions}
+      {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
     </div>
   )
+}
+
+function useSectionIcon() {
+  const inRouter = useInRouterContext()
+  // eslint-disable-next-line react-hooks/rules-of-hooks -- inRouter never changes for a mounted component
+  const { pathname } = inRouter ? useLocation() : { pathname: '' }
+  return navFor(pathname)?.[2] ?? null
 }
 
 // Native <dialog>: focus trap, Esc and backdrop come from the browser. The dialog itself is transparent;

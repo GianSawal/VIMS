@@ -787,6 +787,14 @@ Added 2026-11-05. Vehicles, drivers and RFID accounts can be deleted by the Syst
 -   [x] `config/removal.py` `RemoveMixin`: POST `{id}/remove/` on vehicles, drivers, RFID accounts; `delete_<model>` permission (System Administrator only); office check first; PROTECT foreign keys refuse records with history (400 naming what is linked: archive/deactivate instead); deletes the record's photo and attachments after commit; audit entry (RFID number masked) rolls back with a refused delete
 -   [x] Delete button (with confirmation) on the vehicle, driver and RFID account pages, only for users with the permission (`components/DeleteRecord.jsx`)
 -   [x] Tests: `config/test_removal.py` (permission, delete without history, refuse with history); `config/test_security.py` still passes (POST, not HTTP DELETE)
+
+------------------------------------------------------------------------
+
+# Phase 17K --- Page headers
+
+Added 2026-11-05.
+
+-   [x] `PageHeader` (18 list/admin pages): the section's menu icon in a brand tile, larger ink title, description under it, actions grouped on the right. Icon comes from the menu (`src/nav.js`, moved out of `Layout.jsx`; `navFor(pathname)`), so pages need no change; `icon` prop overrides
 ------------------------------------------------------------------------
 
 # Phase 18 --- Deployment

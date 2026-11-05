@@ -1,32 +1,10 @@
 import { useState } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { AnimatePresence, motion } from 'motion/react'
-import {
-  Bell, Building2, Car, ClipboardList, ClipboardPen, CreditCard, FileSpreadsheet, FileText, Fuel, IdCard, KeyRound, LayoutDashboard, LogOut, Menu,
-  Route as RouteIcon, ScrollText, Trash2, Users, Wrench, X,
-} from 'lucide-react'
-import { seesDashboard, useCan, useLogout, useMe } from './auth'
+import { KeyRound, LogOut, Menu, X } from 'lucide-react'
+import { useCan, useLogout, useMe } from './auth'
+import { nav } from './nav'
 import { useUnreadCount } from './notifications'
-
-// [path, label, icon, permission needed to see it (null = everyone, or a rule taking `can`)]
-const nav = [
-  ['/dashboard', 'Dashboard', LayoutDashboard, seesDashboard],
-  ['/requests', 'Vehicle requests', ClipboardPen, 'operations.view_vehiclerequest'],
-  ['/vehicles', 'Vehicles', Car, 'fleet.view_vehicle'],
-  ['/drivers', 'Drivers', IdCard, 'fleet.view_driver'],
-  ['/trips', 'Trips', RouteIcon, 'operations.view_trip'],
-  ['/fuel', 'Fuel', Fuel, 'operations.view_fuelrecord'],
-  ['/maintenance', 'Maintenance', Wrench, 'maintenance.view_maintenancerecord'],
-  ['/documents', 'Documents', FileText, 'fleet.view_vehicledocument'],
-  ['/rfid', 'RFID / Toll', CreditCard, 'operations.view_rfidaccount'],
-  ['/reports', 'Reports', ClipboardList, 'fleet.view_vehicle'],
-  ['/notifications', 'Notifications', Bell, null],
-  ['/admin/users', 'Users', Users, 'accounts.view_user'],
-  ['/admin/offices', 'Offices', Building2, 'accounts.view_office'],
-  ['/audit-logs', 'Audit Logs', ScrollText, 'audit.view_auditlog'],
-  ['/admin/import', 'Data Import', FileSpreadsheet, 'accounts.import_data'],
-  ['/admin/purge', 'Delete test data', Trash2, 'accounts.purge_test_data'],
-]
 
 export default function Layout() {
   const { data: me } = useMe()
