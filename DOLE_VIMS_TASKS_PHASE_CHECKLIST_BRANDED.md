@@ -718,12 +718,12 @@ Added 2026-11-05. Clear records entered while testing before go-live. Day-to-day
 
 # Phase 17E --- Toll on trip return
 
-Added 2026-11-05. Recording the return can go straight on to the trip's tolls; optional, since many trips use no expressway.
+Added 2026-11-05. The return form carries the trip's reload and toll lines; optional, since many trips use no expressway.
 
--   [x] Record return (trip page and Trips list): optional "Record toll for this trip" tick box (only with `operations.add_tolltransaction`); the trip is completed first, then the toll form opens for it (skipping it keeps the return)
--   [x] Toll form opened from a trip or vehicle auto-picks that vehicle's active RFID account and links the trip ticket (still changeable); no new API, `/toll-transactions/batch/` enforces the account/vehicle/trip rules
--   [x] Toll form shows the account's current balance and the balance after this entry (red with a hint when the tolls exceed the load)
--   [x] Tests: `src/pages/trips/CompleteForm.test.jsx`
+-   [x] `/trips/{id}/complete/` takes optional `toll: {account, items}`; validated like `/toll-transactions/batch/` (shared `toll_payloads`/`record_tolls` in `operations/views.py`), saved at the return time and linked to the trip, in one transaction with the return (a bad toll line saves neither); needs `operations.add_tolltransaction`
+-   [x] Record return (trip page and Trips list): Toll (optional) section with the RFID account (the vehicle's own picked automatically), reload and toll lines (shared `TollLines` from `TollForm.jsx`); blank lines send no toll; hidden without the toll permission
+-   [x] Toll form opened from a trip or vehicle also auto-picks that vehicle's active account; both forms show the current balance and the balance after the entry (red with a hint when the tolls exceed the load)
+-   [x] Tests: `operations/test_toll.py::test_return_records_the_trip_tolls_in_the_same_save`, `::test_return_toll_needs_toll_permission`; `src/pages/trips/CompleteForm.test.jsx`
 
 ------------------------------------------------------------------------
 

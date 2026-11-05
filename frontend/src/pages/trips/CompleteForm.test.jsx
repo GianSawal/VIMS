@@ -11,36 +11,38 @@ const account = { id: 3, provider: 'EASYTRIP', masked_account: '•••• 012
 const PERMS = ['operations.change_trip', 'operations.add_tolltransaction']
 
 function show(perms = PERMS) {
-  return renderApp(<CompleteForm trip={trip} onClose={() => {}} />, {
-    me: meWith(perms),
-    data: {
-      '["/rfid-accounts/",{"page_size":500}]': { count: 1, results: [account] },
-      '["/vehicles/",{"page_size":500}]': { count: 0, results: [] },
-      '["/trips/",{"vehicle":"5","page_size":50}]': { count: 1, results: [trip] },
-    },
+  vi.restoreAllMocks()
+  vi.spyOn(api, 'post').mockResolvedValue({ data: { ...trip, status: 'COMPLETED' } })
+  renderApp(<CompleteForm trip={trip} onClose={() => {}} />, {
+    me: meWith(perms), data: { '["/rfid-accounts/",{"page_size":500}]': { count: 1, results: [account] } },
   })
+  fireEvent.change(screen.getByLabelText(/Ending odometer/), { target: { value: '1080' } })
 }
 
 describe('Record return', () => {
-  it('goes on to the toll form with the vehicle account and its balance', async () => {
-    vi.spyOn(api, 'post').mockResolvedValue({ data: { ...trip, status: 'COMPLETED' } })
+  it('records the tolls with the return, on the vehicle account', async () => {
     show()
-    fireEvent.change(screen.getByLabelText(/Ending odometer/), { target: { value: '1080' } })
-    fireEvent.click(screen.getByLabelText(/Record toll for this trip/))
-    fireEvent.click(screen.getByRole('button', { name: 'Complete and record toll' }))
-
-    expect(await screen.findByText(/Now record the tolls/)).toBeInTheDocument()
-    expect(api.post).toHaveBeenCalledWith('/trips/9/complete/', expect.objectContaining({ odometer_end: 1080 }))
-    expect(await screen.findByText(/from the account/)).toBeInTheDocument()  // account auto-picked, vehicle locked to it
-    expect(screen.getByText('(linked)')).toBeInTheDocument()
+    expect(await screen.findByDisplayValue(/0123 · SAB 1234/)).toBeInTheDocument()  // account picked from the vehicle
     expect(screen.getByText(/1,250\.00/)).toBeInTheDocument()
     fireEvent.change(screen.getByLabelText('Charge 1 amount'), { target: { value: '300' } })
+    fireEvent.change(screen.getByLabelText('Charge 1 toll plaza'), { target: { value: 'NLEX Bocaue' } })
     expect(screen.getByText(/950\.00/)).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Complete trip' }))
+    await vi.waitFor(() => expect(api.post).toHaveBeenCalledWith('/trips/9/complete/', expect.objectContaining({
+      odometer_end: 1080,
+      toll: { account: 3, items: [{ kind: 'debit', amount: '300', description: 'NLEX Bocaue', reference_number: '' }] },
+    })))
   })
 
-  it('has no toll option without permission to record tolls', () => {
+  it('sends no toll when the lines are blank', async () => {
+    show()
+    fireEvent.click(screen.getByRole('button', { name: 'Complete trip' }))
+    await vi.waitFor(() => expect(api.post).toHaveBeenCalled())
+    expect(api.post.mock.calls.at(-1)[1]).not.toHaveProperty('toll')
+  })
+
+  it('has no toll section without permission to record tolls', () => {
     show(['operations.change_trip'])
-    expect(screen.queryByLabelText(/Record toll for this trip/)).not.toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Complete trip' })).toBeInTheDocument()
+    expect(screen.queryByText(/Toll charges/)).not.toBeInTheDocument()
   })
 })

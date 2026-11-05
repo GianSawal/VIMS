@@ -18,8 +18,8 @@ import { useAllOffices } from '../admin/Offices'
 import { DIVISIONS, bookingLabel, fromLocalInput, km, toLocalInput, tripDuration, TripStatusBadge } from './common'
 import { useAvailability } from './DispatchForm'
 import { formatPeso, odometerField, parseKm, VehiclePhoto } from '../vehicles/common'
-import { isLoad } from '../rfid/common'
-import TollForm from '../rfid/TollForm'
+import { isLoad, providerLabel } from '../rfid/common'
+import TollForm, { BalanceNote, EMPTY_TOLL, missingPlaza, TollLines, tollItems } from '../rfid/TollForm'
 import { Avatar } from '../../components/filters'
 
 export default function TripDetail() {
@@ -284,57 +284,85 @@ const tollFor = (t) => ({
   vehicle: { id: t.vehicle, plate_number: t.plate_number, make: '', model: t.vehicle_label },
 })
 
-// Record return, then optionally the trip's tolls (not every trip uses an expressway). The trip is completed first;
-// the toll step can be skipped or cancelled without undoing the return.
+// Record return, with the trip's reload/tolls in the same save (optional: not every trip uses an expressway).
+// The vehicle's own RFID account is picked automatically; the toll lines are linked to this trip at the return time.
 export function CompleteForm({ trip, onClose }) {
   const can = useCan()
-  const [tollStep, setTollStep] = useState(false)
-  const { register, handleSubmit, setError, watch, getValues, formState: { errors } } = useForm({
+  const qc = useQueryClient()
+  const canToll = can('operations.add_tolltransaction')
+  const accounts = useList('/rfid-accounts/', { page_size: 500 })
+  const pickable = (accounts.data?.results ?? []).filter((a) => a.is_active && (a.vehicle == null || a.vehicle === trip.vehicle))
+  const own = pickable.find((a) => a.vehicle === trip.vehicle)
+  const [tollError, setTollError] = useState('')
+  const { register, handleSubmit, setError, setValue, watch, getValues, control, formState: { errors } } = useForm({
     resolver: zodResolver(completeSchema),
-    defaultValues: { returned_at: toLocalInput(), odometer_end: '', remarks: trip.remarks ?? '', with_toll: false },
+    defaultValues: { returned_at: toLocalInput(), odometer_end: '', remarks: trip.remarks ?? '', toll_account: '', ...EMPTY_TOLL },
   })
-  const [save, error] = useTripMutation(trip, 'complete', 'Trip completed. Vehicle odometer updated.',
-    () => (getValues('with_toll') ? setTollStep(true) : onClose()), setError, ['returned_at', 'odometer_end', 'remarks'])
+  useEffect(() => {
+    if (own && !getValues('toll_account')) setValue('toll_account', String(own.id))
+  }, [own, getValues, setValue])
+  const [save, error] = useTripMutation(trip, 'complete', 'Trip completed. Vehicle odometer updated.', () => {
+    invalidatePrefix(qc, '/toll-transactions/', '/rfid-accounts/')
+    onClose()
+  }, setError, ['returned_at', 'odometer_end', 'remarks'])
   const end = Number(parseKm(watch('odometer_end')))
   const distance = end >= trip.odometer_start ? end - trip.odometer_start : null
+  const chosen = pickable.find((a) => String(a.id) === watch('toll_account'))
 
-  if (tollStep) {
-    return (
-      <div className="space-y-4">
-        <p className="rounded-md bg-green-50 px-3 py-2 text-sm text-green-800">Trip completed. Now record the tolls from this trip.</p>
-        <TollForm {...tollFor(trip)} onClose={onClose} />
-      </div>
-    )
+  const submit = (v) => {
+    const body = { returned_at: fromLocalInput(v.returned_at), odometer_end: Number(v.odometer_end), remarks: v.remarks }
+    const items = canToll ? tollItems(getValues()) : []  // the zod schema drops the toll fields from `v`
+    const problem = items.length && (!chosen ? 'Choose the RFID account for the tolls.' : missingPlaza(items))
+    setTollError(problem || '')
+    if (problem) return
+    save.mutate(items.length ? { ...body, toll: { account: chosen.id, items } } : body)
   }
 
   return (
-    <form noValidate className="space-y-4" onSubmit={handleSubmit((v) => save.mutate({
-      returned_at: fromLocalInput(v.returned_at), odometer_end: Number(v.odometer_end), remarks: v.remarks,
-    }))}>
-      {error && <div role="alert" className="rounded-md bg-red-50 px-3 py-2 text-sm text-danger">{error}</div>}
-      <Field label="Returned at *" htmlFor="returned_at" error={errors.returned_at?.message}>
-        <input id="returned_at" type="datetime-local" max={toLocalInput()} className={inputClass} {...register('returned_at')} />
-      </Field>
-      <Field label="Ending odometer (km) *" htmlFor="odometer_end" error={errors.odometer_end?.message}
-        hint={`Started at ${km(trip.odometer_start)}.${distance != null && watch('odometer_end') ? ` Distance: ${km(distance)}.` : ''}`}>
-        <input id="odometer_end" inputMode="numeric" autoFocus className={inputClass} {...register('odometer_end')} />
-      </Field>
+    <form noValidate className="space-y-4" onSubmit={handleSubmit(submit)}>
+      {(error || tollError) && <div role="alert" className="rounded-md bg-red-50 px-3 py-2 text-sm text-danger">{tollError || error}</div>}
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Field label="Returned at *" htmlFor="returned_at" error={errors.returned_at?.message}>
+          <input id="returned_at" type="datetime-local" max={toLocalInput()} className={inputClass} {...register('returned_at')} />
+        </Field>
+        <Field label="Ending odometer (km) *" htmlFor="odometer_end" error={errors.odometer_end?.message}
+          hint={`Started at ${km(trip.odometer_start)}.${distance != null && watch('odometer_end') ? ` Distance: ${km(distance)}.` : ''}`}>
+          <input id="odometer_end" inputMode="numeric" autoFocus className={inputClass} {...register('odometer_end')} />
+        </Field>
+      </div>
       <Field label="Remarks" htmlFor="remarks" error={errors.remarks?.message}>
         <textarea id="remarks" rows={2} className={inputClass} {...register('remarks')} />
       </Field>
-      {can('operations.add_tolltransaction') && (
-        <label className="flex cursor-pointer items-start gap-2 rounded-md border border-slate-200 px-3 py-2.5 text-sm">
-          <input type="checkbox" className="mt-0.5 h-4 w-4 accent-brand" {...register('with_toll')} />
-          <span>
-            <span className="font-medium">Record toll for this trip</span>
-            <span className="block text-xs text-slate-500">Leave unticked if the vehicle did not use an expressway.</span>
-          </span>
-        </label>
+
+      {canToll && (
+        <section className="space-y-4 border-t border-slate-200 pt-4">
+          <div>
+            <h3 className="flex items-center gap-1.5 font-semibold text-ink"><CreditCard size={16} aria-hidden="true" /> Toll <span className="font-normal text-slate-500">(optional)</span></h3>
+            <p className="text-xs text-slate-500">Leave blank if the vehicle did not use an expressway. Saved with the return, linked to {trip.ticket_number}.</p>
+          </div>
+          {accounts.isSuccess && pickable.length === 0 ? (
+            <p className="rounded-md bg-slate-50 px-3 py-2 text-sm text-slate-600">No RFID account is assigned to {trip.plate_number}.</p>
+          ) : (
+            <>
+              <Field label="RFID account" htmlFor="toll_account">
+                <select id="toll_account" className={inputClass} {...register('toll_account')}>
+                  <option value="">Select an account…</option>
+                  {pickable.map((a) => (
+                    <option key={a.id} value={a.id}>{providerLabel[a.provider]} {a.masked_account}{a.plate_number ? ` · ${a.plate_number}` : ' · unassigned'}</option>
+                  ))}
+                </select>
+              </Field>
+              <BalanceNote account={chosen} watch={watch} />
+              <TollLines register={register} control={control} />
+            </>
+          )}
+        </section>
       )}
+
       <p className="text-xs text-slate-500">The vehicle&apos;s odometer moves to the ending reading and the vehicle becomes available again.</p>
       <div className="flex justify-end gap-2">
         <Button variant="secondary" onClick={onClose}>Back</Button>
-        <Button type="submit" disabled={save.isPending}>{save.isPending ? 'Saving…' : watch('with_toll') ? 'Complete and record toll' : 'Complete trip'}</Button>
+        <Button type="submit" disabled={save.isPending}>{save.isPending ? 'Saving…' : 'Complete trip'}</Button>
       </div>
     </form>
   )

@@ -148,10 +148,24 @@ class TripViewSet(AttachmentsMixin, OfficeScopedMixin, mixins.ListModelMixin, mi
 
     @action(detail=True, methods=['post'], permission_classes=CAN_CHANGE_TRIP)
     def complete(self, request, pk=None):
+        """Record the return. Optional `toll: {account, items: [...]}` records the trip's reload/tolls (as in
+        /toll-transactions/batch/, at the return time) in the same transaction: both are saved or neither."""
         trip = self.get_object()
         s = CompleteSerializer(data=request.data)
         s.is_valid(raise_exception=True)
-        trip, previous = trip_service.complete(trip, **s.validated_data)
+        toll = request.data.get('toll') or None
+        if toll is not None:
+            if not request.user.has_perm('operations.add_tolltransaction'):
+                raise PermissionDenied('You do not have permission to record toll transactions.')
+            if not isinstance(toll, dict):
+                raise drf_serializers.ValidationError({'toll': ['Expected {account, items}.']})
+            shared = {'account': toll.get('account'), 'vehicle': trip.vehicle_id, 'trip': trip.pk,
+                      'transacted_at': request.data.get('returned_at')}
+            payloads = toll_payloads(request, shared, toll.get('items'))
+        with db_transaction.atomic():
+            trip, previous = trip_service.complete(trip, **s.validated_data)
+            if toll is not None:
+                record_tolls(request, payloads)
         log(request, 'trip_complete', trip,
             f'Completed trip {trip.ticket_number}: {trip.distance_km:,} km', {'odometer_end': [None, trip.odometer_end]})
         if trip.odometer_end != previous:
@@ -521,6 +535,35 @@ class TollFilter(filters.FilterSet):
         return qs.filter(credit__gt=0) if value == 'credit' else qs.filter(debit__gt=0)
 
 
+def toll_payloads(request, shared, items):
+    """Validate a batch of loads/charges sharing {account, vehicle, trip, transacted_at}; raises 400 on any bad line.
+    `items`: [{kind: credit|debit, amount, description, reference_number}]."""
+    if not isinstance(items, list) or not items:
+        raise drf_serializers.ValidationError({'items': ['Add at least one load or charge.']})
+    payloads = []
+    for i, it in enumerate(items):
+        amt = it.get('amount')
+        payload = {**shared, 'description': it.get('description', ''), 'reference_number': it.get('reference_number', ''),
+                   'credit': amt if it.get('kind') == 'credit' else '0', 'debit': amt if it.get('kind') == 'debit' else '0'}
+        s = TollTransactionSerializer(data=payload, context={'request': request})
+        if not s.is_valid():
+            raise drf_serializers.ValidationError({'items': {i: s.errors}})
+        payloads.append(dict(s.validated_data))
+    return payloads
+
+
+def record_tolls(request, payloads):
+    """Save validated payloads (call inside a transaction) and audit them as one entry."""
+    created = [toll_service.save_transaction(user=request.user, data=p) for p in payloads]
+    first = created[0]
+    loads = sum(1 for x in created if x.credit)
+    charges = len(created) - loads
+    parts = ', '.join(p for p in [f'{loads} load(s)' if loads else '', f'{charges} toll charge(s)' if charges else ''] if p)
+    log(request, 'create', first, f'Recorded {parts} for {first.vehicle.plate_number}' + (f' on {first.trip.ticket_number}' if first.trip_id else ''),
+        {'after': {'transactions': len(created), 'loads': loads, 'charges': charges}})
+    return created
+
+
 class TollTransactionViewSet(OfficeScopedMixin, mixins.ListModelMixin, mixins.RetrieveModelMixin,
                              mixins.CreateModelMixin, mixins.UpdateModelMixin, viewsets.GenericViewSet):
     """Toll / RFID transactions: a load (credit) or a charge (debit), optionally linked to a trip. No DELETE."""
@@ -559,26 +602,9 @@ class TollTransactionViewSet(OfficeScopedMixin, mixins.ListModelMixin, mixins.Re
         own row, all or nothing. Body: {account, vehicle, trip?, transacted_at, items:[{kind, amount, description, reference_number}]}."""
         shared = {k: request.data.get(k) for k in ('account', 'vehicle', 'transacted_at')}
         shared['trip'] = request.data.get('trip') or None
-        items = request.data.get('items')
-        if not isinstance(items, list) or not items:
-            return Response({'items': ['Add at least one load or charge.']}, status=status.HTTP_400_BAD_REQUEST)
-        payloads = []
-        for i, it in enumerate(items):
-            amt = it.get('amount')
-            payload = {**shared, 'description': it.get('description', ''), 'reference_number': it.get('reference_number', ''),
-                       'credit': amt if it.get('kind') == 'credit' else '0', 'debit': amt if it.get('kind') == 'debit' else '0'}
-            s = self.get_serializer(data=payload)
-            if not s.is_valid():
-                return Response({'items': {i: s.errors}}, status=status.HTTP_400_BAD_REQUEST)
-            payloads.append(dict(s.validated_data))
+        payloads = toll_payloads(request, shared, request.data.get('items'))
         with db_transaction.atomic():
-            created = [toll_service.save_transaction(user=request.user, data=p) for p in payloads]
-        first = created[0]
-        loads = sum(1 for x in created if x.credit)
-        charges = len(created) - loads
-        parts = ', '.join(p for p in [f'{loads} load(s)' if loads else '', f'{charges} toll charge(s)' if charges else ''] if p)
-        log(request, 'create', first, f'Recorded {parts} for {first.vehicle.plate_number}' + (f' on {first.trip.ticket_number}' if first.trip_id else ''),
-            {'after': {'transactions': len(created), 'loads': loads, 'charges': charges}})
+            created = record_tolls(request, payloads)
         data = self.get_serializer(self.queryset.filter(pk__in=[x.pk for x in created]), many=True).data
         return Response({'results': data, 'count': len(created)}, status=status.HTTP_201_CREATED)
 

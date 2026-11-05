@@ -31,10 +31,8 @@ export default function TollForm({ txn, account, vehicle, trip, onClose, onSaved
           transacted_at: txn.transacted_at?.slice(0, 16), kind: Number(txn.credit) > 0 ? 'credit' : 'debit',
           amount: String(Number(txn.credit) > 0 ? txn.credit : txn.debit), description: txn.description, reference_number: txn.reference_number }
       : { account: account ? String(account.id) : '', vehicle: vehicle ? String(vehicle.id) : (trip?.vehicle ? String(trip.vehicle) : (account?.vehicle ? String(account.vehicle) : '')),
-          trip: trip ? String(trip.id) : '', transacted_at: nowLocal(),
-          load_amount: '', load_reference: '', charges: [{ amount: '', description: '', reference_number: '' }] },
+          trip: trip ? String(trip.id) : '', transacted_at: nowLocal(), ...EMPTY_TOLL },
   })
-  const { fields, append, remove } = useFieldArray({ control, name: 'charges' })
 
   const chosenAccount = accounts.data?.results.find((a) => String(a.id) === watch('account'))
   const fixedVehicle = vehicle?.id ?? trip?.vehicle ?? null
@@ -66,20 +64,14 @@ export default function TollForm({ txn, account, vehicle, trip, onClose, onSaved
     const shared = { account: Number(v.account), vehicle: vid, trip: v.trip ? Number(v.trip) : null, transacted_at: new Date(v.transacted_at).toISOString() }
     if (!isNew) { save.mutate({ ...shared, credit: v.kind === 'credit' ? amount(v.amount) : '0', debit: v.kind === 'debit' ? amount(v.amount) : '0', description: v.description, reference_number: v.reference_number }); return }
 
-    const items = []
-    if (num(v.load_amount) > 0) items.push({ kind: 'credit', amount: amount(v.load_amount), description: 'Reload', reference_number: v.load_reference })
-    for (const c of v.charges) if (num(c.amount) > 0) items.push({ kind: 'debit', amount: amount(c.amount), description: c.description, reference_number: c.reference_number })
+    const items = tollItems(v)
     if (items.length === 0) { setFormError('Enter a reload amount, or at least one toll charge.'); return }
-    if (items.some((it) => it.kind === 'debit' && !it.description.trim())) { setFormError('Each toll charge needs a description.'); return }
+    if (missingPlaza(items)) { setFormError(missingPlaza(items)); return }
     setFormError('')
     save.mutate({ ...shared, items })
   }
 
   const kind = watch('kind')
-  // Net effect of this entry on the balance: the reload minus the charges (an edit's change isn't previewed).
-  const change = isNew ? num(watch('load_amount')) - (watch('charges') ?? []).reduce((s, c) => s + num(c.amount), 0) : 0
-  const balance = chosenAccount ? Number(chosenAccount.current_balance) : null
-  const after = balance == null ? null : balance + change
 
   return (
     <form noValidate className="space-y-4" onSubmit={handleSubmit(submit)}>
@@ -99,13 +91,7 @@ export default function TollForm({ txn, account, vehicle, trip, onClose, onSaved
         </Field>
       )}
 
-      {balance != null && (
-        <p className="-mt-2 text-sm text-slate-600">
-          Current balance <strong className="tabular-nums text-ink">{formatPeso(balance)}</strong>
-          {change !== 0 && <> · after this entry <strong className={`tabular-nums ${after < 0 ? 'text-danger' : 'text-ink'}`}>{formatPeso(after)}</strong></>}
-          {after < 0 && <span className="block text-xs text-danger">Not enough load for these tolls. Add a reload.</span>}
-        </p>
-      )}
+      <BalanceNote account={chosenAccount} watch={isNew ? watch : null} />
 
       {/* Vehicle */}
       {lockedVehicle ? (
@@ -140,35 +126,7 @@ export default function TollForm({ txn, account, vehicle, trip, onClose, onSaved
 
       {isNew ? (
         <>
-          {/* Reload (optional) */}
-          <fieldset className="rounded-lg border border-slate-200 p-4">
-            <legend className="flex items-center gap-1.5 px-1 text-sm font-semibold text-emerald-700"><ArrowUpCircle size={16} /> Reload</legend>
-            <div className="grid gap-3 sm:grid-cols-2">
-              <Field label="Load amount (₱)" htmlFor="load-amt">
-                <input id="load-amt" className={inputClass} inputMode="decimal" placeholder="0.00" {...register('load_amount')} />
-              </Field>
-              <Field label="Reference number" htmlFor="load-ref">
-                <input id="load-ref" className={`${inputClass} uppercase`} placeholder="Reload receipt no." {...register('load_reference')} />
-              </Field>
-            </div>
-          </fieldset>
-
-          {/* Toll charges (repeatable) */}
-          <fieldset className="rounded-lg border border-slate-200 p-4">
-            <legend className="flex items-center gap-1.5 px-1 text-sm font-semibold text-danger"><ArrowDownCircle size={16} /> Toll charges</legend>
-            <div className="space-y-2">
-              {fields.map((f, i) => (
-                <div key={f.id} className="grid grid-cols-[7rem_1fr_7rem_auto] items-start gap-2">
-                  <input aria-label={`Charge ${i + 1} amount`} className={inputClass} inputMode="decimal" placeholder="₱ 0.00" {...register(`charges.${i}.amount`)} />
-                  <input aria-label={`Charge ${i + 1} toll plaza`} className={inputClass} placeholder="Toll plaza, e.g. NLEX Balintawak" {...register(`charges.${i}.description`)} />
-                  <input aria-label={`Charge ${i + 1} reference`} className={`${inputClass} uppercase`} placeholder="Ref no." {...register(`charges.${i}.reference_number`)} />
-                  <button type="button" onClick={() => remove(i)} disabled={fields.length === 1} aria-label={`Remove charge ${i + 1}`}
-                    className="mt-1 rounded-md p-1.5 text-slate-400 hover:bg-slate-100 hover:text-danger disabled:opacity-30"><Trash2 size={18} /></button>
-                </div>
-              ))}
-            </div>
-            <Button variant="ghost" className="mt-2 px-2" onClick={() => append({ amount: '', description: '', reference_number: '' })}><Plus size={16} /> Add another toll</Button>
-          </fieldset>
+          <TollLines register={register} control={control} />
           <p className="text-xs text-slate-500">Fill the reload and the tolls that happened on this trip. Each line is saved as its own transaction.</p>
         </>
       ) : (
@@ -204,6 +162,71 @@ export default function TollForm({ txn, account, vehicle, trip, onClose, onSaved
         <Button type="submit" disabled={save.isPending}>{save.isPending ? 'Saving…' : isNew ? 'Record toll' : 'Save changes'}</Button>
       </div>
     </form>
+  )
+}
+
+// Reload + toll lines, shared with the trip return form (pages/trips/TripDetail.jsx). The form's values must include EMPTY_TOLL.
+export const EMPTY_TOLL = { load_amount: '', load_reference: '', charges: [{ amount: '', description: '', reference_number: '' }] }
+
+// Filled lines as /toll-transactions/batch/ items; blank lines are ignored.
+export function tollItems(v) {
+  const items = []
+  if (num(v.load_amount) > 0) items.push({ kind: 'credit', amount: amount(v.load_amount), description: 'Reload', reference_number: v.load_reference })
+  for (const c of v.charges) if (num(c.amount) > 0) items.push({ kind: 'debit', amount: amount(c.amount), description: c.description, reference_number: c.reference_number })
+  return items
+}
+
+export const missingPlaza = (items) => (items.some((it) => it.kind === 'debit' && !it.description.trim()) ? 'Each toll charge needs a toll plaza.' : '')
+
+export function TollLines({ register, control }) {
+  const { fields, append, remove } = useFieldArray({ control, name: 'charges' })
+  return (
+    <>
+      {/* Reload (optional) */}
+      <fieldset className="rounded-lg border border-slate-200 p-4">
+        <legend className="flex items-center gap-1.5 px-1 text-sm font-semibold text-emerald-700"><ArrowUpCircle size={16} /> Reload</legend>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Field label="Load amount (₱)" htmlFor="load-amt">
+            <input id="load-amt" className={inputClass} inputMode="decimal" placeholder="0.00" {...register('load_amount')} />
+          </Field>
+          <Field label="Reference number" htmlFor="load-ref">
+            <input id="load-ref" className={`${inputClass} uppercase`} placeholder="Reload receipt no." {...register('load_reference')} />
+          </Field>
+        </div>
+      </fieldset>
+
+      {/* Toll charges (repeatable) */}
+      <fieldset className="rounded-lg border border-slate-200 p-4">
+        <legend className="flex items-center gap-1.5 px-1 text-sm font-semibold text-danger"><ArrowDownCircle size={16} /> Toll charges</legend>
+        <div className="space-y-2">
+          {fields.map((f, i) => (
+            <div key={f.id} className="grid grid-cols-[7rem_1fr_7rem_auto] items-start gap-2">
+              <input aria-label={`Charge ${i + 1} amount`} className={inputClass} inputMode="decimal" placeholder="₱ 0.00" {...register(`charges.${i}.amount`)} />
+              <input aria-label={`Charge ${i + 1} toll plaza`} className={inputClass} placeholder="Toll plaza, e.g. NLEX Balintawak" {...register(`charges.${i}.description`)} />
+              <input aria-label={`Charge ${i + 1} reference`} className={`${inputClass} uppercase`} placeholder="Ref no." {...register(`charges.${i}.reference_number`)} />
+              <button type="button" onClick={() => remove(i)} disabled={fields.length === 1} aria-label={`Remove charge ${i + 1}`}
+                className="mt-1 rounded-md p-1.5 text-slate-400 hover:bg-slate-100 hover:text-danger disabled:opacity-30"><Trash2 size={18} /></button>
+            </div>
+          ))}
+        </div>
+        <Button variant="ghost" className="mt-2 px-2" onClick={() => append({ amount: '', description: '', reference_number: '' })}><Plus size={16} /> Add another toll</Button>
+      </fieldset>
+    </>
+  )
+}
+
+// The account's live balance and, while lines are typed (pass the form's `watch`), the balance after them.
+export function BalanceNote({ account, watch }) {
+  if (!account) return null
+  const balance = Number(account.current_balance)
+  const change = watch ? num(watch('load_amount')) - (watch('charges') ?? []).reduce((s, c) => s + num(c.amount), 0) : 0
+  const after = balance + change
+  return (
+    <p className="-mt-2 text-sm text-slate-600">
+      Current balance <strong className="tabular-nums text-ink">{formatPeso(balance)}</strong>
+      {change !== 0 && <> · after this entry <strong className={`tabular-nums ${after < 0 ? 'text-danger' : 'text-ink'}`}>{formatPeso(after)}</strong></>}
+      {after < 0 && <span className="block text-xs text-danger">Not enough load for these tolls. Add a reload.</span>}
+    </p>
   )
 }
 

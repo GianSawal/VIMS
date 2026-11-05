@@ -105,7 +105,7 @@ Django session in an HttpOnly cookie plus CSRF token. The SPA calls `GET /api/au
 | `/api/vehicle-requests/{id}/attachments/` | GET / POST / DELETE `…/{att_id}/` | travel order; files follow the request's visibility (a requester only sees their own) |
 | `/api/display-screens/` | GET | TV screens and their links (needs `operations.view_displayscreen`); created/revoked in Django admin; Trips page → **TV board** |
 | `/api/display/trips/?token=` | GET (no login) | TV board data: trips on the road, today's departures not yet gone, trips returned today, next 7 days; display-safe fields (incl. vehicle/driver photos); cancelled trips never sent; rate-limited |
-| `/api/trips/{id}/complete/` | POST `{returned_at, odometer_end, remarks?}` | moves the vehicle odometer forward; vehicle back to Serviceable |
+| `/api/trips/{id}/complete/` | POST `{returned_at, odometer_end, remarks?, toll?}` | moves the vehicle odometer forward; vehicle back to Serviceable. Optional `toll: {account, items}` (items as in `/toll-transactions/batch/`) records the trip's reload/tolls at the return time in the same transaction; needs `operations.add_tolltransaction` |
 | `/api/trips/{id}/cancel/` | POST `{reason}` | open trips only; odometer untouched |
 | `/api/trips/{id}/attachments/` | GET / POST / DELETE `…/{att_id}/` | same rules as driver attachments |
 | `/api/fuel-records/` | CRUD (no delete) | `?vehicle= &driver= &office= &fuel_type= &date_from= &date_to= &has_po=true &is_full_tank= &search=`; total computed if blank; returns `distance_since_last`, `km_per_liter` (estimate, full tank to full tank), `unusual` |

@@ -159,3 +159,45 @@ def test_batch_records_load_and_charges_as_separate_rows(fo1):
     assert TollTransaction.objects.filter(account=acc).count() == 3  # nothing added
     # empty items rejected
     assert c.post('/api/toll-transactions/batch/', {'account': acc.pk, 'vehicle': v.pk, 'transacted_at': now, 'items': []}, format='json').status_code == 400
+
+
+def test_return_records_the_trip_tolls_in_the_same_save(fo1):
+    v = make_vehicle(fo1, 'RET 1', current_odometer=1000)
+    acc = RFIDAccount.objects.create(provider='EASYTRIP', account_number='E-RET', vehicle=v)
+    trip = Trip.objects.create(ticket_number='T-RET-1', status='DISPATCHED', vehicle=v, driver=make_driver(fo1, 'Ret', 'L-R'),
+                               origin='RO', destination='NLEX', purpose='x',
+                               departed_at=timezone.now() - timedelta(hours=3), odometer_start=1000)
+    c = as_role('Fleet Administrator')
+    back = (timezone.now() - timedelta(minutes=5)).isoformat()
+    items = [{'kind': 'credit', 'amount': '500', 'description': 'Reload'}, {'kind': 'debit', 'amount': '78', 'description': 'NLEX'}]
+    # a bad toll line rolls back the return too
+    bad = c.post(f'/api/trips/{trip.pk}/complete/', {'returned_at': back, 'odometer_end': 1080, 'toll': {
+        'account': acc.pk, 'items': [*items, {'kind': 'debit', 'amount': '0', 'description': 'zero'}]}}, format='json')
+    assert bad.status_code == 400
+    trip.refresh_from_db()
+    assert trip.status == 'DISPATCHED' and not TollTransaction.objects.exists()
+
+    r = c.post(f'/api/trips/{trip.pk}/complete/', {'returned_at': back, 'odometer_end': 1080,
+                                                   'toll': {'account': acc.pk, 'items': items}}, format='json')
+    assert r.status_code == 200, r.json()
+    assert r.json()['status'] == 'COMPLETED'
+    assert c.get(f'/api/trips/{trip.pk}/').json()['toll']['charges'] == '78.00'
+    assert set(TollTransaction.objects.values_list('trip', 'vehicle')) == {(trip.pk, v.pk)}
+    assert c.get(f'/api/rfid-accounts/{acc.pk}/').json()['current_balance'] == '422.00'
+
+
+
+def test_return_toll_needs_toll_permission(fo1):
+    from django.contrib.auth.models import Permission
+    from accounts.models import User
+    v = make_vehicle(fo1, 'RET 2', current_odometer=0)
+    acc = RFIDAccount.objects.create(provider='EASYTRIP', account_number='E-RET2', vehicle=v)
+    trip = Trip.objects.create(ticket_number='T-RET-2', status='DISPATCHED', vehicle=v, driver=make_driver(fo1, 'Ret2', 'L-R2'),
+                               origin='RO', destination='X', purpose='x', departed_at=timezone.now() - timedelta(hours=1), odometer_start=0)
+    c = as_role('Viewer')  # can see every office; give it change_trip only
+    User.objects.get(username='Viewer').user_permissions.add(Permission.objects.get(codename='change_trip'))
+    body = {'returned_at': timezone.now().isoformat(), 'odometer_end': 10,
+            'toll': {'account': acc.pk, 'items': [{'kind': 'debit', 'amount': '50', 'description': 'SCTEX'}]}}
+    assert c.post(f'/api/trips/{trip.pk}/complete/', body, format='json').status_code == 403
+    trip.refresh_from_db()
+    assert trip.status == 'DISPATCHED'
