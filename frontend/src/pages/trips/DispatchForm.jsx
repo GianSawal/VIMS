@@ -20,7 +20,7 @@ const common = {
   vehicle: z.string().min(1, 'Select a vehicle'),
   driver: z.string().min(1, 'Select a driver'),
   requesting_office: z.string(),
-  requesting_division: z.enum(DIVISIONS, { error: 'Select the requesting division' }),
+  requesting_division: z.string(),
   passengers: z.string(),
   origin: z.string().trim().min(1, 'Origin is required').max(200),
   destination: z.string().trim().min(1, 'Destination is required').max(255),
@@ -256,12 +256,6 @@ export default function DispatchForm({ vehicle, mode = 'dispatch', onClose, onSa
             onChange={(p) => { setDest(p); setEstimate(null); setValue('destination', p.text, { shouldValidate: !!errors.destination }) }} />
         </Field>
         {(mapsOn || !mapsAvailable) && <RouteEstimate origin={origin} destination={dest} enabled={mapsOn} onEstimate={setEstimate} />}
-        <Field label="Requesting division *" htmlFor="requesting_division" error={errors.requesting_division?.message}>
-          <select id="requesting_division" className={inputClass} {...register('requesting_division')}>
-            <option value="">Select a division...</option>
-            {DIVISIONS.map((d) => <option key={d} value={d}>{d}</option>)}
-          </select>
-        </Field>
         <div className="sm:col-span-2">
           <Field label="Purpose *" htmlFor="purpose" error={errors.purpose?.message}>
             <textarea id="purpose" rows={2} className={inputClass} placeholder="e.g. Labor inspection, document delivery" {...register('purpose')} />
@@ -274,6 +268,13 @@ export default function DispatchForm({ vehicle, mode = 'dispatch', onClose, onSa
           <select id="requesting_office" className={inputClass} {...register('requesting_office')}>
             <option value="">None</option>
             {offices.data?.results.filter((o) => o.is_active).map((o) => <option key={o.id} value={o.id}>{o.code} - {o.name}</option>)}
+          </select>
+        </Field>
+        <Field label="Requesting division" htmlFor="requesting_division" error={errors.requesting_division?.message}
+          hint="Leave as None for offices without divisions.">
+          <select id="requesting_division" className={inputClass} {...register('requesting_division')}>
+            <option value="">None</option>
+            {DIVISIONS.map((d) => <option key={d} value={d}>{d}</option>)}
           </select>
         </Field>
         {text('ticket_number', 'Trip ticket no.', {

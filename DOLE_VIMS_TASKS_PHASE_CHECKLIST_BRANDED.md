@@ -692,12 +692,12 @@ Field Office User, System Administrator); the rest of the Phase 12 dashboard is 
 
 # Phase 17C --- Requesting division on trips
 
-Added 2026-11-05. Every new trip records which division asked for it.
+Added 2026-11-05. Trips can record which division asked for them (optional: other offices have no divisions).
 
--   [x] `Trip.requesting_division` (IMSD, TSSD-1, TSSD-2, MALSU); required by `/trips/` (dispatch) and `/trips/schedule/`, blank allowed only on older/imported trips; editable on PATCH (audited); `?requesting_division=` filter
+-   [x] `Trip.requesting_division` (IMSD, TSSD-1, TSSD-2, MALSU); optional on `/trips/` (dispatch) and `/trips/schedule/` (blank = no division); editable on PATCH (audited); `?requesting_division=` filter
 -   [x] Trip History report: Division column (CSV/Excel/PDF)
--   [x] Schedule / Dispatch form: required "Requesting division" select; trip detail shows it and the edit form can set it
--   [x] Tests: `operations/test_trips.py::test_requesting_division_required_and_editable`; existing payloads updated
+-   [x] Schedule / Dispatch form: optional "Requesting division" select in Other details; trip detail shows it and the edit form can set it
+-   [x] Tests: `operations/test_trips.py::test_requesting_division_optional_and_editable`; existing payloads updated
 -   [ ] Vehicle requests: approving a request books the trip without a division (requests don't ask for one yet); set it on the trip afterwards
 
 ------------------------------------------------------------------------

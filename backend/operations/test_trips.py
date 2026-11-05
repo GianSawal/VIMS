@@ -158,11 +158,13 @@ def test_patch_changes_only_descriptive_fields(vehicle, driver):
     assert as_role('System Administrator').delete(f'/api/trips/{t["id"]}/').status_code == 405
 
 
-def test_requesting_division_required_and_editable(vehicle, driver):
+def test_requesting_division_optional_and_editable(vehicle, driver):
     c = as_role('Fleet Administrator')
     missing = body(vehicle, driver)
     del missing['requesting_division']
-    assert 'requesting_division' in c.post('/api/trips/', missing, format='json').json()
+    r = c.post('/api/trips/', missing, format='json')
+    assert r.status_code == 201 and r.json()['requesting_division'] == ''
+    assert c.post(f'/api/trips/{r.json()["id"]}/cancel/', {'reason': 'test'}, format='json').status_code == 200
     assert 'requesting_division' in dispatch(c, vehicle, driver, requesting_division='HR').json()
     t = dispatch(c, vehicle, driver, requesting_division='TSSD-2').json()
     assert t['requesting_division'] == 'TSSD-2'

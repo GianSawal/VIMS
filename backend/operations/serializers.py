@@ -89,7 +89,8 @@ class DispatchSerializer(serializers.Serializer):
     driver = serializers.PrimaryKeyRelatedField(queryset=Driver.objects.all())
     requesting_office = serializers.PrimaryKeyRelatedField(queryset=Office.objects.filter(is_active=True),
                                                            required=False, allow_null=True)
-    requesting_division = serializers.ChoiceField(choices=Trip.Division.choices, help_text='Division requesting the trip.')
+    requesting_division = serializers.ChoiceField(choices=Trip.Division.choices, required=False, allow_blank=True, default='',
+                                                  help_text='Division requesting the trip; blank for offices without divisions.')
     passengers = serializers.CharField(required=False, allow_blank=True, default='')
     origin = serializers.CharField(max_length=200)
     destination = serializers.CharField(max_length=255)
@@ -129,7 +130,8 @@ class ScheduleSerializer(serializers.Serializer):
     scheduled_return = serializers.DateTimeField(required=False, allow_null=True)
     requesting_office = serializers.PrimaryKeyRelatedField(queryset=Office.objects.filter(is_active=True),
                                                            required=False, allow_null=True)
-    requesting_division = serializers.ChoiceField(choices=Trip.Division.choices, help_text='Division requesting the trip.')
+    requesting_division = serializers.ChoiceField(choices=Trip.Division.choices, required=False, allow_blank=True, default='',
+                                                  help_text='Division requesting the trip; blank for offices without divisions.')
     passengers = serializers.CharField(required=False, allow_blank=True, default='')
     origin = serializers.CharField(max_length=200)
     destination = serializers.CharField(max_length=255)

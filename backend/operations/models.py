@@ -49,7 +49,7 @@ class Trip(Tracked, RoutePlan):
     # Optional while SCHEDULED (the driver may not be known when booking); required from dispatch on.
     driver = models.ForeignKey(Driver, null=True, blank=True, on_delete=models.PROTECT, related_name='trips')
     requesting_office = models.ForeignKey(Office, null=True, blank=True, on_delete=models.PROTECT, related_name='+')
-    # Required when scheduling or dispatching (serializers); blank only on older and imported trips.
+    # Optional: only some offices have divisions.
     requesting_division = models.CharField(max_length=10, choices=Division.choices, blank=True, db_index=True)
     passengers = models.TextField(blank=True)
     origin = models.CharField(max_length=200)

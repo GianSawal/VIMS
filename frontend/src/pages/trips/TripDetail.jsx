@@ -375,7 +375,7 @@ function EditForm({ trip, onClose }) {
       </Field>
       <Field label="Requesting division" htmlFor="requesting_division" error={errors.requesting_division?.message}>
         <select id="requesting_division" className={inputClass} {...register('requesting_division')}>
-          <option value="">Not recorded</option>
+          <option value="">None</option>
           {DIVISIONS.map((d) => <option key={d} value={d}>{d}</option>)}
         </select>
       </Field>
