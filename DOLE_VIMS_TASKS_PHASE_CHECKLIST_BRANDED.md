@@ -738,6 +738,19 @@ Added 2026-11-05. A Fleet Administrator (or Viewer) assigned to an office sees o
 -   [x] Users page hint: leave offices empty for all offices, or select offices to limit the user
 -   [x] Test: `fleet/test_vehicles.py::test_fleet_administrator_assigned_to_an_office_sees_only_that_office`
 -   [ ] Existing all-office users who had offices ticked "for information" are now limited to them; clear their offices on the Users page to restore all-office access
+
+------------------------------------------------------------------------
+
+# Phase 17G --- Requester home
+
+Added 2026-11-05. The requester's Vehicle requests page was the approver's table with seven mostly-zero cards.
+
+-   [x] `pages/requests/MyRequests.jsx` (requesters; approvers keep the queue in `RequestList.jsx`): greeting with a large Request a vehicle button; empty state for first-time requesters
+-   [x] Current request card(s) (pending/approved/on trip, soonest first): plain date ("Tomorrow · 8:00 AM"), destination and purpose, the booked vehicle (photo, plate, model, driver and contact) or a waiting note, and a Submitted → Approved → On trip → Completed progress bar
+-   [x] All requests as a compact list with status tabs shown only for statuses that have requests
+-   [x] Tests: `src/pages/requests/requests.test.jsx` (current card, tabs, empty state, approver queue unchanged)
+-   [ ] Loads the latest 100 requests (no paging); cancel stays on the request page
+-   [ ] Not yet checked on a 390 px phone
 ------------------------------------------------------------------------
 
 # Phase 18 --- Deployment

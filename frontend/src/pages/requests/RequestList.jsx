@@ -7,11 +7,16 @@ import DataTable from '../../components/DataTable'
 import { CardGrid, SearchBox, StatCard, Toolbar } from '../../components/filters'
 import { Button, formatDateTime, Modal, PageHeader } from '../../components/ui'
 import { APPROVE, PROGRESS, ProgressBadge, progressLabel } from './common'
+import MyRequests from './MyRequests'
 import RequestForm from './RequestForm'
 
 export default function RequestList() {
+  return useCan()(APPROVE) ? <RequestQueue /> : <MyRequests />
+}
+
+// Approvers: the queue of everyone's requests (office-scoped by the API).
+function RequestQueue() {
   const can = useCan()
-  const approver = can(APPROVE)
   const navigate = useNavigate()
   const [adding, setAdding] = useState(false)
   const [params, setParams] = useSearchParams()
@@ -43,9 +48,9 @@ export default function RequestList() {
         <div className="text-xs text-slate-500">Sent {formatDateTime(r.created_at)}</div>
       </div>
     ) },
-    ...(approver ? [{ key: 'requester', label: 'Requested by', render: (r) => (
+    { key: 'requester', label: 'Requested by', render: (r) => (
       <div><div className="font-medium">{r.requester_name}</div><div className="text-xs text-slate-500">{r.office_code}</div></div>
-    ) }] : []),
+    ) },
     { key: 'needed', label: 'Needed', render: (r) => <span className="whitespace-nowrap">{formatDateTime(r.needed_at)}</span> },
     { key: 'trip', label: 'Destination and purpose', render: (r) => (
       <div className="max-w-xs">
@@ -68,9 +73,9 @@ export default function RequestList() {
 
   return (
     <div>
-      <PageHeader title={approver ? 'Vehicle requests' : 'My vehicle requests'} actions={can('operations.add_vehiclerequest') && (
+      <PageHeader title="Vehicle requests" actions={can('operations.add_vehiclerequest') && (
         <Button onClick={() => setAdding(true)}><Plus size={16} /> Request a vehicle</Button>
-      )}>{approver ? 'Approve requests by booking a vehicle, or decline them with a reason.' : 'Ask for a vehicle and follow your request until the trip is done.'}</PageHeader>
+      )}>Approve requests by booking a vehicle, or decline them with a reason.</PageHeader>
 
       <CardGrid label="Filter by status">
         <StatCard icon={ClipboardList} tint="bg-slate-100 text-slate-700" label="All" count={summary.data?.total}
@@ -88,7 +93,7 @@ export default function RequestList() {
             <SearchBox id="request-search" label="Search requests" placeholder="Search reference, destination, purpose…" value={search} onChange={setSearch} />
           </Toolbar>
         )}
-        empty={chips.length ? 'No requests match these filters.' : approver ? 'No vehicle requests yet.' : 'You have not requested a vehicle yet.'} />
+        empty={chips.length ? 'No requests match these filters.' : 'No vehicle requests yet.'} />
 
       <Modal open={adding} onClose={() => setAdding(false)} title="Request a vehicle" wide>
         {adding && <RequestForm onClose={() => setAdding(false)} onSaved={(r) => navigate(`/requests/${r.id}`)} />}

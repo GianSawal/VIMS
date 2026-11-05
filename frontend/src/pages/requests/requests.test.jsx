@@ -1,4 +1,4 @@
-import { screen } from '@testing-library/react'
+import { fireEvent, screen } from '@testing-library/react'
 import { Route } from 'react-router-dom'
 import { describe, expect, it } from 'vitest'
 import { meWith, renderApp } from '../../test/render'
@@ -54,17 +54,43 @@ describe('vehicle request detail', () => {
 })
 
 describe('vehicle request list', () => {
-  it('requester: "My vehicle requests" with status cards and no requester column', () => {
+  it('requester: current request up front with the booked vehicle and progress, then the history', () => {
+    const done = { ...base, id: 8, reference_number: 'VR-2026-00008', destination: 'Bataan', status: 'DECLINED', progress: 'DECLINED' }
+    renderApp(<RequestList />, {
+      me: meWith(REQUESTER, { first_name: 'Ana' }), path: '/requests',
+      data: { '["/vehicle-requests/",{"page_size":100}]': { count: 2, results: [approved, done] } },
+    })
+    expect(screen.getByRole('heading', { name: /, Ana$/ })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Your current request' })).toBeInTheDocument()
+    expect(screen.getByText('SAB 1234')).toBeInTheDocument()
+    expect(screen.getByText('Driver to be assigned')).toBeInTheDocument()
+    expect(screen.getByRole('listitem', { current: 'step' })).toHaveTextContent('Approved')
+    // tabs only for statuses that have requests
+    expect(screen.getByRole('tab', { name: /Declined 1/ })).toBeInTheDocument()
+    expect(screen.queryByRole('tab', { name: /Cancelled/ })).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('tab', { name: /Declined 1/ }))
+    expect(screen.getAllByText('VR-2026-00008')).toHaveLength(1)
+    expect(screen.queryByText('Requested by')).not.toBeInTheDocument()
+  })
+
+  it('requester with no requests gets a welcome and the request button', () => {
     renderApp(<RequestList />, {
       me: meWith(REQUESTER), path: '/requests',
+      data: { '["/vehicle-requests/",{"page_size":100}]': { count: 0, results: [] } },
+    })
+    expect(screen.getByRole('heading', { name: 'No requests yet' })).toBeInTheDocument()
+    expect(screen.getAllByRole('button', { name: /request a vehicle/i })).toHaveLength(2)
+  })
+
+  it('approver keeps the queue with status cards', () => {
+    renderApp(<RequestList />, {
+      me: meWith(APPROVER), path: '/requests',
       data: {
-        '["/vehicle-requests/",{"page":1}]': { count: 1, results: [approved] },
-        '["/vehicle-requests/summary/",{}]': { total: 1, pending: 0, approved: 1, dispatched: 0, completed: 0, declined: 0, cancelled: 0 },
+        '["/vehicle-requests/",{"page":1}]': { count: 1, results: [base] },
+        '["/vehicle-requests/summary/",{}]': { total: 1, pending: 1, approved: 0, dispatched: 0, completed: 0, declined: 0, cancelled: 0 },
       },
     })
-    expect(screen.getByRole('heading', { name: 'My vehicle requests' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /request a vehicle/i })).toBeInTheDocument()
-    expect(screen.getByText('VR-2026-00007')).toBeInTheDocument()
-    expect(screen.queryByText('Requested by')).not.toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Vehicle requests' })).toBeInTheDocument()
+    expect(screen.getByText('Requested by')).toBeInTheDocument()
   })
 })
