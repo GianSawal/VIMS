@@ -96,10 +96,13 @@ export function ReportCatalog() {
 
 // ---------------------------------------------------------------- one report
 
+// Same key and cached shape as useList(path, { page_size: 500 }) on other pages ({count, results}); `select` only
+// changes what this hook returns. Caching the bare list here crashed whichever page read the key second.
 function useOptions(path, enabled, params = { page_size: 500 }) {
   return useQuery({
     queryKey: [path, params],
-    queryFn: () => api.get(path, { params }).then((r) => r.data.results ?? r.data),
+    queryFn: () => api.get(path, { params }).then((r) => r.data),
+    select: (data) => data.results ?? data,
     enabled,
     staleTime: 5 * 60 * 1000,
   })

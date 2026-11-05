@@ -762,6 +762,7 @@ Added 2026-11-05. Every dropdown can be searched by typing (vehicles, drivers, o
 -   [x] All 60 dropdowns in 25 pages switched to `<Select>`
 -   [x] Tests: `src/components/Select.test.jsx`
 -   [ ] Not yet checked in a browser (Chrome/Edge/Firefox) and on a 390 px phone
+-   [x] Fix: a report page went blank after visiting a list with an office/vehicle/driver filter ("(data ?? []).map is not a function"): the report filters cached `/offices/` etc. as a bare list under the same key `useList` caches `{count, results}`. `useOptions` now caches the API response and reads it with `select`. Test: `src/pages/reports/Reports.test.jsx`
 -   [x] List tables show 8 rows per page (`PAGE_SIZE` in `src/api.js`: `useList` adds `page_size=8` to any paged request; `DataTable` pages by it). The API default stays 25 for other callers
 -   [x] Fix: Next page jumped back to page 1 on the URL-filtered lists (the search debounce re-ran on every URL change and reset the page). Shared `useSetParam` in `components/filters.jsx` ignores unchanged values; used by all 9 list pages. Test: `src/pages/vehicles/VehicleList.test.jsx`
 
