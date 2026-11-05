@@ -716,6 +716,17 @@ Added 2026-11-05. Clear records entered while testing before go-live. Day-to-day
 
 ------------------------------------------------------------------------
 
+# Phase 17E --- Toll on trip return
+
+Added 2026-11-05. Recording the return can go straight on to the trip's tolls; optional, since many trips use no expressway.
+
+-   [x] Record return (trip page and Trips list): optional "Record toll for this trip" tick box (only with `operations.add_tolltransaction`); the trip is completed first, then the toll form opens for it (skipping it keeps the return)
+-   [x] Toll form opened from a trip or vehicle auto-picks that vehicle's active RFID account and links the trip ticket (still changeable); no new API, `/toll-transactions/batch/` enforces the account/vehicle/trip rules
+-   [x] Toll form shows the account's current balance and the balance after this entry (red with a hint when the tolls exceed the load)
+-   [x] Tests: `src/pages/trips/CompleteForm.test.jsx`
+
+------------------------------------------------------------------------
+
 # Phase 18 --- Deployment
 
 Runbook: `docs/DEPLOYMENT.md` (sections 1-11). Everything below that needs the real server is still open: no server,

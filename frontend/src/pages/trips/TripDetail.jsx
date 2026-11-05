@@ -176,7 +176,7 @@ export default function TripDetail() {
       <Modal open={dialog === 'reschedule'} onClose={() => setDialog(null)} title={`Reschedule ${t.ticket_number}`} wide>
         {dialog === 'reschedule' && <RescheduleForm trip={t} onClose={() => setDialog(null)} />}
       </Modal>
-      <Modal open={dialog === 'complete'} onClose={() => setDialog(null)} title={`Record return: ${t.ticket_number}`}>
+      <Modal open={dialog === 'complete'} onClose={() => setDialog(null)} title={`Record return: ${t.ticket_number}`} wide>
         {dialog === 'complete' && <CompleteForm trip={t} onClose={() => setDialog(null)} />}
       </Modal>
       <Modal open={dialog === 'cancel'} onClose={() => setDialog(null)} title={`Cancel ${t.ticket_number}`}>
@@ -186,8 +186,7 @@ export default function TripDetail() {
         {dialog === 'edit' && <EditForm trip={t} onClose={() => setDialog(null)} />}
       </Modal>
       <Modal open={dialog === 'toll'} onClose={() => setDialog(null)} title={`Record toll: ${t.ticket_number}`} wide>
-        {dialog === 'toll' && <TollForm trip={{ id: t.id, vehicle: t.vehicle, ticket_number: t.ticket_number, destination: t.destination }}
-          vehicle={{ id: t.vehicle, plate_number: t.plate_number, make: '', model: t.vehicle_label }} onClose={() => setDialog(null)} />}
+        {dialog === 'toll' && <TollForm {...tollFor(t)} onClose={() => setDialog(null)} />}
       </Modal>
     </div>
   )
@@ -279,14 +278,34 @@ const completeSchema = z.object({
   remarks: z.string(),
 })
 
+// TollForm pre-filled for a trip: the trip is linked and the vehicle's RFID account is picked automatically.
+const tollFor = (t) => ({
+  trip: { id: t.id, vehicle: t.vehicle, ticket_number: t.ticket_number, destination: t.destination },
+  vehicle: { id: t.vehicle, plate_number: t.plate_number, make: '', model: t.vehicle_label },
+})
+
+// Record return, then optionally the trip's tolls (not every trip uses an expressway). The trip is completed first;
+// the toll step can be skipped or cancelled without undoing the return.
 export function CompleteForm({ trip, onClose }) {
-  const { register, handleSubmit, setError, watch, formState: { errors } } = useForm({
+  const can = useCan()
+  const [tollStep, setTollStep] = useState(false)
+  const { register, handleSubmit, setError, watch, getValues, formState: { errors } } = useForm({
     resolver: zodResolver(completeSchema),
-    defaultValues: { returned_at: toLocalInput(), odometer_end: '', remarks: trip.remarks ?? '' },
+    defaultValues: { returned_at: toLocalInput(), odometer_end: '', remarks: trip.remarks ?? '', with_toll: false },
   })
-  const [save, error] = useTripMutation(trip, 'complete', 'Trip completed. Vehicle odometer updated.', onClose, setError, ['returned_at', 'odometer_end', 'remarks'])
+  const [save, error] = useTripMutation(trip, 'complete', 'Trip completed. Vehicle odometer updated.',
+    () => (getValues('with_toll') ? setTollStep(true) : onClose()), setError, ['returned_at', 'odometer_end', 'remarks'])
   const end = Number(parseKm(watch('odometer_end')))
   const distance = end >= trip.odometer_start ? end - trip.odometer_start : null
+
+  if (tollStep) {
+    return (
+      <div className="space-y-4">
+        <p className="rounded-md bg-green-50 px-3 py-2 text-sm text-green-800">Trip completed. Now record the tolls from this trip.</p>
+        <TollForm {...tollFor(trip)} onClose={onClose} />
+      </div>
+    )
+  }
 
   return (
     <form noValidate className="space-y-4" onSubmit={handleSubmit((v) => save.mutate({
@@ -303,10 +322,19 @@ export function CompleteForm({ trip, onClose }) {
       <Field label="Remarks" htmlFor="remarks" error={errors.remarks?.message}>
         <textarea id="remarks" rows={2} className={inputClass} {...register('remarks')} />
       </Field>
+      {can('operations.add_tolltransaction') && (
+        <label className="flex cursor-pointer items-start gap-2 rounded-md border border-slate-200 px-3 py-2.5 text-sm">
+          <input type="checkbox" className="mt-0.5 h-4 w-4 accent-brand" {...register('with_toll')} />
+          <span>
+            <span className="font-medium">Record toll for this trip</span>
+            <span className="block text-xs text-slate-500">Leave unticked if the vehicle did not use an expressway.</span>
+          </span>
+        </label>
+      )}
       <p className="text-xs text-slate-500">The vehicle&apos;s odometer moves to the ending reading and the vehicle becomes available again.</p>
       <div className="flex justify-end gap-2">
         <Button variant="secondary" onClick={onClose}>Back</Button>
-        <Button type="submit" disabled={save.isPending}>{save.isPending ? 'Saving…' : 'Complete trip'}</Button>
+        <Button type="submit" disabled={save.isPending}>{save.isPending ? 'Saving…' : watch('with_toll') ? 'Complete and record toll' : 'Complete trip'}</Button>
       </div>
     </form>
   )

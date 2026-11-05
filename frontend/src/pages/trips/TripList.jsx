@@ -208,7 +208,7 @@ export function OpenTrips({ canChange, onViewAll, office }) {
           )
         })}
       </div>
-      <Modal open={!!returning} onClose={() => setReturning(null)} title={`Record return: ${returning?.ticket_number}`}>
+      <Modal open={!!returning} onClose={() => setReturning(null)} title={`Record return: ${returning?.ticket_number}`} wide>
         {returning && <CompleteForm trip={returning} onClose={() => setReturning(null)} />}
       </Modal>
     </section>

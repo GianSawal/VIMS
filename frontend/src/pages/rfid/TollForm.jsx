@@ -1,10 +1,11 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useFieldArray, useForm } from 'react-hook-form'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { ArrowDownCircle, ArrowUpCircle, Plus, Trash2 } from 'lucide-react'
 import { api, applyFieldErrors, errorMessage, invalidatePrefix, useList } from '../../api'
 import { Button, Field, inputClass } from '../../components/ui'
 import { useToast } from '../../components/toast'
+import { formatPeso } from '../vehicles/common'
 import { providerLabel } from './common'
 
 const EDIT_FIELDS = ['account', 'vehicle', 'trip', 'transacted_at', 'kind', 'amount', 'description', 'reference_number']
@@ -24,7 +25,7 @@ export default function TollForm({ txn, account, vehicle, trip, onClose, onSaved
   const accounts = useList('/rfid-accounts/', { page_size: 500 })
   const vehicles = useList('/vehicles/', { page_size: 500 })
   const [error, setFormError] = useState('')
-  const { register, handleSubmit, setError, watch, control, formState: { errors } } = useForm({
+  const { register, handleSubmit, setError, setValue, getValues, watch, control, formState: { errors } } = useForm({
     defaultValues: txn
       ? { account: String(txn.account), vehicle: String(txn.vehicle), trip: txn.trip ? String(txn.trip) : '',
           transacted_at: txn.transacted_at?.slice(0, 16), kind: Number(txn.credit) > 0 ? 'credit' : 'debit',
@@ -39,6 +40,12 @@ export default function TollForm({ txn, account, vehicle, trip, onClose, onSaved
   const fixedVehicle = vehicle?.id ?? trip?.vehicle ?? null
   const pickable = (accounts.data?.results ?? []).filter((a) => (a.is_active || String(a.id) === watch('account'))
     && (fixedVehicle == null || a.vehicle == null || a.vehicle === fixedVehicle))
+  // Opened from a trip or vehicle: pick that vehicle's own RFID account once the accounts load (still changeable).
+  const ownAccount = isNew && !account && fixedVehicle != null
+    ? pickable.find((a) => a.vehicle === fixedVehicle && a.is_active) : null
+  useEffect(() => {
+    if (ownAccount && !getValues('account')) setValue('account', String(ownAccount.id))
+  }, [ownAccount, getValues, setValue])
   const lockedVehicle = chosenAccount?.vehicle ?? null
   const vehicleId = lockedVehicle ? String(lockedVehicle) : watch('vehicle')
   const trips = useList('/trips/', vehicleId ? { vehicle: vehicleId, page_size: 50 } : {})
@@ -69,6 +76,10 @@ export default function TollForm({ txn, account, vehicle, trip, onClose, onSaved
   }
 
   const kind = watch('kind')
+  // Net effect of this entry on the balance: the reload minus the charges (an edit's change isn't previewed).
+  const change = isNew ? num(watch('load_amount')) - (watch('charges') ?? []).reduce((s, c) => s + num(c.amount), 0) : 0
+  const balance = chosenAccount ? Number(chosenAccount.current_balance) : null
+  const after = balance == null ? null : balance + change
 
   return (
     <form noValidate className="space-y-4" onSubmit={handleSubmit(submit)}>
@@ -86,6 +97,14 @@ export default function TollForm({ txn, account, vehicle, trip, onClose, onSaved
             ))}
           </select>
         </Field>
+      )}
+
+      {balance != null && (
+        <p className="-mt-2 text-sm text-slate-600">
+          Current balance <strong className="tabular-nums text-ink">{formatPeso(balance)}</strong>
+          {change !== 0 && <> · after this entry <strong className={`tabular-nums ${after < 0 ? 'text-danger' : 'text-ink'}`}>{formatPeso(after)}</strong></>}
+          {after < 0 && <span className="block text-xs text-danger">Not enough load for these tolls. Add a reload.</span>}
+        </p>
       )}
 
       {/* Vehicle */}
