@@ -187,7 +187,7 @@ class DisplayTripSerializer(serializers.ModelSerializer):
     class Meta:
         model = Trip
         fields = ['ticket_number', 'plate_number', 'vehicle_label', 'vehicle_photo_url', 'driver_name', 'driver_photo_url', 'office_code', 'destination',
-                  'purpose', 'status', 'scheduled_departure', 'scheduled_return', 'departed_at', 'returned_at', 'flag']
+                  'purpose', 'requesting_division', 'status', 'scheduled_departure', 'scheduled_return', 'departed_at', 'returned_at', 'flag']
 
     def get_vehicle_label(self, t):
         return f'{t.vehicle.make} {t.vehicle.model}'

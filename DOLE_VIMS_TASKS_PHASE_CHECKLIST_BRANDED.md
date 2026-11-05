@@ -697,6 +697,7 @@ Added 2026-11-05. Trips can record which division asked for them (optional: othe
 -   [x] `Trip.requesting_division` (IMSD, TSSD-1, TSSD-2, MALSU); optional on `/trips/` (dispatch) and `/trips/schedule/` (blank = no division); editable on PATCH (audited); `?requesting_division=` filter
 -   [x] Trip History report: Division column (CSV/Excel/PDF)
 -   [x] Schedule / Dispatch form: optional "Requesting division" select in Other details; trip detail shows it and the edit form can set it
+-   [x] Division chip on the Trips page (table, Leaving today, Out right now) and the TV board (trip cards, Next 7 Days, Returned Today, next trip); `requesting_division` added to `DisplayTripSerializer` (not sensitive)
 -   [x] Tests: `operations/test_trips.py::test_requesting_division_optional_and_editable`; existing payloads updated
 -   [ ] Vehicle requests: approving a request books the trip without a division (requests don't ask for one yet); set it on the trip afterwards
 

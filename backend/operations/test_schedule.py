@@ -218,7 +218,7 @@ def test_display_shows_today_and_upcoming_without_sensitive_fields(vehicle, driv
     today_booked = make_scheduled(vehicle, driver, at(0, 23, 50))
     out_now = Trip.objects.create(ticket_number='OUT-1', status='DISPATCHED', vehicle=make_vehicle(fo1, 'OUT 1'),
                                   driver=other_driver, departed_at=timezone.now() - timedelta(days=1),
-                                  odometer_start=1, origin='RO', destination='Pampanga', purpose='Field monitoring',
+                                  odometer_start=1, origin='RO', destination='Pampanga', purpose='Field monitoring', requesting_division='IMSD',
                                   passengers='Someone Private', scheduled_return=timezone.now() - timedelta(hours=2))
     upcoming = make_scheduled(make_vehicle(fo1, 'UP 1'), make_driver(fo1, 'Ana', 'L-3'), at(3, 8))
     make_scheduled(make_vehicle(fo1, 'FAR 9'), make_driver(fo1, 'Far', 'L-4'), at(30, 8))     # beyond 7 days
@@ -234,6 +234,7 @@ def test_display_shows_today_and_upcoming_without_sensitive_fields(vehicle, driv
     row = next(t for t in body['today'] if t['ticket_number'] == 'OUT-1')
     assert row['flag'] == 'OVERDUE' and row['vehicle_photo_url'] is None
     assert row['purpose'] == 'Field monitoring'  # purpose is shown so viewers know why
+    assert row['requesting_division'] == 'IMSD'
     for t in body['today'] + body['upcoming']:
         assert not {'passengers', 'remarks', 'odometer_start', 'id', 'vehicle', 'driver'} & set(t)
     screen.refresh_from_db()

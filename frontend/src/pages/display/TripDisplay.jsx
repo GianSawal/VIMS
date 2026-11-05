@@ -306,6 +306,12 @@ function FreshTag({ r, className = 'px-3 py-1 text-[15px]' }) {
   )
 }
 
+/** Requesting division chip (IMSD, TSSD-1...); nothing for offices without divisions. */
+function Division({ r, className = 'px-2.5 py-0.5 text-[15px]' }) {
+  if (!r.requesting_division) return null
+  return <span className={`inline-flex shrink-0 items-center rounded-md bg-brand-light font-bold tracking-wide text-brand ring-1 ring-brand/20 ${className}`}>{r.requesting_division}</span>
+}
+
 function TripCard({ r, now, wide, fresh }) {
   const [label, pill, dot] = statusOf(r)
   const out = r.status === 'DISPATCHED'
@@ -343,9 +349,10 @@ function TripCard({ r, now, wide, fresh }) {
           <MapPin size={22} className="shrink-0 text-brand" aria-hidden="true" />
           <p className="truncate text-[25px] leading-tight font-bold tracking-tight text-slate-900">{r.destination}</p>
         </div>
-        {r.purpose && (
+        {(r.purpose || r.requesting_division) && (
           <p className="flex min-w-0 items-center gap-2 text-[16px]" title={r.purpose}>
             <ClipboardList size={18} className="shrink-0 text-slate-400" aria-hidden="true" />
+            <Division r={r} />
             <span className="truncate font-medium text-slate-600">{r.purpose}</span>
           </p>
         )}
@@ -402,6 +409,7 @@ function CompletedToday({ trips, now, fresh }) {
               className="flex items-center gap-4 border-t border-slate-100 px-6 py-2.5 first:border-t-0">
               <Thumb r={r} className="h-[48px] w-[68px]" />
               <Plate>{r.plate_number}</Plate>
+              <Division r={r} className="px-2 py-0.5 text-[14px]" />
               <span className="min-w-0 flex-1 truncate text-[17px] text-slate-700" title={r.destination}>{r.destination}</span>
               {fresh(r.ticket_number) && <FreshTag r={r} className="px-2.5 py-0.5 text-[14px]" />}
               <span className="shrink-0 text-[17px] font-semibold text-emerald-600 tabular-nums">{when(r.returned_at, now)}</span>
@@ -502,6 +510,7 @@ function AgendaDay({ g, now, fresh }) {
               <div className="flex items-center gap-3">
                 <span className="text-[19px] font-bold text-slate-900 tabular-nums">{t(r.scheduled_departure)}</span>
                 <Plate>{r.plate_number}</Plate>
+                <Division r={r} />
                 {fresh(r.ticket_number) && <FreshTag r={r} className="ml-auto px-2.5 py-0.5 text-[14px]" />}
               </div>
               <div className="mt-1 truncate text-[18px] font-semibold text-slate-800" title={r.destination}>{r.destination}</div>
@@ -530,6 +539,7 @@ function Empty({ next, now }) {
           <div className="mt-4 text-[28px] font-bold text-slate-900 tabular-nums">{wk.format(new Date(next.scheduled_departure))}, {when(next.scheduled_departure, now)}</div>
           <div className="mt-3 flex items-center justify-center gap-4">
             <Plate size="md">{next.plate_number}</Plate>
+            <Division r={next} className="px-3 py-1 text-[20px]" />
             <span className="max-w-[420px] truncate text-[24px] font-medium text-slate-700" title={next.destination}>{next.destination}</span>
           </div>
           {next.vehicle_label && <div className="mt-2 text-[18px] text-slate-500">{next.vehicle_label}</div>}

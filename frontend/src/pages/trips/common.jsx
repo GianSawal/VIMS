@@ -6,6 +6,11 @@ const tone = Object.fromEntries(TRIP_STATUSES.map(([v, , t]) => [v, t]))
 // Mirrors Trip.Division on the server.
 export const DIVISIONS = ['IMSD', 'TSSD-1', 'TSSD-2', 'MALSU']
 
+/** Small chip with the requesting division; renders nothing when the trip has none. */
+export const DivisionTag = ({ division, className = '' }) => (division
+  ? <span title="Requesting division" className={`inline-flex shrink-0 items-center rounded bg-brand-light px-1.5 py-0.5 text-[11px] font-semibold tracking-wide text-brand ${className}`}>{division}</span>
+  : null)
+
 export const driverLabel = (t) => t.driver_name ?? 'Driver to be assigned'
 
 export const tripStatusLabel = Object.fromEntries(TRIP_STATUSES.map(([v, l]) => [v, l]))

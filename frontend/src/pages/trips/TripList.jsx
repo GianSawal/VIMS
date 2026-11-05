@@ -13,7 +13,7 @@ import DispatchForm from './DispatchForm'
 import TripCalendar from './TripCalendar'
 import TvScreens from './TvScreens'
 import { CompleteForm, DispatchScheduledForm } from './TripDetail'
-import { driverLabel, km, shortDateTime, TRIP_STATUSES, tripDuration, tripStatusLabel, TripStatusBadge } from './common'
+import { DivisionTag, driverLabel, km, shortDateTime, TRIP_STATUSES, tripDuration, tripStatusLabel, TripStatusBadge } from './common'
 
 const CARDS = {
   ALL: [RouteIcon, 'bg-slate-100 text-slate-700', 'All trips'],
@@ -74,7 +74,10 @@ export function tripColumns({ withVehicle = true } = {}) {
       <div className="min-w-0">
         <Link to={`/trips/${t.id}`} onClick={(e) => e.stopPropagation()}
           className="inline-block rounded-md border border-slate-300 bg-white px-2 py-0.5 font-mono text-xs font-semibold text-brand hover:border-brand">{t.ticket_number}</Link>
-        <div className="mt-1 max-w-52 truncate text-xs text-slate-500" title={t.purpose}>{t.purpose}</div>
+        <div className="mt-1 flex max-w-52 items-center gap-1.5 text-xs text-slate-500">
+          <DivisionTag division={t.requesting_division} />
+          <span className="truncate" title={t.purpose}>{t.purpose}</span>
+        </div>
       </div>
     ) },
     ...(withVehicle ? [{ key: 'vehicle', label: 'Vehicle and driver', render: (t) => (
@@ -143,7 +146,7 @@ export function LeavingToday({ canChange, office }) {
               <Link to={`/trips/${t.id}`} className="font-mono text-xs font-semibold text-brand hover:underline">{t.ticket_number}</Link>
             </div>
             <TripIdentity t={t} />
-            <p className="mt-2 truncate text-sm" title={t.destination}><span className="text-slate-500">To</span> {t.destination}</p>
+            <p className="mt-2 flex min-w-0 items-center gap-2 text-sm"><DivisionTag division={t.requesting_division} /><span className="truncate" title={t.destination}><span className="text-slate-500">To</span> {t.destination}</span></p>
             {canChange && (
               <div className="mt-3 border-t border-slate-100 pt-3">
                 <Button className="w-full" onClick={() => setLeaving(t)}><Navigation size={16} /> Dispatch: enter odometer</Button>
@@ -189,7 +192,7 @@ export function OpenTrips({ canChange, onViewAll, office }) {
                 <Link to={`/trips/${t.id}`} className="font-mono text-xs font-semibold text-brand hover:underline">{t.ticket_number}</Link>
               </div>
               <TripIdentity t={t} />
-              <p className="mt-2 truncate text-sm" title={t.destination}><span className="text-slate-500">To</span> {t.destination}</p>
+              <p className="mt-2 flex min-w-0 items-center gap-2 text-sm"><DivisionTag division={t.requesting_division} /><span className="truncate" title={t.destination}><span className="text-slate-500">To</span> {t.destination}</span></p>
               <div className="mt-3 flex items-center gap-2 border-t border-slate-100 pt-3 text-sm">
                 <Clock size={15} className={long ? 'text-amber-600' : 'text-slate-400'} aria-hidden="true" />
                 <span className={long ? 'font-medium text-amber-800' : 'text-slate-600'}>
