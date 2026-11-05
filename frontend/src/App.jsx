@@ -28,6 +28,7 @@ import RfidDetail from './pages/rfid/RfidDetail'
 import { ReportCatalog, ReportPage, ReportPrint } from './pages/reports/Reports'
 import AuditLogs from './pages/admin/AuditLogs'
 import DataImport from './pages/admin/DataImport'
+import PurgeData from './pages/admin/PurgeData'
 import RequestList from './pages/requests/RequestList'
 import RequestDetail from './pages/requests/RequestDetail'
 
@@ -63,6 +64,9 @@ export default function App() {
           </Route>
           <Route element={<RequirePerm perm="accounts.import_data" />}>
             <Route path="admin/import" element={<DataImport />} />
+          </Route>
+          <Route element={<RequirePerm perm="accounts.purge_test_data" />}>
+            <Route path="admin/purge" element={<PurgeData />} />
           </Route>
           <Route element={<RequirePerm perm="fleet.view_vehicle" />}>
             <Route path="vehicles" element={<VehicleList />} />

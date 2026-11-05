@@ -4,12 +4,14 @@ from datetime import date
 from django.http import HttpResponse
 from rest_framework.exceptions import ValidationError
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from accounts.permissions import PasswordChangeNotRequired, require
 from accounts.throttles import ExportThrottle
 from audit import services as audit
 
+from . import purge
 from .export import export_form
 from .importer import write_template
 from .legacy import FORM
@@ -50,3 +52,23 @@ class RecordsFormView(APIView):
         response = HttpResponse(content, content_type=XLSX)
         response['Content-Disposition'] = f'attachment; filename="VEHICLE RECORD {date.today():%Y-%m-%d}.xlsx"'
         return response
+
+
+class PurgeView(APIView):
+    """GET: row counts per group. POST {groups: [...], confirm: 'DELETE'}: delete those groups (purge.py).
+    For clearing test data before go-live; needs accounts.purge_test_data (System Administrator only)."""
+    permission_classes = [IsAuthenticated, require('accounts.purge_test_data'), PasswordChangeNotRequired]
+
+    def get(self, request):
+        counts = purge.counts()
+        return Response([{'key': k, 'label': label, 'count': counts[k]} for k, (label, _) in purge.GROUPS.items()])
+
+    def post(self, request):
+        groups = request.data.get('groups')
+        if not isinstance(groups, list) or not groups or not set(groups) <= set(purge.GROUPS):
+            raise ValidationError({'groups': 'Choose at least one kind of data.'})
+        if request.data.get('confirm') != 'DELETE':
+            raise ValidationError({'confirm': 'Type DELETE to confirm.'})
+        deleted = purge.purge(groups)
+        audit.log(request, 'purge', 'test data', f'Deleted test data: {", ".join(groups)}', {'deleted': deleted})
+        return Response({'deleted': deleted})

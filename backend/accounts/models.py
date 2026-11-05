@@ -18,7 +18,8 @@ class Office(models.Model):
     class Meta:
         ordering = ['code']
         permissions = [('view_all_offices', 'Can access records of all offices'),
-                       ('import_data', 'Can download the data import template')]
+                       ('import_data', 'Can download the data import template'),
+                       ('purge_test_data', 'Can delete test data (trips, fuel, maintenance, ...) before go-live')]
 
     def __str__(self):
         return f'{self.code} - {self.name}'

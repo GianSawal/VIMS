@@ -9,7 +9,7 @@ from audit.views import AuditLogViewSet
 from config.health import health
 from config.media import serve_media
 from dashboard.views import DashboardView
-from dataimport.views import ImportTemplateView, RecordsFormView
+from dataimport.views import ImportTemplateView, PurgeView, RecordsFormView
 from fleet.document_views import DocumentViewSet
 from fleet.driver_views import DriverViewSet
 from fleet.views import VehicleViewSet
@@ -48,6 +48,7 @@ urlpatterns = [
     path('api/maps/<str:op>/', MapsView.as_view(), name='maps'),  # status | autocomplete | route
     path('api/import/template/', ImportTemplateView.as_view(), name='import-template'),
     path('api/export/vehicle-record/', RecordsFormView.as_view(), name='export-vehicle-record'),
+    path('api/admin/purge/', PurgeView.as_view(), name='purge'),  # System Administrator: delete test data
     path('api/', include(router.urls)),
     path('api/schema/', SpectacularAPIView.as_view(), name='schema'),
     path('api/docs/', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger'),

@@ -703,6 +703,19 @@ Added 2026-11-05. Trips can record which division asked for them (optional: othe
 
 ------------------------------------------------------------------------
 
+# Phase 17D --- Delete test data (System Administrator)
+
+Added 2026-11-05. Clear records entered while testing before go-live. Day-to-day records are still never deleted (cancel/archive).
+
+-   [x] `accounts.purge_test_data` permission (migration `accounts.0005`; System Administrator only via `seed_reference`)
+-   [x] `dataimport/purge.py`: groups (trips + requests, fuel, tolls, RFID accounts, maintenance, assignments, documents, notifications, odometer reset); deletes their attachments and stored files; vehicles left In Use / Under Maintenance go back to Serviceable; maintenance schedules restart. Vehicles, drivers, offices, users, categories, display screens are kept; audit log untouched
+-   [x] `/api/admin/purge/`: GET counts, POST `{groups, confirm: "DELETE"}` (POST, not DELETE, so the no-DELETE-endpoint rule holds); audit-logged with row counts
+-   [x] UI: Admin > Delete test data (checkboxes with counts, type DELETE to confirm)
+-   [x] Tests: `dataimport/test_purge.py` (role check, confirmation, vehicles/drivers kept, audit entry)
+-   [ ] No automatic backup: run `deploy/backup.sh` (or `mysqldump`) before purging
+
+------------------------------------------------------------------------
+
 # Phase 18 --- Deployment
 
 Runbook: `docs/DEPLOYMENT.md` (sections 1-11). Everything below that needs the real server is still open: no server,

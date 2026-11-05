@@ -3,7 +3,7 @@ import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { AnimatePresence, motion } from 'motion/react'
 import {
   Bell, Building2, Car, ClipboardList, ClipboardPen, CreditCard, FileSpreadsheet, FileText, Fuel, IdCard, KeyRound, LayoutDashboard, LogOut, Menu,
-  Route as RouteIcon, ScrollText, Users, Wrench, X,
+  Route as RouteIcon, ScrollText, Trash2, Users, Wrench, X,
 } from 'lucide-react'
 import { seesDashboard, useCan, useLogout, useMe } from './auth'
 import { useUnreadCount } from './notifications'
@@ -25,6 +25,7 @@ const nav = [
   ['/admin/offices', 'Offices', Building2, 'accounts.view_office'],
   ['/audit-logs', 'Audit Logs', ScrollText, 'audit.view_auditlog'],
   ['/admin/import', 'Data Import', FileSpreadsheet, 'accounts.import_data'],
+  ['/admin/purge', 'Delete test data', Trash2, 'accounts.purge_test_data'],
 ]
 
 export default function Layout() {
