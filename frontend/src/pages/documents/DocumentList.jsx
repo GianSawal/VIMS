@@ -10,6 +10,7 @@ import { useAllOffices } from '../admin/Offices'
 import { formatDate, VehiclePhoto } from '../vehicles/common'
 import { BANDS, daysText, DocBadge, TYPE_GROUPS } from './common'
 import DocumentForm from './DocumentForm'
+import { Select } from '../../components/Select'
 
 const BAND_CARDS = [
   ['', FileCheck2, 'bg-slate-100 text-slate-700', 'All current'],
@@ -100,20 +101,20 @@ export default function DocumentList() {
   const toolbar = (
     <Toolbar chips={chips} onRemove={remove} onClear={clearAll}>
       <SearchBox id="doc-search" label="Search documents" placeholder="Search plate, reference no., remarks…" value={search} onChange={setSearch} />
-      <select className={`${selectClass} w-48`} aria-label="Filter by document type" value={f.type ?? ''} onChange={(e) => set('type', e.target.value)}>
+      <Select className={`${selectClass} w-48`} aria-label="Filter by document type" value={f.type ?? ''} onChange={(e) => set('type', e.target.value)}>
         {TYPE_GROUPS.map(([k, l]) => <option key={k} value={k}>{l}</option>)}
-      </select>
+      </Select>
       {showOffice && (
-        <select className={`${selectClass} w-44`} aria-label="Filter by office" value={f.office ?? ''} onChange={(e) => set('office', e.target.value)}>
+        <Select className={`${selectClass} w-44`} aria-label="Filter by office" value={f.office ?? ''} onChange={(e) => set('office', e.target.value)}>
           <option value="">All offices</option>
           {offices.data?.results.map((o) => <option key={o.id} value={o.id}>{o.code} - {o.name}</option>)}
-        </select>
+        </Select>
       )}
       {!status && (
-        <select className={`${selectClass} w-40`} aria-label="Filter by expiry" value={f.band ?? ''} onChange={(e) => set('band', e.target.value)}>
+        <Select className={`${selectClass} w-40`} aria-label="Filter by expiry" value={f.band ?? ''} onChange={(e) => set('band', e.target.value)}>
           <option value="">Any expiry</option>
           {Object.entries(BANDS).map(([k, [l]]) => <option key={k} value={k}>{l}</option>)}
-        </select>
+        </Select>
       )}
     </Toolbar>
   )

@@ -11,6 +11,7 @@ import { useToast } from '../../components/toast'
 import { Forbidden } from '../Errors'
 import { useAllOffices } from '../admin/Offices'
 import { FUELS, odometerField, STATUSES, TYPES } from './common'
+import { Select } from '../../components/Select'
 
 const optionalNumber = (msg) => z.string().trim().refine((v) => v === '' || (!isNaN(v) && Number(v) >= 0), msg)
 
@@ -92,10 +93,10 @@ function VehicleFormBody({ vehicle }) {
   )
   const select = (name, label, options, placeholder = 'Select…') => (
     <Field label={label} htmlFor={name} error={errors[name]?.message}>
-      <select id={name} className={inputClass} {...register(name)}>
+      <Select id={name} className={inputClass} {...register(name)}>
         {placeholder && <option value="">{placeholder}</option>}
         {options.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-      </select>
+      </Select>
     </Field>
   )
 

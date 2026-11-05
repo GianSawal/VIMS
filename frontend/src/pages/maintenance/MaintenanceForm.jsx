@@ -9,6 +9,7 @@ import { useToast } from '../../components/toast'
 import { todayISO } from '../drivers/common'
 import { formatKm, parseKm } from '../vehicles/common'
 import { useCategories } from './common'
+import { Select } from '../../components/Select'
 
 const money = (msg) => z.string().trim().refine((v) => v === '' || /^\d+(\.\d{1,2})?$/.test(v.replace(/,/g, '')), msg)
 const optionalOdo = z.string().trim().refine((v) => v === '' || /^\d+$/.test(parseKm(v)), 'Enter whole km, e.g. 45210')
@@ -91,10 +92,10 @@ export default function MaintenanceForm({ record, vehicle, onClose, onSaved }) {
           </div>
         ) : (
           <Field label="Vehicle *" htmlFor="vehicle" error={errors.vehicle?.message}>
-            <select id="vehicle" className={inputClass} {...register('vehicle')}>
+            <Select id="vehicle" className={inputClass} {...register('vehicle')}>
               <option value="">Select a vehicle…</option>
               {vehicles.data?.results.map((v) => <option key={v.id} value={v.id}>{v.plate_number} · {v.make} {v.model}</option>)}
-            </select>
+            </Select>
           </Field>
         )}
         {text('date', 'Date *', { type: 'date', hint: 'When the work is booked or done.' })}

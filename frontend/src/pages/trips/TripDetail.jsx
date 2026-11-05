@@ -21,6 +21,7 @@ import { formatPeso, odometerField, parseKm, VehiclePhoto } from '../vehicles/co
 import { isLoad, providerLabel } from '../rfid/common'
 import TollForm, { BalanceNote, EMPTY_TOLL, missingPlaza, TollLines, tollItems } from '../rfid/TollForm'
 import { Avatar } from '../../components/filters'
+import { Select } from '../../components/Select'
 
 export default function TripDetail() {
   const { id } = useParams()
@@ -345,12 +346,12 @@ export function CompleteForm({ trip, onClose }) {
           ) : (
             <>
               <Field label="RFID account" htmlFor="toll_account">
-                <select id="toll_account" className={inputClass} {...register('toll_account')}>
+                <Select id="toll_account" className={inputClass} {...register('toll_account')}>
                   <option value="">Select an account…</option>
                   {pickable.map((a) => (
                     <option key={a.id} value={a.id}>{providerLabel[a.provider]} {a.masked_account}{a.plate_number ? ` · ${a.plate_number}` : ' · unassigned'}</option>
                   ))}
-                </select>
+                </Select>
               </Field>
               <BalanceNote account={chosen} watch={watch} />
               <TollLines register={register} control={control} />
@@ -424,16 +425,16 @@ function EditForm({ trip, onClose }) {
         <input id="origin" className={inputClass} {...register('origin')} />
       </Field>
       <Field label="Requesting office" htmlFor="requesting_office" error={errors.requesting_office?.message}>
-        <select id="requesting_office" className={inputClass} {...register('requesting_office')}>
+        <Select id="requesting_office" className={inputClass} {...register('requesting_office')}>
           <option value="">None</option>
           {offices.data?.results.map((o) => <option key={o.id} value={o.id}>{o.code} - {o.name}</option>)}
-        </select>
+        </Select>
       </Field>
       <Field label="Requesting division" htmlFor="requesting_division" error={errors.requesting_division?.message}>
-        <select id="requesting_division" className={inputClass} {...register('requesting_division')}>
+        <Select id="requesting_division" className={inputClass} {...register('requesting_division')}>
           <option value="">None</option>
           {DIVISIONS.map((d) => <option key={d} value={d}>{d}</option>)}
-        </select>
+        </Select>
       </Field>
       <div className="sm:col-span-2">{area('destination', 'Destination / places visited *')}</div>
       <div className="sm:col-span-2">{area('purpose', 'Purpose *')}</div>
@@ -537,14 +538,14 @@ export function DispatchScheduledForm({ trip, onClose }) {
       <p className="text-sm text-slate-600">{trip.plate_number} to {trip.destination}.</p>
       <Field label="Driver *" htmlFor="dispatch-driver" error={errors.driver?.message}
         hint={trip.driver ? 'Booked driver. Change it if someone else is driving.' : 'No driver was assigned when this trip was booked.'}>
-        <select id="dispatch-driver" className={inputClass} {...register('driver')}>
+        <Select id="dispatch-driver" className={inputClass} {...register('driver')}>
           <option value="">Select a driver…</option>
           {drivers.data?.results.map((d) => (
             <option key={d.id} value={d.id} disabled={d.license_status === 'EXPIRED' || !!avail.driverClash(d.id)}>
               {d.full_name} ({d.office_code}){avail.driverClash(d.id) ? ` – booked ${bookingLabel(avail.driverClash(d.id))}` : d.license_status === 'EXPIRED' ? ' – license expired' : ''}
             </option>
           )) ?? (trip.driver && <option value={trip.driver}>{trip.driver_name}</option>)}
-        </select>
+        </Select>
       </Field>
       <Field label="Current odometer (km) *" htmlFor="odometer_start" error={errors.odometer_start?.message}
         hint={vehicle.data ? `Last recorded: ${km(vehicle.data.current_odometer)}. Read the dashboard now; it cannot be lower.` : 'Read it from the dashboard now.'}>
@@ -592,23 +593,23 @@ function RescheduleForm({ trip, onClose }) {
     }))}>
       {error && <div role="alert" className="rounded-md bg-red-50 px-3 py-2 text-sm text-danger sm:col-span-2">{error}</div>}
       <Field label="Vehicle *" htmlFor="vehicle" error={errors.vehicle?.message}>
-        <select id="vehicle" className={inputClass} {...register('vehicle')}>
+        <Select id="vehicle" className={inputClass} {...register('vehicle')}>
           {vehicles.data?.results.map((v) => (
             <option key={v.id} value={v.id} disabled={['UNSERVICEABLE', 'DISPOSED'].includes(v.status) || !!avail.vehicleClash(v.id)}>
               {v.plate_number} · {v.make} {v.model}{avail.vehicleClash(v.id) ? ` – booked ${bookingLabel(avail.vehicleClash(v.id))}` : v.status === 'SERVICEABLE' ? '' : ` (${v.status_display})`}
             </option>
           )) ?? <option value={trip.vehicle}>{trip.plate_number}</option>}
-        </select>
+        </Select>
       </Field>
       <Field label="Driver" htmlFor="driver" error={errors.driver?.message} hint="Optional until dispatch.">
-        <select id="driver" className={inputClass} {...register('driver')}>
+        <Select id="driver" className={inputClass} {...register('driver')}>
           <option value="">To be assigned later</option>
           {drivers.data?.results.map((d) => (
             <option key={d.id} value={d.id} disabled={d.license_status === 'EXPIRED' || !!avail.driverClash(d.id)}>
               {d.full_name} ({d.office_code}){avail.driverClash(d.id) ? ` – booked ${bookingLabel(avail.driverClash(d.id))}` : ''}
             </option>
           )) ?? (trip.driver && <option value={trip.driver}>{trip.driver_name}</option>)}
-        </select>
+        </Select>
       </Field>
       <Field label="Departure date and time *" htmlFor="scheduled_departure" error={errors.scheduled_departure?.message}>
         <input id="scheduled_departure" type="datetime-local" min={toLocalInput()} className={inputClass} {...register('scheduled_departure')} />

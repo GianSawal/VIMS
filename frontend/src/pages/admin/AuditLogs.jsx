@@ -5,6 +5,7 @@ import { api, useList } from '../../api'
 import DataTable from '../../components/DataTable'
 import { SearchBox, selectClass, Toolbar } from '../../components/filters'
 import { Badge, formatDateTime, Modal, PageHeader } from '../../components/ui'
+import { Select } from '../../components/Select'
 
 /*
  * Phase 14. Read-only view of /api/audit-logs/ (System Administrator only; the API enforces it).
@@ -149,15 +150,15 @@ export default function AuditLogs() {
   const toolbar = (
     <Toolbar chips={chips} onRemove={remove} onClear={clearAll}>
       <SearchBox id="audit-search" label="Search audit log" placeholder="Search description, user, record ID…" value={search} onChange={setSearch} />
-      <select className={`${selectClass} w-44`} aria-label="Filter by action" value={f.action ?? ''} onChange={(e) => set('action', e.target.value)}>
+      <Select className={`${selectClass} w-44`} aria-label="Filter by action" value={f.action ?? ''} onChange={(e) => set('action', e.target.value)}>
         <option value="">All actions</option>{options(facets.data?.actions, actionLabel)}
-      </select>
-      <select className={`${selectClass} w-48`} aria-label="Filter by record type" value={f.entity_type ?? ''} onChange={(e) => set('entity_type', e.target.value)}>
+      </Select>
+      <Select className={`${selectClass} w-48`} aria-label="Filter by record type" value={f.entity_type ?? ''} onChange={(e) => set('entity_type', e.target.value)}>
         <option value="">All record types</option>{options(facets.data?.entity_types, entityLabel)}
-      </select>
-      <select className={`${selectClass} w-40`} aria-label="Filter by user" value={f.username ?? ''} onChange={(e) => set('username', e.target.value)}>
+      </Select>
+      <Select className={`${selectClass} w-40`} aria-label="Filter by user" value={f.username ?? ''} onChange={(e) => set('username', e.target.value)}>
         <option value="">All users</option>{options(facets.data?.usernames)}
-      </select>
+      </Select>
       <label className="flex items-center gap-2 text-sm text-slate-600">From <input type="date" className={`${selectClass} w-40`} value={f.date_from ?? ''} onChange={(e) => set('date_from', e.target.value)} /></label>
       <label className="flex items-center gap-2 text-sm text-slate-600">To <input type="date" className={`${selectClass} w-40`} value={f.date_to ?? ''} onChange={(e) => set('date_to', e.target.value)} /></label>
     </Toolbar>

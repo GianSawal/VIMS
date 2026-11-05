@@ -8,6 +8,7 @@ import { useToast } from '../../components/toast'
 import { todayISO } from '../drivers/common'
 import { formatDate } from '../vehicles/common'
 import { DOC_TYPES, needsExpiry } from './common'
+import { Select } from '../../components/Select'
 
 const FIELDS = ['vehicle', 'document_type', 'reference_number', 'issue_date', 'expiry_date', 'file', 'remarks']
 
@@ -77,17 +78,17 @@ export default function DocumentForm({ doc, vehicle, renew = false, onClose, onS
             </div>
           ) : (
             <Field label="Vehicle *" htmlFor="doc-vehicle" error={errors.vehicle?.message}>
-              <select id="doc-vehicle" className={inputClass} {...register('vehicle', { required: 'Select a vehicle' })}>
+              <Select id="doc-vehicle" className={inputClass} {...register('vehicle', { required: 'Select a vehicle' })}>
                 <option value="">Select a vehicle…</option>
                 {vehicles.data?.results.map((v) => <option key={v.id} value={v.id}>{v.plate_number} · {v.make} {v.model}</option>)}
-              </select>
+              </Select>
             </Field>
           )}
           <Field label="Document type *" htmlFor="doc-document_type" error={errors.document_type?.message}>
-            <select id="doc-document_type" className={inputClass} {...register('document_type', { required: 'Choose the document type' })}>
+            <Select id="doc-document_type" className={inputClass} {...register('document_type', { required: 'Choose the document type' })}>
               <option value="">Select a type…</option>
               {DOC_TYPES.map(([k, l]) => <option key={k} value={k}>{l}</option>)}
-            </select>
+            </Select>
           </Field>
         </div>
       )}

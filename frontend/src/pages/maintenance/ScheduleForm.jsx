@@ -8,6 +8,7 @@ import { Button, Field, inputClass } from '../../components/ui'
 import { useToast } from '../../components/toast'
 import { formatKm, parseKm } from '../vehicles/common'
 import { useCategories } from './common'
+import { Select } from '../../components/Select'
 
 const wholeOrBlank = (msg) => z.string().trim().refine((v) => v === '' || /^\d+$/.test(parseKm(v)), msg)
 
@@ -75,17 +76,17 @@ export default function ScheduleForm({ schedule, vehicle, onClose }) {
         </div>
       ) : (
         <Field label="Vehicle *" htmlFor="vehicle" error={errors.vehicle?.message}>
-          <select id="vehicle" className={inputClass} {...register('vehicle')}>
+          <Select id="vehicle" className={inputClass} {...register('vehicle')}>
             <option value="">Select a vehicle…</option>
             {vehicles.data?.results.map((v) => <option key={v.id} value={v.id}>{v.plate_number} · {v.make} {v.model}</option>)}
-          </select>
+          </Select>
         </Field>
       )}
       <Field label="Category *" htmlFor="category" error={errors.category?.message}>
-        <select id="category" className={inputClass} disabled={!isNew} {...register('category')}>
+        <Select id="category" className={inputClass} disabled={!isNew} {...register('category')}>
           <option value="">Select…</option>
           {cats.data?.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-        </select>
+        </Select>
       </Field>
 
       <fieldset className="grid gap-4 rounded-md border border-slate-200 p-4 sm:col-span-2 sm:grid-cols-2">

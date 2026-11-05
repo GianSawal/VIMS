@@ -10,6 +10,7 @@ import DataTable from '../../components/DataTable'
 import { CardGrid, SearchBox, selectClass, StatCard, Toolbar } from '../../components/filters'
 import { Badge, Button, Field, inputClass, Modal, PageHeader } from '../../components/ui'
 import { useToast } from '../../components/toast'
+import { Select } from '../../components/Select'
 
 export const OFFICE_TYPES = [
   ['REGIONAL', 'Regional Office'],
@@ -72,15 +73,15 @@ export default function Offices() {
   const toolbar = (
     <Toolbar chips={chips} onRemove={(k) => { clear[k](); setPage(1) }} onClear={clearAll}>
       <SearchBox id="office-search" label="Search offices" placeholder="Search code or name…" value={search} onChange={filter(setSearch)} />
-      <select className={`${selectClass} w-44`} aria-label="Filter by type" value={type} onChange={(e) => filter(setType)(e.target.value)}>
+      <Select className={`${selectClass} w-44`} aria-label="Filter by type" value={type} onChange={(e) => filter(setType)(e.target.value)}>
         <option value="">All types</option>
         {OFFICE_TYPES.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-      </select>
-      <select className={`${selectClass} w-36`} aria-label="Filter by status" value={active} onChange={(e) => filter(setActive)(e.target.value)}>
+      </Select>
+      <Select className={`${selectClass} w-36`} aria-label="Filter by status" value={active} onChange={(e) => filter(setActive)(e.target.value)}>
         <option value="">All statuses</option>
         <option value="true">Active</option>
         <option value="false">Inactive</option>
-      </select>
+      </Select>
     </Toolbar>
   )
 
@@ -155,18 +156,18 @@ function OfficeFormBody({ office, onClose }) {
         <input id="name" className={inputClass} {...register('name')} />
       </Field>
       <Field label="Type" htmlFor="office_type" error={errors.office_type?.message}>
-        <select id="office_type" className={inputClass} {...register('office_type')}>
+        <Select id="office_type" className={inputClass} {...register('office_type')}>
           <option value="">Select…</option>
           {OFFICE_TYPES.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-        </select>
+        </Select>
       </Field>
       <Field label="Parent office" htmlFor="parent" error={errors.parent?.message}>
-        <select id="parent" className={inputClass} {...register('parent')}>
+        <Select id="parent" className={inputClass} {...register('parent')}>
           <option value="">None</option>
           {offices.data?.results.filter((o) => o.id !== office.id).map((o) => (
             <option key={o.id} value={o.id}>{o.code} - {o.name}</option>
           ))}
-        </select>
+        </Select>
       </Field>
       <label className="flex items-center gap-2 text-sm">
         <input type="checkbox" {...register('is_active')} /> Active

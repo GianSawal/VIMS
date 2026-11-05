@@ -7,6 +7,7 @@ import { Button, Field, inputClass } from '../../components/ui'
 import { useToast } from '../../components/toast'
 import { formatPeso } from '../vehicles/common'
 import { providerLabel } from './common'
+import { Select } from '../../components/Select'
 
 const EDIT_FIELDS = ['account', 'vehicle', 'trip', 'transacted_at', 'kind', 'amount', 'description', 'reference_number']
 const nowLocal = () => { const d = new Date(); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0, 16) }
@@ -82,12 +83,12 @@ export default function TollForm({ txn, account, vehicle, trip, onClose, onSaved
         <Locked label="Account"><input type="hidden" {...register('account')} />{providerLabel[account.provider]} {account.masked_account}</Locked>
       ) : (
         <Field label="Account *" htmlFor="toll-account" error={errors.account?.message}>
-          <select id="toll-account" className={inputClass} {...register('account', { required: 'Choose an account' })}>
+          <Select id="toll-account" className={inputClass} {...register('account', { required: 'Choose an account' })}>
             <option value="">Select an account…</option>
             {pickable.map((a) => (
               <option key={a.id} value={a.id}>{providerLabel[a.provider]} {a.masked_account}{a.plate_number ? ` · ${a.plate_number}` : ' · unassigned'}</option>
             ))}
-          </select>
+          </Select>
         </Field>
       )}
 
@@ -100,10 +101,10 @@ export default function TollForm({ txn, account, vehicle, trip, onClose, onSaved
         <Locked label="Vehicle"><input type="hidden" {...register('vehicle')} />{vehicle.plate_number}{vehicle.make ? ` · ${vehicle.make} ${vehicle.model}` : ''}</Locked>
       ) : (
         <Field label="Vehicle *" htmlFor="toll-vehicle" error={errors.vehicle?.message}>
-          <select id="toll-vehicle" className={inputClass} {...register('vehicle', { required: 'Choose a vehicle' })}>
+          <Select id="toll-vehicle" className={inputClass} {...register('vehicle', { required: 'Choose a vehicle' })}>
             <option value="">Select a vehicle…</option>
             {vehicles.data?.results.map((x) => <option key={x.id} value={x.id}>{x.plate_number} · {x.make} {x.model}</option>)}
-          </select>
+          </Select>
         </Field>
       )}
 
@@ -116,10 +117,10 @@ export default function TollForm({ txn, account, vehicle, trip, onClose, onSaved
           <Locked label="Trip">{trip.ticket_number}{trip.destination ? ` · ${trip.destination}` : ''} <span className="text-slate-400">(linked)</span></Locked>
         ) : vehicleId && (trips.data?.results.length ?? 0) > 0 ? (
           <Field label="Link to a trip" htmlFor="toll-trip" error={errors.trip?.message}>
-            <select id="toll-trip" className={inputClass} {...register('trip')}>
+            <Select id="toll-trip" className={inputClass} {...register('trip')}>
               <option value="">Not linked</option>
               {trips.data.results.map((tr) => <option key={tr.id} value={tr.id}>{tr.ticket_number} · {tr.destination}</option>)}
-            </select>
+            </Select>
           </Field>
         ) : <div />}
       </div>

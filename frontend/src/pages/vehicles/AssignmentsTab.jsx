@@ -12,6 +12,7 @@ import { useToast } from '../../components/toast'
 import { useAllOffices } from '../admin/Offices'
 import { todayISO } from '../drivers/common'
 import { duration, formatDate } from './common'
+import { Select } from '../../components/Select'
 
 export default function AssignmentsTab({ v }) {
   const can = useCan()
@@ -143,9 +144,9 @@ function AssignForm({ v, current, onClose }) {
         </p>
       )}
       <Field label="Assigned office *" htmlFor="office" error={errors.office?.message}>
-        <select id="office" className={inputClass} {...register('office')}>
+        <Select id="office" className={inputClass} {...register('office')}>
           {offices.data?.results.filter((o) => o.is_active).map((o) => <option key={o.id} value={o.id}>{o.code} - {o.name}</option>)}
-        </select>
+        </Select>
       </Field>
       <Field label="Start date *" htmlFor="start_date" error={errors.start_date?.message}>
         <input id="start_date" type="date" max={todayISO()} className={inputClass} {...register('start_date')} />
@@ -154,14 +155,14 @@ function AssignForm({ v, current, onClose }) {
         <input id="accountable_person" className={inputClass} autoFocus {...register('accountable_person')} />
       </Field>
       <Field label="Driver" htmlFor="driver" error={errors.driver?.message}>
-        <select id="driver" className={inputClass} {...register('driver')}>
+        <Select id="driver" className={inputClass} {...register('driver')}>
           <option value="">No driver</option>
           {drivers.data?.results.map((d) => (
             <option key={d.id} value={d.id} disabled={d.license_status === 'EXPIRED'}>
               {d.full_name} ({d.office_code}){d.license_status === 'EXPIRED' ? ' – license expired' : d.license_status === 'EXPIRING' ? ' – license expiring' : ''}
             </option>
           ))}
-        </select>
+        </Select>
       </Field>
       <div className="sm:col-span-2">
         <Field label="Remarks" htmlFor="remarks" error={errors.remarks?.message}>

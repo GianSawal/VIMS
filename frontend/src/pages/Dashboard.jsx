@@ -12,6 +12,7 @@ import { PageHeader } from '../components/ui'
 import { useAllOffices } from './admin/Offices'
 import { LeavingToday, OpenTrips } from './trips/TripList'
 import { formatDate, formatKm, formatPeso } from './vehicles/common'
+import { Select } from '../components/Select'
 
 /*
  * Phase 12. One request (/api/dashboard/) returns only the sections the user may view, already office-scoped.
@@ -76,10 +77,10 @@ export default function Dashboard() {
       <PageHeader title="Dashboard" actions={
         <div className="flex flex-wrap items-center gap-2">
           {showOffice && (
-            <select className={`${selectClass} w-52`} aria-label="Office" value={office} onChange={(e) => set('office', e.target.value)}>
+            <Select className={`${selectClass} w-52`} aria-label="Office" value={office} onChange={(e) => set('office', e.target.value)}>
               <option value="">All my offices</option>
               {offices.data?.results.map((o) => <option key={o.id} value={o.id}>{o.code} - {o.name}</option>)}
-            </select>
+            </Select>
           )}
           <label className="flex items-center gap-2 text-sm text-slate-600">
             Month <input type="month" className={`${selectClass} w-40`} value={selectedMonth} max={d?.today?.slice(0, 7)}

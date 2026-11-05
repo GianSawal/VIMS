@@ -9,6 +9,7 @@ import { useMe } from '../../auth'
 import { Button, PageHeader } from '../../components/ui'
 import { selectClass } from '../../components/filters'
 import { useCategories } from '../maintenance/common'
+import { Select as SearchSelect } from '../../components/Select'
 
 // Report definitions, filters and figures all come from /api/reports/; this page only renders them.
 const GROUP_ICONS = { Fleet: Car, Drivers: IdCard, Documents: ShieldCheck, Fuel, Maintenance: Wrench, Trips: Route }
@@ -108,10 +109,10 @@ function Select({ label, value, onChange, options, any = 'All', className = 'w-4
   return (
     <label className="flex flex-col gap-1 text-xs font-medium text-slate-600">
       {label}
-      <select className={`${selectClass} ${className}`} value={value ?? ''} onChange={(e) => onChange(e.target.value)}>
+      <SearchSelect className={`${selectClass} ${className}`} value={value ?? ''} onChange={(e) => onChange(e.target.value)}>
         {any !== null && <option value="">{any}</option>}
         {options.map(([v, text]) => <option key={v} value={v}>{text}</option>)}
-      </select>
+      </SearchSelect>
     </label>
   )
 }

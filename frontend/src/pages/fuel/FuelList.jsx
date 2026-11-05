@@ -11,6 +11,7 @@ import { Button, Modal, PageHeader } from '../../components/ui'
 import { useAllOffices } from '../admin/Offices'
 import { formatDate, formatKm, formatPeso, FUELS, fuelLabel, VehiclePhoto } from '../vehicles/common'
 import FuelForm from './FuelForm'
+import { Select } from '../../components/Select'
 
 const liters = (v) => `${Number(v).toLocaleString('en-PH', { maximumFractionDigits: 3 })} L`
 
@@ -174,21 +175,21 @@ export default function FuelList() {
     <Toolbar chips={chips} onRemove={remove} onClear={clearAll}>
       <SearchBox id="fuel-search" label="Search fuel records" placeholder="Search PO, receipt, supplier, plate, driver…" value={search} onChange={setSearch} />
       {showOffice && (
-        <select className={`${selectClass} w-44`} aria-label="Filter by office" value={f.office ?? ''} onChange={(e) => set('office', e.target.value)}>
+        <Select className={`${selectClass} w-44`} aria-label="Filter by office" value={f.office ?? ''} onChange={(e) => set('office', e.target.value)}>
           <option value="">All offices</option>
           {offices.data?.results.map((o) => <option key={o.id} value={o.id}>{o.code} - {o.name}</option>)}
-        </select>
+        </Select>
       )}
-      <select className={`${selectClass} w-36`} aria-label="Filter by fuel type" value={f.fuel_type ?? ''} onChange={(e) => set('fuel_type', e.target.value)}>
+      <Select className={`${selectClass} w-36`} aria-label="Filter by fuel type" value={f.fuel_type ?? ''} onChange={(e) => set('fuel_type', e.target.value)}>
         <option value="">All fuel types</option>
         {FUELS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-      </select>
-      <select className={`${selectClass} w-40`} aria-label="Filter by month" value={selectedMonth} onChange={(e) => setMonth(e.target.value)}>
+      </Select>
+      <Select className={`${selectClass} w-40`} aria-label="Filter by month" value={selectedMonth} onChange={(e) => setMonth(e.target.value)}>
         <option value="">All months</option>
         {[...new Set([selectedMonth, ...recentMonths()].filter(Boolean))].map((ym) => (
           <option key={ym} value={ym}>{monthLong.format(new Date(Number(ym.slice(0, 4)), Number(ym.slice(5, 7)) - 1, 1))}</option>
         ))}
-      </select>
+      </Select>
       <label className="flex items-center gap-2 text-sm text-slate-600">From <input type="date" className={`${selectClass} w-40`} value={f.date_from ?? ''} onChange={(e) => set('date_from', e.target.value)} /></label>
       <label className="flex items-center gap-2 text-sm text-slate-600">To <input type="date" className={`${selectClass} w-40`} value={f.date_to ?? ''} onChange={(e) => set('date_to', e.target.value)} /></label>
     </Toolbar>

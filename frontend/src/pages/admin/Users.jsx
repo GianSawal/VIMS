@@ -11,6 +11,7 @@ import { Avatar, CardGrid, SearchBox, selectClass, StatCard, Toolbar } from '../
 import { Badge, Button, ConfirmDialog, Field, formatDateTime, inputClass, Modal, PageHeader } from '../../components/ui'
 import { useToast } from '../../components/toast'
 import { useAllOffices } from './Offices'
+import { Select } from '../../components/Select'
 
 export const ROLES = ['System Administrator', 'Fleet Administrator', 'Field Office User', 'Viewer', 'Requester']
 const roleTone = { 'System Administrator': 'red', 'Fleet Administrator': 'blue', 'Field Office User': 'gold', Viewer: 'gray', Requester: 'green' }
@@ -105,15 +106,15 @@ export default function Users() {
   const toolbar = (
     <Toolbar chips={chips} onRemove={(k) => { clear[k](); setPage(1) }} onClear={clearAll}>
       <SearchBox id="user-search" label="Search users" placeholder="Search name, username, email…" value={search} onChange={filter(setSearch)} />
-      <select className={`${selectClass} w-48`} aria-label="Filter by role" value={role} onChange={(e) => filter(setRole)(e.target.value)}>
+      <Select className={`${selectClass} w-48`} aria-label="Filter by role" value={role} onChange={(e) => filter(setRole)(e.target.value)}>
         <option value="">All roles</option>
         {ROLES.map((r) => <option key={r}>{r}</option>)}
-      </select>
-      <select className={`${selectClass} w-36`} aria-label="Filter by status" value={active} onChange={(e) => filter(setActive)(e.target.value)}>
+      </Select>
+      <Select className={`${selectClass} w-36`} aria-label="Filter by status" value={active} onChange={(e) => filter(setActive)(e.target.value)}>
         <option value="">All statuses</option>
         <option value="true">Active</option>
         <option value="false">Inactive</option>
-      </select>
+      </Select>
     </Toolbar>
   )
 
@@ -211,10 +212,10 @@ function UserForm({ user, onClose }) {
         <input id="last_name" className={inputClass} {...register('last_name')} />
       </Field>
       <Field label="Role" htmlFor="role" error={errors.role?.message}>
-        <select id="role" className={inputClass} {...register('role')}>
+        <Select id="role" className={inputClass} {...register('role')}>
           <option value="">Select…</option>
           {ROLES.map((r) => <option key={r}>{r}</option>)}
-        </select>
+        </Select>
       </Field>
       {isNew && (
         <Field label="Initial password" htmlFor="password" error={errors.password?.message} hint="User must change it at first login.">

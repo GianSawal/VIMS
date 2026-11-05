@@ -8,6 +8,7 @@ import { Button, Field, inputClass } from '../../components/ui'
 import { useToast } from '../../components/toast'
 import { useAllOffices } from '../admin/Offices'
 import { LICENSE_TYPES } from './common'
+import { Select } from '../../components/Select'
 
 const schema = z.object({
   full_name: z.string().trim().min(1, 'Full name is required').max(150),
@@ -69,12 +70,12 @@ export default function DriverForm({ driver, onClose, onSaved }) {
       <div className="sm:col-span-2">{text('full_name', 'Full name *', { autoFocus: isNew })}</div>
       {text('employee_number', 'Employee number')}
       <Field label="Office *" htmlFor="office" error={errors.office?.message}>
-        <select id="office" className={inputClass} {...register('office')}>
+        <Select id="office" className={inputClass} {...register('office')}>
           <option value="">Select…</option>
           {offices.data?.results.filter((o) => o.is_active || o.id === driver.office).map((o) => (
             <option key={o.id} value={o.id}>{o.code} - {o.name}</option>
           ))}
-        </select>
+        </Select>
       </Field>
       {text('contact_number', 'Contact number', { inputMode: 'tel' })}
       <div />
@@ -82,10 +83,10 @@ export default function DriverForm({ driver, onClose, onSaved }) {
         <legend className="px-1 text-sm font-semibold text-brand">Driver&apos;s license</legend>
         {text('license_number', 'License number *', { className: `${inputClass} uppercase` })}
         <Field label="License type *" htmlFor="license_type" error={errors.license_type?.message}>
-          <select id="license_type" className={inputClass} {...register('license_type')}>
+          <Select id="license_type" className={inputClass} {...register('license_type')}>
             <option value="">Select…</option>
             {LICENSE_TYPES.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-          </select>
+          </Select>
         </Field>
         {text('license_restrictions', 'Restrictions', { placeholder: 'A, B, B1' })}
         <div />

@@ -11,6 +11,7 @@ import RouteEstimate from '../../components/RouteEstimate'
 import { useAllOffices } from '../admin/Offices'
 import { DIVISIONS, bookingLabel, bookingWindow, endOfDay, fromLocalInput, km, toLocalInput } from './common'
 import { odometerField } from '../vehicles/common'
+import { Select } from '../../components/Select'
 
 const DISPATCHABLE = ['SERVICEABLE', 'IN_USE']
 const NOT_SCHEDULABLE = ['UNSERVICEABLE', 'DISPOSED'] // in repair now may be fine by the booked date
@@ -172,7 +173,7 @@ export default function DispatchForm({ vehicle, mode = 'dispatch', onClose, onSa
           </div>
         ) : (
           <Field label="Vehicle *" htmlFor="vehicle" error={errors.vehicle?.message}>
-            <select id="vehicle" className={inputClass} {...vehicleField}
+            <Select id="vehicle" className={inputClass} {...vehicleField}
               onChange={(e) => {
                 vehicleField.onChange(e)
                 const v = vehicles.data?.results.find((x) => String(x.id) === e.target.value)
@@ -184,20 +185,20 @@ export default function DispatchForm({ vehicle, mode = 'dispatch', onClose, onSa
                   {v.plate_number} · {v.make} {v.model}{avail.vehicleClash(v.id) ? ` – booked ${bookingLabel(avail.vehicleClash(v.id))}` : v.status === 'SERVICEABLE' ? '' : ` (${v.status_display})`}
                 </option>
               ))}
-            </select>
+            </Select>
           </Field>
         )}
         <Field label={scheduling ? 'Driver' : 'Driver *'} htmlFor="driver" error={errors.driver?.message}
           hint={chosenDriver?.license_status === 'EXPIRING' ? `License expires ${chosenDriver.license_expiry_date}. Remind the driver to renew.`
             : scheduling && !chosenDriver ? 'Optional now. A driver must be assigned when the trip is dispatched.' : undefined}>
-          <select id="driver" className={inputClass} {...register('driver')}>
+          <Select id="driver" className={inputClass} {...register('driver')}>
             <option value="">{scheduling ? 'To be assigned later' : 'Select a driver…'}</option>
             {drivers.data?.results.map((d) => (
               <option key={d.id} value={d.id} disabled={d.license_status === 'EXPIRED' || !!avail.driverClash(d.id)}>
                 {d.full_name} ({d.office_code}){avail.driverClash(d.id) ? ` – booked ${bookingLabel(avail.driverClash(d.id))}` : d.license_status === 'EXPIRED' ? ' – license expired' : d.license_status === 'EXPIRING' ? ' – license expiring' : ''}
               </option>
             ))}
-          </select>
+          </Select>
         </Field>
         {chosen && (
           <div className="flex flex-wrap items-center gap-x-6 gap-y-1 rounded-lg bg-brand-light/50 px-3 py-2 text-sm sm:col-span-2">
@@ -265,17 +266,17 @@ export default function DispatchForm({ vehicle, mode = 'dispatch', onClose, onSa
 
       <Section step="4" title="Other details" note="Optional">
         <Field label="Requesting office" htmlFor="requesting_office" error={errors.requesting_office?.message}>
-          <select id="requesting_office" className={inputClass} {...register('requesting_office')}>
+          <Select id="requesting_office" className={inputClass} {...register('requesting_office')}>
             <option value="">None</option>
             {offices.data?.results.filter((o) => o.is_active).map((o) => <option key={o.id} value={o.id}>{o.code} - {o.name}</option>)}
-          </select>
+          </Select>
         </Field>
         <Field label="Requesting division" htmlFor="requesting_division" error={errors.requesting_division?.message}
           hint="Leave as None for offices without divisions.">
-          <select id="requesting_division" className={inputClass} {...register('requesting_division')}>
+          <Select id="requesting_division" className={inputClass} {...register('requesting_division')}>
             <option value="">None</option>
             {DIVISIONS.map((d) => <option key={d} value={d}>{d}</option>)}
-          </select>
+          </Select>
         </Field>
         {text('ticket_number', 'Trip ticket no.', {
           placeholder: 'Auto-numbered if blank', className: `${inputClass} uppercase`,

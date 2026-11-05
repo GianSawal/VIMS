@@ -14,6 +14,7 @@ import { formatDate, formatKm, formatPeso, VehiclePhoto } from '../vehicles/comm
 import { CategoryChips, DUE, DueBadge, dueParts, intervalText, MaintenanceStatusBadge, statusLabel, STATUSES, useCategories } from './common'
 import MaintenanceForm from './MaintenanceForm'
 import ScheduleForm from './ScheduleForm'
+import { Select } from '../../components/Select'
 
 const STATUS_CARDS = {
   ALL: [ClipboardList, 'bg-slate-100 text-slate-700', 'All records'],
@@ -164,15 +165,15 @@ export default function MaintenanceList() {
     <Toolbar chips={chips} onRemove={remove} onClear={clearAll}>
       <SearchBox id="mnt-search" label="Search maintenance" placeholder={schedules ? 'Search plate or service…' : 'Search plate, PR no., supplier, work…'} value={search} onChange={setSearch} />
       {showOffice && (
-        <select className={`${selectClass} w-44`} aria-label="Filter by office" value={f.office ?? ''} onChange={(e) => set('office', e.target.value)}>
+        <Select className={`${selectClass} w-44`} aria-label="Filter by office" value={f.office ?? ''} onChange={(e) => set('office', e.target.value)}>
           <option value="">All offices</option>
           {offices.data?.results.map((o) => <option key={o.id} value={o.id}>{o.code} - {o.name}</option>)}
-        </select>
+        </Select>
       )}
-      <select className={`${selectClass} w-48`} aria-label="Filter by category" value={f.category ?? ''} onChange={(e) => set('category', e.target.value)}>
+      <Select className={`${selectClass} w-48`} aria-label="Filter by category" value={f.category ?? ''} onChange={(e) => set('category', e.target.value)}>
         <option value="">All categories</option>
         {cats.data?.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-      </select>
+      </Select>
       {!schedules && <>
         <label className="flex items-center gap-2 text-sm text-slate-600">From <input type="date" className={`${selectClass} w-40`} value={f.date_from ?? ''} onChange={(e) => set('date_from', e.target.value)} /></label>
         <label className="flex items-center gap-2 text-sm text-slate-600">To <input type="date" className={`${selectClass} w-40`} value={f.date_to ?? ''} onChange={(e) => set('date_to', e.target.value)} /></label>

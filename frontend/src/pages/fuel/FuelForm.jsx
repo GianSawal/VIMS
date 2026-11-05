@@ -8,6 +8,7 @@ import { Button, Field, inputClass } from '../../components/ui'
 import { useToast } from '../../components/toast'
 import { todayISO } from '../drivers/common'
 import { FUELS, formatKm, formatPeso, odometerField, parseKm } from '../vehicles/common'
+import { Select } from '../../components/Select'
 
 const decimal = (msg) => z.string().trim().refine((v) => /^\d+(\.\d+)?$/.test(v.replace(/,/g, '')) && Number(v.replace(/,/g, '')) > 0, msg)
 
@@ -93,28 +94,28 @@ export default function FuelForm({ record, vehicle, onClose, onSaved }) {
           </div>
         ) : (
           <Field label="Vehicle *" htmlFor="vehicle" error={errors.vehicle?.message}>
-            <select id="vehicle" className={inputClass} {...vehicleField} onChange={(e) => {
+            <Select id="vehicle" className={inputClass} {...vehicleField} onChange={(e) => {
               vehicleField.onChange(e)
               const v = vehicles.data?.results.find((x) => String(x.id) === e.target.value)
               if (v) setValue('fuel_type', v.fuel_type)
             }}>
               <option value="">Select a vehicle…</option>
               {vehicles.data?.results.map((v) => <option key={v.id} value={v.id}>{v.plate_number} · {v.make} {v.model}</option>)}
-            </select>
+            </Select>
           </Field>
         )}
         {text('date', 'Date of fill-up *', { type: 'date', max: todayISO() })}
         <Field label="Driver" htmlFor="driver" error={errors.driver?.message}>
-          <select id="driver" className={inputClass} {...register('driver')}>
+          <Select id="driver" className={inputClass} {...register('driver')}>
             <option value="">Not recorded</option>
             {drivers.data?.results.map((d) => <option key={d.id} value={d.id}>{d.full_name} ({d.office_code})</option>)}
-          </select>
+          </Select>
         </Field>
         <Field label="Fuel type *" htmlFor="fuel_type" error={errors.fuel_type?.message}>
-          <select id="fuel_type" className={inputClass} {...register('fuel_type')}>
+          <Select id="fuel_type" className={inputClass} {...register('fuel_type')}>
             <option value="">Select…</option>
             {FUELS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-          </select>
+          </Select>
         </Field>
       </Group>
 

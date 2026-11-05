@@ -10,6 +10,7 @@ import { useAllOffices } from '../admin/Offices'
 import { formatDate } from '../vehicles/common'
 import DriverForm from './DriverForm'
 import { expiryNote, LICENSE_STATUSES, LicenseBadge } from './common'
+import { Select } from '../../components/Select'
 
 const CARDS = {
   ALL: [IdCard, 'bg-slate-100 text-slate-700', 'All drivers'],
@@ -96,16 +97,16 @@ export default function DriverList() {
     <Toolbar chips={chips} onRemove={remove} onClear={clearAll}>
       <SearchBox id="driver-search" label="Search drivers" placeholder="Search name, employee no., license no…" value={search} onChange={setSearch} />
       {showOffice && (
-        <select className={`${selectClass} w-44`} aria-label="Filter by office" value={f.office ?? ''} onChange={(e) => set('office', e.target.value)}>
+        <Select className={`${selectClass} w-44`} aria-label="Filter by office" value={f.office ?? ''} onChange={(e) => set('office', e.target.value)}>
           <option value="">All offices</option>
           {offices.data?.results.map((o) => <option key={o.id} value={o.id}>{o.code} - {o.name}</option>)}
-        </select>
+        </Select>
       )}
-      <select className={`${selectClass} w-36`} aria-label="Filter by status" value={f.is_active ?? ''} onChange={(e) => set('is_active', e.target.value)}>
+      <Select className={`${selectClass} w-36`} aria-label="Filter by status" value={f.is_active ?? ''} onChange={(e) => set('is_active', e.target.value)}>
         <option value="">All statuses</option>
         <option value="true">Active</option>
         <option value="false">Inactive</option>
-      </select>
+      </Select>
     </Toolbar>
   )
 

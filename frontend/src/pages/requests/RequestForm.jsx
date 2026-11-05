@@ -10,6 +10,7 @@ import { useToast } from '../../components/toast'
 import PlaceSearch, { EMPTY_PLACE, MapSwitch, useMapsEnabled } from '../../components/PlaceSearch'
 import RouteEstimate from '../../components/RouteEstimate'
 import { fromLocalInput, toLocalInput } from '../trips/common'
+import { Select } from '../../components/Select'
 
 const schema = z.object({
   office: z.string().min(1, 'Select your office'),
@@ -87,10 +88,10 @@ export default function RequestForm({ onClose, onSaved }) {
       {offices.length === 1 ? <input type="hidden" {...register('office')} /> : (
         <div className="sm:col-span-2">
           <Field label="Requesting office *" htmlFor="office" error={errors.office?.message}>
-            <select id="office" className={inputClass} {...register('office')}>
+            <Select id="office" className={inputClass} {...register('office')}>
               <option value="">Select your office…</option>
               {offices.map((o) => <option key={o.id} value={o.id}>{o.code} - {o.name}</option>)}
-            </select>
+            </Select>
           </Field>
         </div>
       )}

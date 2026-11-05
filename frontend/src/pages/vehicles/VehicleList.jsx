@@ -9,6 +9,7 @@ import DataTable from '../../components/DataTable'
 import { Button, inputBase, PageHeader } from '../../components/ui'
 import { useAllOffices } from '../admin/Offices'
 import { formatKm, STATUSES, StatusBadge, TYPES, VehiclePhoto } from './common'
+import { Select } from '../../components/Select'
 
 // Icon + tint per status card (tints mirror the status badge tones in common.jsx).
 const CARDS = {
@@ -93,15 +94,15 @@ export default function VehicleList() {
             value={search} onChange={(e) => setSearch(e.target.value)} />
         </div>
         {showOffice && (
-          <select className={`${control} w-44`} aria-label="Filter by office" value={f.office ?? ''} onChange={(e) => set('office', e.target.value)}>
+          <Select className={`${control} w-44`} aria-label="Filter by office" value={f.office ?? ''} onChange={(e) => set('office', e.target.value)}>
             <option value="">All offices</option>
             {offices.data?.results.map((o) => <option key={o.id} value={o.id}>{o.code} - {o.name}</option>)}
-          </select>
+          </Select>
         )}
-        <select className={`${control} w-36`} aria-label="Filter by vehicle type" value={f.vehicle_type ?? ''} onChange={(e) => set('vehicle_type', e.target.value)}>
+        <Select className={`${control} w-36`} aria-label="Filter by vehicle type" value={f.vehicle_type ?? ''} onChange={(e) => set('vehicle_type', e.target.value)}>
           <option value="">All types</option>
           {TYPES.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-        </select>
+        </Select>
         <label className="flex h-9 items-center gap-2 rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-700">
           <input type="checkbox" checked={f.archived === '1'} onChange={(e) => set('archived', e.target.checked ? '1' : '')} />
           Archived only

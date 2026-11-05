@@ -17,6 +17,7 @@ import { useAvailability } from '../trips/DispatchForm'
 import { bookingLabel } from '../trips/common'
 import { VehiclePhoto } from '../vehicles/common'
 import { APPROVE, ProgressBadge } from './common'
+import { Select } from '../../components/Select'
 
 const TripMap = lazy(() => import('../../components/TripMap'))
 
@@ -234,24 +235,24 @@ function ApproveForm({ r, onClose }) {
         {formatDateTime(r.needed_at)}{r.return_at ? ` – ${formatDateTime(r.return_at)}` : ' (rest of the day)'} · {r.office_code} to {r.destination}
       </p>
       <Field label="Vehicle *" htmlFor="vehicle" error={errors.vehicle?.message}>
-        <select id="vehicle" className={inputClass} {...register('vehicle')}>
+        <Select id="vehicle" className={inputClass} {...register('vehicle')}>
           <option value="">Select a vehicle…</option>
           {vehicles.data?.results.map((v) => (
             <option key={v.id} value={v.id} disabled={NOT_SCHEDULABLE.includes(v.status) || !!avail.vehicleClash(v.id)}>
               {v.plate_number} · {v.make} {v.model} ({v.office_code}){avail.vehicleClash(v.id) ? ` – booked ${bookingLabel(avail.vehicleClash(v.id))}` : v.status === 'SERVICEABLE' ? '' : ` – ${v.status_display}`}
             </option>
           ))}
-        </select>
+        </Select>
       </Field>
       <Field label="Driver" htmlFor="driver" error={errors.driver?.message} hint="Optional now. Required when the trip is dispatched.">
-        <select id="driver" className={inputClass} {...register('driver')}>
+        <Select id="driver" className={inputClass} {...register('driver')}>
           <option value="">To be assigned later</option>
           {drivers.data?.results.map((d) => (
             <option key={d.id} value={d.id} disabled={d.license_status === 'EXPIRED' || !!avail.driverClash(d.id)}>
               {d.full_name} ({d.office_code}){avail.driverClash(d.id) ? ` – booked ${bookingLabel(avail.driverClash(d.id))}` : d.license_status === 'EXPIRED' ? ' – license expired' : ''}
             </option>
           ))}
-        </select>
+        </Select>
       </Field>
       {(vehicleBusy || driverBusy) && (
         <div role="alert" className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-danger sm:col-span-2">

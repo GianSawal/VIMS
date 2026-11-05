@@ -14,6 +14,7 @@ import TripCalendar from './TripCalendar'
 import TvScreens from './TvScreens'
 import { CompleteForm, DispatchScheduledForm } from './TripDetail'
 import { DivisionTag, driverLabel, km, shortDateTime, TRIP_STATUSES, tripDuration, tripStatusLabel, TripStatusBadge } from './common'
+import { Select } from '../../components/Select'
 
 const CARDS = {
   ALL: [RouteIcon, 'bg-slate-100 text-slate-700', 'All trips'],
@@ -277,10 +278,10 @@ export default function TripList() {
     <Toolbar chips={chips} onRemove={remove} onClear={clearAll}>
       <SearchBox id="trip-search" label="Search trips" placeholder="Search ticket, plate, driver, destination…" value={search} onChange={setSearch} />
       {showOffice && (
-        <select className={`${selectClass} w-44`} aria-label="Filter by vehicle office" value={f.office ?? ''} onChange={(e) => set('office', e.target.value)}>
+        <Select className={`${selectClass} w-44`} aria-label="Filter by vehicle office" value={f.office ?? ''} onChange={(e) => set('office', e.target.value)}>
           <option value="">All offices</option>
           {offices.data?.results.map((o) => <option key={o.id} value={o.id}>{o.code} - {o.name}</option>)}
-        </select>
+        </Select>
       )}
       {!calendar && <>
       <div role="group" aria-label="Date range" className="flex overflow-hidden rounded-md border border-slate-300 text-sm">

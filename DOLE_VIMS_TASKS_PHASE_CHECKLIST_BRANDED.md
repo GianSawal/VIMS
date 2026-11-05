@@ -751,6 +751,17 @@ Added 2026-11-05. The requester's Vehicle requests page was the approver's table
 -   [x] Tests: `src/pages/requests/requests.test.jsx` (current card, tabs, empty state, approver queue unchanged)
 -   [ ] Loads the latest 100 requests (no paging); cancel stays on the request page
 -   [ ] Not yet checked on a 390 px phone
+
+------------------------------------------------------------------------
+
+# Phase 17H --- Searchable dropdowns
+
+Added 2026-11-05. Every dropdown can be searched by typing (vehicles, drivers, offices, accounts, filters).
+
+-   [x] `components/Select.jsx`: drop-in for `<select>` (same props, `<option>`/`<optgroup>` children; works with react-hook-form `register` and controlled `value`/`onChange`); hidden native select keeps the value; list opens in a popover (top layer, not clipped by modals or cards) with a search box, keyboard (arrows, Enter, Esc, type to search), disabled options skipped
+-   [x] All 60 dropdowns in 25 pages switched to `<Select>`
+-   [x] Tests: `src/components/Select.test.jsx`
+-   [ ] Not yet checked in a browser (Chrome/Edge/Firefox) and on a 390 px phone
 ------------------------------------------------------------------------
 
 # Phase 18 --- Deployment

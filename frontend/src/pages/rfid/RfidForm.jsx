@@ -5,6 +5,7 @@ import { api, applyFieldErrors, invalidatePrefix, useList } from '../../api'
 import { Button, Field, inputClass } from '../../components/ui'
 import { useToast } from '../../components/toast'
 import { PROVIDERS } from './common'
+import { Select } from '../../components/Select'
 
 const FIELDS = ['provider', 'account_number', 'vehicle', 'is_active', 'remarks']
 
@@ -44,9 +45,9 @@ export default function RfidForm({ account, vehicle, onClose, onSaved }) {
 
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label="Provider *" htmlFor="rfid-provider" error={errors.provider?.message}>
-          <select id="rfid-provider" className={inputClass} {...register('provider')}>
+          <Select id="rfid-provider" className={inputClass} {...register('provider')}>
             {PROVIDERS.map(([k, l]) => <option key={k} value={k}>{l}</option>)}
-          </select>
+          </Select>
         </Field>
         <Field label="Account / tag number *" htmlFor="rfid-number" error={errors.account_number?.message}>
           <input id="rfid-number" className={`${inputClass} uppercase`} placeholder="e.g. 0101 2345 6789" {...register('account_number', { required: 'Enter the account number' })} />
@@ -61,10 +62,10 @@ export default function RfidForm({ account, vehicle, onClose, onSaved }) {
         </div>
       ) : (
         <Field label="Assigned vehicle" htmlFor="rfid-vehicle" error={errors.vehicle?.message} hint="Leave blank to keep the account in the motor pool (unassigned).">
-          <select id="rfid-vehicle" className={inputClass} {...register('vehicle')}>
+          <Select id="rfid-vehicle" className={inputClass} {...register('vehicle')}>
             <option value="">Unassigned</option>
             {vehicles.data?.results.map((x) => <option key={x.id} value={x.id}>{x.plate_number} · {x.make} {x.model}</option>)}
-          </select>
+          </Select>
         </Field>
       )}
 

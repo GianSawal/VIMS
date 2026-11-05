@@ -11,6 +11,7 @@ import { formatPeso, VehiclePhoto } from '../vehicles/common'
 import { isLoad, PROVIDERS, ProviderBadge, providerLabel } from './common'
 import RfidForm from './RfidForm'
 import TollForm from './TollForm'
+import { Select } from '../../components/Select'
 
 const vehicleCell = (r) => (
   <div className="flex items-center gap-3">
@@ -105,28 +106,28 @@ export default function RfidList() {
     <Toolbar chips={chips} onRemove={remove} onClear={clearAll}>
       <SearchBox id="rfid-search" label="Search" placeholder={tolls ? 'Search plate, description, ref no.…' : 'Search account no., plate, remarks…'} value={search} onChange={setSearch} />
       {showOffice && (
-        <select className={`${selectClass} w-44`} aria-label="Filter by office" value={f.office ?? ''} onChange={(e) => set('office', e.target.value)}>
+        <Select className={`${selectClass} w-44`} aria-label="Filter by office" value={f.office ?? ''} onChange={(e) => set('office', e.target.value)}>
           <option value="">All offices</option>
           {offices.data?.results.map((o) => <option key={o.id} value={o.id}>{o.code} - {o.name}</option>)}
-        </select>
+        </Select>
       )}
-      <select className={`${selectClass} w-40`} aria-label="Filter by provider" value={f.provider ?? ''} onChange={(e) => set('provider', e.target.value)}>
+      <Select className={`${selectClass} w-40`} aria-label="Filter by provider" value={f.provider ?? ''} onChange={(e) => set('provider', e.target.value)}>
         <option value="">All providers</option>
         {PROVIDERS.map(([k, l]) => <option key={k} value={k}>{l}</option>)}
-      </select>
+      </Select>
       {!tolls && (
-        <select className={`${selectClass} w-40`} aria-label="Filter by status" value={f.active ?? ''} onChange={(e) => set('active', e.target.value)}>
+        <Select className={`${selectClass} w-40`} aria-label="Filter by status" value={f.active ?? ''} onChange={(e) => set('active', e.target.value)}>
           <option value="">All statuses</option>
           <option value="true">Active</option>
           <option value="false">Inactive</option>
-        </select>
+        </Select>
       )}
       {tolls && <>
-        <select className={`${selectClass} w-36`} aria-label="Filter by type" value={f.kind ?? ''} onChange={(e) => set('kind', e.target.value)}>
+        <Select className={`${selectClass} w-36`} aria-label="Filter by type" value={f.kind ?? ''} onChange={(e) => set('kind', e.target.value)}>
           <option value="">Loads & charges</option>
           <option value="debit">Charges</option>
           <option value="credit">Loads</option>
-        </select>
+        </Select>
         <label className="flex items-center gap-2 text-sm text-slate-600">From <input type="date" className={`${selectClass} w-40`} value={f.date_from ?? ''} onChange={(e) => set('date_from', e.target.value)} /></label>
         <label className="flex items-center gap-2 text-sm text-slate-600">To <input type="date" className={`${selectClass} w-40`} value={f.date_to ?? ''} onChange={(e) => set('date_to', e.target.value)} /></label>
       </>}
