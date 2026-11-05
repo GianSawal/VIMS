@@ -106,7 +106,7 @@ export default function DriverList() {
 
   return (
     <div>
-      <PageHeader title="Drivers" actions={can('fleet.add_driver') && (
+      <PageHeader title="Authorized Drivers" actions={can('fleet.add_driver') && (
         <Button onClick={() => setAdding(true)}><Plus size={16} /> Add driver</Button>
       )}>Driver profiles, licenses and assignments.</PageHeader>
 
