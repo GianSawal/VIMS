@@ -54,10 +54,14 @@ export const invalidatePrefix = (qc, ...prefixes) =>
   qc.invalidateQueries({ predicate: (q) => prefixes.some((p) => String(q.queryKey[0]).startsWith(p)) })
 
 // Paginated DRF list: { count, results }. `params` drives the cache key.
+// Rows per page in list tables: any request with a `page` and no `page_size` asks for this many (DataTable counts pages
+// with it). Dropdowns pass their own page_size.
+export const PAGE_SIZE = 8
+
 export function useList(path, params = {}) {
   return useQuery({
     queryKey: [path, params],
-    queryFn: () => api.get(path, { params }).then((r) => r.data),
+    queryFn: () => api.get(path, { params: 'page' in params && !params.page_size ? { page_size: PAGE_SIZE, ...params } : params }).then((r) => r.data),
     placeholderData: keepPreviousData,
   })
 }

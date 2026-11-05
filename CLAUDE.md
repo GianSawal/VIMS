@@ -67,7 +67,7 @@ MySQL-specific behavior (CHECK constraints, generated columns) was verified manu
 
 ## Frontend conventions
 
-- `src/api.js`: `api` (axios with CSRF), `useList(path, params)`, `applyFieldErrors` (maps DRF errors onto form fields), `invalidatePrefix` (refresh cached queries by API path).
+- `src/api.js`: `api` (axios with CSRF), `useList(path, params)` (a `page` param without `page_size` gets `PAGE_SIZE` = 8 rows, as list tables show), `applyFieldErrors` (maps DRF errors onto form fields), `invalidatePrefix` (refresh cached queries by API path).
 - Query keys are `[path, params]` for lists and `['/things/', id]` for details, so `invalidatePrefix(qc, '/vehicles/')` refreshes both.
 - List filters live in the URL (`useSearchParams`) so dashboard cards can link to filtered views.
 - Permission UI uses `useCan()` and `<RequirePerm>`; these are hints only, the API enforces the same permissions.

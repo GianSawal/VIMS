@@ -1,7 +1,5 @@
 import { ChevronLeft, ChevronRight } from 'lucide-react'
-import { errorMessage } from '../api'
-
-const PAGE_SIZE = 25
+import { errorMessage, PAGE_SIZE } from '../api'
 
 /**
  * columns: [{ key, label, render?(row), className?, align? }]

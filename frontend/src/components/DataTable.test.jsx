@@ -23,10 +23,10 @@ describe('DataTable', () => {
 
   it('pages through results', async () => {
     const onPage = vi.fn()
-    const rows = Array.from({ length: 25 }, (_, i) => ({ id: i + 26, plate_number: `P ${i}`, status: 'IN_USE' }))
-    render(<DataTable columns={columns} query={page(rows, 60)} page={2} onPage={onPage} />)
+    const rows = Array.from({ length: 8 }, (_, i) => ({ id: i + 9, plate_number: `P ${i}`, status: 'IN_USE' }))
+    render(<DataTable columns={columns} query={page(rows, 20)} page={2} onPage={onPage} />)
     expect(screen.getByText('Page 2 of 3')).toBeInTheDocument()
-    expect(screen.getByText(/Showing/)).toHaveTextContent('Showing 26–50 of 60')
+    expect(screen.getByText(/Showing/)).toHaveTextContent('Showing 9–16 of 20')  // 8 per page
     await userEvent.click(screen.getByLabelText('Next page'))
     await userEvent.click(screen.getByLabelText('Previous page'))
     expect(onPage.mock.calls).toEqual([[3], [1]])

@@ -762,6 +762,7 @@ Added 2026-11-05. Every dropdown can be searched by typing (vehicles, drivers, o
 -   [x] All 60 dropdowns in 25 pages switched to `<Select>`
 -   [x] Tests: `src/components/Select.test.jsx`
 -   [ ] Not yet checked in a browser (Chrome/Edge/Firefox) and on a 390 px phone
+-   [x] List tables show 8 rows per page (`PAGE_SIZE` in `src/api.js`: `useList` adds `page_size=8` to any paged request; `DataTable` pages by it). The API default stays 25 for other callers
 ------------------------------------------------------------------------
 
 # Phase 18 --- Deployment
