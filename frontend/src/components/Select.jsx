@@ -115,7 +115,8 @@ export function Select({ children, className = '', value, defaultValue, onChange
               <input autoFocus value={query} onChange={(e) => { setQuery(e.target.value); setActive(0) }} onKeyDown={onListKey}
                 placeholder="Search…" aria-label="Search options" aria-controls={listId}
                 aria-activedescendant={matches[active] ? `${listId}-${active}` : undefined}
-                className="w-full bg-transparent py-0.5 outline-none placeholder:text-slate-400" />
+                className="w-full bg-transparent py-0.5 placeholder:text-slate-400"
+                style={{ outline: 'none' }} />  {/* the global gold :focus-visible ring beats a class; the open list shows focus */}
             </label>
             <ul id={listId} role="listbox" className="overflow-y-auto py-1">
               {matches.length === 0 && <li className="px-3 py-2 text-slate-500">No matches</li>}
