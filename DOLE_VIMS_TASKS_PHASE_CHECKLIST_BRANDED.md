@@ -775,7 +775,7 @@ Added 2026-11-05. Cards that already hold a balance when they are first encoded.
 -   [x] Needs an assigned vehicle (toll transactions belong to a vehicle); otherwise 400 and the account is not created. Negative or non-numeric amounts refused
 -   [x] Add account form: "Starting balance (₱)" (new accounts only; disabled until a vehicle is chosen)
 -   [x] Test: `operations/test_toll.py::test_new_account_can_start_with_an_existing_balance`
--   [ ] Existing accounts: add the balance as a load (Record toll → Reload, reference "Opening balance")
+-   [x] Existing accounts with no transactions: "Set starting balance" on the account page (`POST /rfid-accounts/{id}/opening-balance/`, needs `add_tolltransaction` and a vehicle; refused once any transaction exists; row-locked). Test: `operations/test_toll.py::test_existing_account_starting_balance_only_before_any_transaction`
 
 ------------------------------------------------------------------------
 

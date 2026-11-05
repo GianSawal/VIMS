@@ -104,6 +104,8 @@ def opening_balance(account, *, user, amount):
     must be assigned to one."""
     if amount < 0:
         _fail('opening_balance', 'The starting balance cannot be negative.')
+    if account.transactions.exists():
+        _fail('opening_balance', 'This account already has transactions; record a reload instead.')
     if not account.vehicle_id:
         _fail('opening_balance', 'Assign a vehicle to record a starting balance, or add it later as a load.')
     return save_transaction(user=user, data={

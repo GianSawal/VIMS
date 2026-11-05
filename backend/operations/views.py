@@ -461,6 +461,15 @@ class RFIDAccountFilter(filters.FilterSet):
         return qs.filter(pk__in=ids) if value else qs.exclude(pk__in=ids)
 
 
+def _opening_amount(request):
+    """`opening_balance` from the request as a Decimal (None when blank); 400 keyed to the field when not a number."""
+    try:
+        return drf_serializers.DecimalField(max_digits=12, decimal_places=2, allow_null=True).run_validation(
+            request.data.get('opening_balance') or None)
+    except drf_serializers.ValidationError as e:
+        raise drf_serializers.ValidationError({'opening_balance': e.detail})
+
+
 class RFIDAccountViewSet(RemoveMixin, OfficeScopedMixin, mixins.ListModelMixin, mixins.RetrieveModelMixin,
                          mixins.CreateModelMixin, mixins.UpdateModelMixin, viewsets.GenericViewSet):
     """
@@ -497,11 +506,7 @@ class RFIDAccountViewSet(RemoveMixin, OfficeScopedMixin, mixins.ListModelMixin, 
         s = self.get_serializer(data=request.data)
         s.is_valid(raise_exception=True)
         # Optional `opening_balance`: what the card already holds, recorded as an 'Opening balance' load.
-        try:
-            opening = drf_serializers.DecimalField(max_digits=12, decimal_places=2, allow_null=True).run_validation(
-                request.data.get('opening_balance') or None)
-        except drf_serializers.ValidationError as e:
-            raise drf_serializers.ValidationError({'opening_balance': e.detail})
+        opening = _opening_amount(request)
         with db_transaction.atomic():
             account = toll_service.save_account(user=request.user, data=dict(s.validated_data))
             if opening:
@@ -519,6 +524,21 @@ class RFIDAccountViewSet(RemoveMixin, OfficeScopedMixin, mixins.ListModelMixin, 
         changes = diff(before, rfid_snapshot(account))
         if changes:
             log(request, 'update', account, f'Updated RFID account {account.get_provider_display()} {toll_service.mask_account(account.account_number)}', changes)
+        return self._respond(account)
+
+    @action(detail=True, methods=['post'], url_path='opening-balance',
+            permission_classes=[require('operations.add_tolltransaction'), PasswordChangeNotRequired])
+    def opening_balance(self, request, pk=None):
+        """POST {opening_balance}: the starting balance of an account that has no transactions yet (a card that held
+        money before it was encoded here). Recorded as an 'Opening balance' load; refused once anything is recorded."""
+        account = self.get_object()
+        amount = _opening_amount(request)
+        if not amount:
+            raise drf_serializers.ValidationError({'opening_balance': ['Enter the starting balance.']})
+        with db_transaction.atomic():
+            account = RFIDAccount.objects.select_for_update().get(pk=account.pk)  # two clicks can't both pass the check
+            toll_service.opening_balance(account, user=request.user, amount=amount)
+        log(request, 'create', account, f'Starting balance {amount} for {self.remove_label(account)}', {'opening_balance': [None, str(amount)]})
         return self._respond(account)
 
     @action(detail=True, methods=['get'])

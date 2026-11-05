@@ -1,11 +1,12 @@
 import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
-import { ArrowDownCircle, ArrowUpCircle, Pencil, Plus, Scale } from 'lucide-react'
-import { api, errorMessage } from '../../api'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { ArrowDownCircle, ArrowUpCircle, Pencil, Plus, Scale, Wallet } from 'lucide-react'
+import { api, errorMessage, invalidatePrefix } from '../../api'
 import { useCan } from '../../auth'
 import DataTable from '../../components/DataTable'
-import { Badge, Button, Modal } from '../../components/ui'
+import { Badge, Button, Field, inputClass, Modal } from '../../components/ui'
+import { useToast } from '../../components/toast'
 import { NotFound } from '../Errors'
 import { formatPeso } from '../vehicles/common'
 import { ProviderBadge } from './common'
@@ -17,7 +18,7 @@ import DeleteRecord from '../../components/DeleteRecord'
 export default function RfidDetail() {
   const { id } = useParams()
   const can = useCan()
-  const [dialog, setDialog] = useState(null) // 'edit' | 'toll'
+  const [dialog, setDialog] = useState(null) // 'edit' | 'toll' | 'opening' | a transaction
   const q = useQuery({ queryKey: ['/rfid-accounts/', id], queryFn: () => api.get(`/rfid-accounts/${id}/`).then((r) => r.data) })
   const tx = useQuery({ queryKey: ['/rfid-accounts/', id, 'transactions'], queryFn: () => api.get(`/rfid-accounts/${id}/transactions/`).then((r) => r.data) })
   const a = q.data
@@ -50,6 +51,10 @@ export default function RfidDetail() {
         </div>
         {canChange && <Button variant="secondary" onClick={() => setDialog('edit')}><Pencil size={16} /> Edit</Button>}
         <DeleteRecord path={`/rfid-accounts/${a.id}/`} perm="operations.delete_rfidaccount" name={`${a.provider_display} ${a.masked_account}`} kind="RFID account" listPath="/rfid" />
+        {/* Never transacted: the card may already hold money from before it was encoded here. */}
+        {can('operations.add_tolltransaction') && a.transaction_count === 0 && a.vehicle && (
+          <Button variant="secondary" onClick={() => setDialog('opening')}><Wallet size={16} /> Set starting balance</Button>
+        )}
         {can('operations.add_tolltransaction') && <Button onClick={() => setDialog('toll')}><Plus size={16} /> Record toll</Button>}
       </div>
 
@@ -69,11 +74,46 @@ export default function RfidDetail() {
       <Modal open={dialog === 'edit'} onClose={() => setDialog(null)} title="Edit RFID account" wide>
         {dialog === 'edit' && <RfidForm account={a} onClose={() => setDialog(null)} />}
       </Modal>
+      <Modal open={dialog === 'opening'} onClose={() => setDialog(null)} title="Set starting balance">
+        {dialog === 'opening' && <OpeningBalanceForm a={a} onClose={() => setDialog(null)} />}
+      </Modal>
       <Modal open={dialog === 'toll' || (!!dialog && typeof dialog === 'object')} onClose={() => setDialog(null)}
         title={typeof dialog === 'object' && dialog ? 'Edit toll transaction' : 'Record toll transaction'} wide>
         {(dialog === 'toll' || (dialog && typeof dialog === 'object')) && <TollForm account={a} txn={typeof dialog === 'object' ? dialog : undefined} onClose={() => setDialog(null)} />}
       </Modal>
     </div>
+  )
+}
+
+function OpeningBalanceForm({ a, onClose }) {
+  const qc = useQueryClient()
+  const toast = useToast()
+  const [amount, setAmount] = useState('')
+  const [error, setError] = useState('')
+  const save = useMutation({
+    mutationFn: () => api.post(`/rfid-accounts/${a.id}/opening-balance/`, { opening_balance: amount.replace(/,/g, '').trim() }),
+    onSuccess: () => {
+      invalidatePrefix(qc, '/rfid-accounts/', '/toll-transactions/', '/dashboard/')
+      toast('Starting balance recorded.')
+      onClose()
+    },
+    onError: (err) => setError(errorMessage(err)),
+  })
+  return (
+    <form noValidate className="space-y-4" onSubmit={(e) => { e.preventDefault(); save.mutate() }}>
+      {error && <div role="alert" className="rounded-md bg-red-50 px-3 py-2 text-sm text-danger">{error}</div>}
+      <p className="text-sm text-slate-600">
+        The balance already on {a.provider_display} {a.masked_account} before it was added to the system. It is saved as an
+        &quot;Opening balance&quot; load and can only be set while the account has no transactions.
+      </p>
+      <Field label="Starting balance (₱) *" htmlFor="opening-amount">
+        <input id="opening-amount" className={inputClass} inputMode="decimal" placeholder="0.00" autoFocus value={amount} onChange={(e) => setAmount(e.target.value)} />
+      </Field>
+      <div className="flex justify-end gap-2">
+        <Button variant="secondary" onClick={onClose}>Cancel</Button>
+        <Button type="submit" disabled={save.isPending || !(Number(amount.replace(/,/g, '')) > 0)}>{save.isPending ? 'Saving…' : 'Save balance'}</Button>
+      </div>
+    </form>
   )
 }
 

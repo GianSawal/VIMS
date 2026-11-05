@@ -220,3 +220,19 @@ def test_new_account_can_start_with_an_existing_balance(fo1):
     # blank or zero: no transaction
     r = c.post('/api/rfid-accounts/', account(account_number='OPEN-4', vehicle=v.pk, opening_balance=''), format='json')
     assert r.status_code == 201 and r.json()['transaction_count'] == 0
+
+
+def test_existing_account_starting_balance_only_before_any_transaction(fo1):
+    v = make_vehicle(fo1, 'OPN 9')
+    acc = RFIDAccount.objects.create(provider='EASYTRIP', account_number='E-OPN9', vehicle=v)
+    url = f'/api/rfid-accounts/{acc.pk}/opening-balance/'
+    assert as_role('Viewer').post(url, {'opening_balance': '500'}, format='json').status_code == 403
+    c = as_role('Fleet Administrator')
+    assert 'opening_balance' in c.post(url, {}, format='json').json()
+    r = c.post(url, {'opening_balance': '750'}, format='json')
+    assert r.status_code == 200 and r.json()['current_balance'] == '750.00' and r.json()['transaction_count'] == 1
+    again = c.post(url, {'opening_balance': '100'}, format='json')  # once anything is recorded: a reload instead
+    assert again.status_code == 400 and 'reload' in again.json()['opening_balance'][0]
+    assert TollTransaction.objects.filter(account=acc).count() == 1
+    unassigned = RFIDAccount.objects.create(provider='AUTOSWEEP', account_number='A-OPN9')
+    assert c.post(f'/api/rfid-accounts/{unassigned.pk}/opening-balance/', {'opening_balance': '100'}, format='json').status_code == 400
