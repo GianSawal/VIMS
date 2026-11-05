@@ -20,6 +20,7 @@ import FuelTab from './FuelTab'
 import MaintenanceTab from './MaintenanceTab'
 import TripsTab from './TripsTab'
 import { duration, formatDate, formatKm, formatPeso, fuelLabel, StatusBadge, VehiclePhoto } from './common'
+import DeleteRecord from '../../components/DeleteRecord'
 
 // `phase` marks tabs whose module isn't built yet.
 const TABS = [
@@ -102,6 +103,7 @@ export default function VehicleProfile() {
                   {v.is_archived ? <><ArchiveRestore size={16} /> Reactivate</> : <><Archive size={16} /> Archive</>}
                 </Button>
               )}
+              <DeleteRecord path={`/vehicles/${id}/`} perm="fleet.delete_vehicle" name={v.plate_number} kind="vehicle" listPath="/vehicles" />
             </div>
 
             <div className="mt-3 flex flex-wrap gap-2 text-sm">

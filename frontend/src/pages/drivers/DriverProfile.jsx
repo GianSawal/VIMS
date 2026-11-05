@@ -14,6 +14,7 @@ import { tripColumns } from '../trips/TripList'
 import { duration, formatDate, formatKm } from '../vehicles/common'
 import DriverForm from './DriverForm'
 import { expiryNote, LicenseBadge, todayISO } from './common'
+import DeleteRecord from '../../components/DeleteRecord'
 
 export default function DriverProfile() {
   const { id } = useParams()
@@ -63,6 +64,7 @@ export default function DriverProfile() {
                 </div>
               </div>
               {canChange && <Button variant="secondary" onClick={() => setEditing(true)}><Pencil size={16} /> Edit</Button>}
+              <DeleteRecord path={`/drivers/${d.id}/`} perm="fleet.delete_driver" name={d.full_name} kind="driver" listPath="/drivers" />
             </div>
             <dl className="mt-5 flex flex-wrap gap-3">
               <Meta icon={IdCard} label="Employee no." value={d.employee_number ?? 'Not recorded'} mono />

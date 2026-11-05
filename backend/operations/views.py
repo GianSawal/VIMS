@@ -18,6 +18,7 @@ from rest_framework.views import APIView
 from accounts.permissions import (ModelPermissions, OfficeScopedMixin, PasswordChangeNotRequired, require, require_any,
                                   sees_all_offices)
 from audit.services import diff, log
+from config.removal import RemoveMixin
 from fleet.attachments_api import AttachmentsMixin
 
 from . import fuel as fuel_service
@@ -460,7 +461,7 @@ class RFIDAccountFilter(filters.FilterSet):
         return qs.filter(pk__in=ids) if value else qs.exclude(pk__in=ids)
 
 
-class RFIDAccountViewSet(OfficeScopedMixin, mixins.ListModelMixin, mixins.RetrieveModelMixin,
+class RFIDAccountViewSet(RemoveMixin, OfficeScopedMixin, mixins.ListModelMixin, mixins.RetrieveModelMixin,
                          mixins.CreateModelMixin, mixins.UpdateModelMixin, viewsets.GenericViewSet):
     """
     RFID / toll accounts (Easytrip, Autosweep). The account number is masked for view-only users and no
@@ -472,6 +473,9 @@ class RFIDAccountViewSet(OfficeScopedMixin, mixins.ListModelMixin, mixins.Retrie
     filterset_class = RFIDAccountFilter
     search_fields = ['account_number', 'remarks', 'vehicle__plate_number']
     ordering_fields = ['provider', 'is_active']
+
+    def remove_label(self, a):  # account numbers stay masked in audit logs
+        return f'{a.get_provider_display()} {toll_service.mask_account(a.account_number)}'
 
     def get_queryset(self):
         qs = self.queryset  # unassigned accounts belong to no office; show them to everyone who may view

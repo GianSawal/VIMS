@@ -776,6 +776,16 @@ Added 2026-11-05. Cards that already hold a balance when they are first encoded.
 -   [x] Add account form: "Starting balance (₱)" (new accounts only; disabled until a vehicle is chosen)
 -   [x] Test: `operations/test_toll.py::test_new_account_can_start_with_an_existing_balance`
 -   [ ] Existing accounts: add the balance as a load (Record toll → Reload, reference "Opening balance")
+
+------------------------------------------------------------------------
+
+# Phase 17J --- Delete records entered by mistake
+
+Added 2026-11-05. Vehicles, drivers and RFID accounts can be deleted by the System Administrator, but only while nothing refers to them.
+
+-   [x] `config/removal.py` `RemoveMixin`: POST `{id}/remove/` on vehicles, drivers, RFID accounts; `delete_<model>` permission (System Administrator only); office check first; PROTECT foreign keys refuse records with history (400 naming what is linked: archive/deactivate instead); deletes the record's photo and attachments after commit; audit entry (RFID number masked) rolls back with a refused delete
+-   [x] Delete button (with confirmation) on the vehicle, driver and RFID account pages, only for users with the permission (`components/DeleteRecord.jsx`)
+-   [x] Tests: `config/test_removal.py` (permission, delete without history, refuse with history); `config/test_security.py` still passes (POST, not HTTP DELETE)
 ------------------------------------------------------------------------
 
 # Phase 18 --- Deployment

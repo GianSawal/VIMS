@@ -10,6 +10,7 @@ from rest_framework.response import Response
 
 from accounts.permissions import OfficeScopedMixin, PasswordChangeNotRequired, require
 from audit.services import diff, log
+from config.removal import RemoveMixin
 
 from .attachments_api import AttachmentsMixin
 from .driver_serializers import AssignmentSerializer, DriverSerializer
@@ -42,7 +43,7 @@ class DriverFilter(filters.FilterSet):
         return qs.filter(license_expiry_date__gt=soon)
 
 
-class DriverViewSet(AttachmentsMixin, OfficeScopedMixin, mixins.ListModelMixin, mixins.RetrieveModelMixin,
+class DriverViewSet(RemoveMixin, AttachmentsMixin, OfficeScopedMixin, mixins.ListModelMixin, mixins.RetrieveModelMixin,
                     mixins.CreateModelMixin, mixins.UpdateModelMixin, viewsets.GenericViewSet):
     """Driver profiles. No DELETE: deactivate (is_active=false) so trips and assignments keep their history."""
     queryset = Driver.objects.select_related('office').prefetch_related(

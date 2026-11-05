@@ -8,6 +8,7 @@ from rest_framework.response import Response
 
 from accounts.permissions import OfficeScopedMixin, PasswordChangeNotRequired, require
 from audit.services import diff, log
+from config.removal import RemoveMixin
 
 from . import assignments as assignment_service
 from .driver_serializers import AssignInputSerializer, AssignmentSerializer, EndAssignmentSerializer
@@ -27,7 +28,7 @@ def snapshot(v):
     return {f: str(getattr(v, f'{f}_id' if f == 'office' else f)) for f in AUDITED}
 
 
-class VehicleViewSet(OfficeScopedMixin, mixins.ListModelMixin, mixins.RetrieveModelMixin,
+class VehicleViewSet(RemoveMixin, OfficeScopedMixin, mixins.ListModelMixin, mixins.RetrieveModelMixin,
                      mixins.CreateModelMixin, mixins.UpdateModelMixin, viewsets.GenericViewSet):
     """
     Vehicle master records. No DELETE: vehicles are archived so history and reports stay intact.

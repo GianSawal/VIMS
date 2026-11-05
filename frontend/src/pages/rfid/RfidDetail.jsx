@@ -12,6 +12,7 @@ import { ProviderBadge } from './common'
 import { tollColumns } from './RfidList'
 import RfidForm from './RfidForm'
 import TollForm from './TollForm'
+import DeleteRecord from '../../components/DeleteRecord'
 
 export default function RfidDetail() {
   const { id } = useParams()
@@ -48,6 +49,7 @@ export default function RfidDetail() {
           </p>
         </div>
         {canChange && <Button variant="secondary" onClick={() => setDialog('edit')}><Pencil size={16} /> Edit</Button>}
+        <DeleteRecord path={`/rfid-accounts/${a.id}/`} perm="operations.delete_rfidaccount" name={`${a.provider_display} ${a.masked_account}`} kind="RFID account" listPath="/rfid" />
         {can('operations.add_tolltransaction') && <Button onClick={() => setDialog('toll')}><Plus size={16} /> Record toll</Button>}
       </div>
 
