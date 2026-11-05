@@ -126,6 +126,17 @@ def test_approve_follows_booking_rules(fo1):
     assert 'vehicle' in admin.post(f'/api/vehicle-requests/{second["id"]}/approve/', {'vehicle': bad.pk}, format='json').json()
 
 
+def test_approve_only_with_a_vehicle_of_the_requesting_office(fo1, fo2):
+    _, c = requester('ana', fo1)
+    admin = as_role('Fleet Administrator')
+    req = submit(c, fo1).json()
+    other = make_vehicle(fo2, 'FAR 1')
+    r = admin.post(f'/api/vehicle-requests/{req["id"]}/approve/', {'vehicle': other.pk}, format='json')
+    assert r.status_code == 400 and 'requesting office' in r.json()['vehicle'][0]
+    assert VehicleRequest.objects.get(pk=req['id']).status == 'PENDING'
+    assert admin.post(f'/api/vehicle-requests/{req["id"]}/approve/', {'vehicle': make_vehicle(fo1, 'NEAR 1').pk}, format='json').status_code == 200
+
+
 def test_decline_needs_reason_and_notifies(fo1):
     ana, c = requester('ana', fo1)
     admin = as_role('Fleet Administrator')

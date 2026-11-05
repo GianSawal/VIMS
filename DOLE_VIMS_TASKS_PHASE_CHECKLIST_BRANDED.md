@@ -652,6 +652,7 @@ the deployment phases keep their numbers.
 -   [x] Status flow in `operations/requests.py`: PENDING → APPROVED / DECLINED (reason required) / CANCELLED (requester, while pending or approved before dispatch; cancels the trip too); afterwards `progress` follows the trip (dispatched, completed)
 -   [x] Approve = pick vehicle (driver optional), books a SCHEDULED trip via `operations/trips.py` (locks vehicle row), copying route, passengers and requesting office
 -   [x] Conflict checks on approve: the trip booking rules (overlap, unserviceable/disposed, future time, driver license); nothing saved on failure
+-   [x] Approve: the vehicle must belong to the requesting office (`approve()` refuses others; the approve form lists only that office's vehicles). Drivers are not limited by office
 -   [x] API `/api/vehicle-requests/`: requester sees only own (others 404), approvers office-scoped; `progress`/`mine` filters; `summary/`; actions via `require(...)`; no DELETE
 -   [x] Travel order attachment (`AttachmentsMixin`; `config/media.py` uses the model's `visible_to()`, so another requester gets 404)
 -   [x] Notifications: new request (approvers of that office), approved, declined, dispatched (requester); `VEHICLE_REQUEST` type links to the request

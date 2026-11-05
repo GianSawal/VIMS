@@ -67,6 +67,8 @@ def approve(req, *, user, vehicle, driver=None, note=''):
         req = _locked(req)
         if req.status != S.PENDING:
             raise serializers.ValidationError(f'Only pending requests can be approved (this one is {req.get_status_display().lower()}).')
+        if vehicle.office_id != req.office_id:
+            raise serializers.ValidationError({'vehicle': [f'Choose a vehicle of {req.office.code}, the requesting office.']})
         requester = req.requester.get_full_name() or req.requester.username
         trip = trip_service.schedule(
             user=user, vehicle=vehicle, driver=driver, scheduled_departure=req.needed_at,
