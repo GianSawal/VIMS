@@ -15,7 +15,8 @@ from rest_framework.response import Response
 from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 
-from accounts.permissions import ModelPermissions, OfficeScopedMixin, PasswordChangeNotRequired, require, require_any
+from accounts.permissions import (ModelPermissions, OfficeScopedMixin, PasswordChangeNotRequired, require, require_any,
+                                  sees_all_offices)
 from audit.services import diff, log
 from fleet.attachments_api import AttachmentsMixin
 
@@ -192,7 +193,7 @@ class DisplayScreenViewSet(OfficeScopedMixin, mixins.ListModelMixin, viewsets.Ge
     def get_queryset(self):
         qs = super(OfficeScopedMixin, self).get_queryset()
         user = self.request.user
-        if user.has_perm('accounts.view_all_offices'):
+        if sees_all_offices(user):
             return qs
         return qs.filter(Q(office__in=user.offices.all()) | Q(office__isnull=True))  # all-office screens show for everyone
 
@@ -475,7 +476,7 @@ class RFIDAccountViewSet(OfficeScopedMixin, mixins.ListModelMixin, mixins.Retrie
     def get_queryset(self):
         qs = self.queryset  # unassigned accounts belong to no office; show them to everyone who may view
         user = self.request.user
-        if not user.has_perm('accounts.view_all_offices'):
+        if not sees_all_offices(user):
             qs = qs.filter(Q(vehicle__office__in=user.offices.all()) | Q(vehicle__isnull=True))
         if self.action in ('list', 'retrieve'):
             qs = qs.annotate(transaction_count=Count('transactions', distinct=True),

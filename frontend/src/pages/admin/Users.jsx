@@ -228,7 +228,7 @@ function UserForm({ user, onClose }) {
             ? 'The office this person requests vehicles for. They only see their own requests.'
             : role === 'Field Office User'
             ? 'This user can only access records of the offices selected here.'
-            : 'This role can access all offices; selection is informational.'}
+            : 'Leave empty to access all offices, or select offices to limit this user to them.'}
         </p>
         <div className="grid max-h-40 gap-1 overflow-y-auto rounded-md border border-slate-200 p-2 sm:grid-cols-2">
           {offices.data?.results.map((o) => (

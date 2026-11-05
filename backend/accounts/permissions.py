@@ -49,15 +49,24 @@ def require_any(*perms):
     return RequiredAny
 
 
+def sees_all_offices(user):
+    """view_all_offices applies only to users with no office assigned (e.g. the System Administrator, a regional
+    fleet administrator). Assigning offices to a user limits them to those, whatever their role. Superusers see all.
+    Cached on the user object for the request."""
+    if not hasattr(user, '_sees_all_offices'):
+        user._sees_all_offices = user.is_superuser or (user.has_perm(VIEW_ALL_OFFICES) and not user.offices.exists())
+    return user._sees_all_offices
+
+
 def scope_to_offices(qs, user, office_field):
     """Limit a queryset to the user's offices unless they may see all offices."""
-    if office_field is None or user.has_perm(VIEW_ALL_OFFICES):
+    if office_field is None or sees_all_offices(user):
         return qs
     return qs.filter(**{f'{office_field}__in': user.offices.all()})
 
 
 def check_office_access(user, office):
-    if office is not None and not user.has_perm(VIEW_ALL_OFFICES) and not user.offices.filter(pk=office.pk).exists():
+    if office is not None and not sees_all_offices(user) and not user.offices.filter(pk=office.pk).exists():
         raise PermissionDenied('You do not have access to this office.')
 
 

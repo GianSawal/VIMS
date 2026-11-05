@@ -7,6 +7,7 @@ per threshold. Run it on a schedule with `manage.py run_notifications`.
 """
 from django.contrib.auth import get_user_model
 from django.contrib.contenttypes.models import ContentType
+from django.db.models import Q
 from django.utils import timezone
 
 from accounts.permissions import VIEW_ALL_OFFICES
@@ -29,9 +30,11 @@ _DOC_TYPE = {
 
 
 def recipients_for_office(office):
-    """Active users who can see this office: its members plus anyone with view_all_offices (incl. superusers)."""
+    """Active users who can see this office: its members plus all-office users (view_all_offices with no office
+    assigned, and superusers); see accounts.permissions.sees_all_offices."""
     members = User.objects.filter(offices=office, is_active=True)
-    return (members | User.objects.with_perm(VIEW_ALL_OFFICES, is_active=True)).distinct()
+    everywhere = User.objects.with_perm(VIEW_ALL_OFFICES, is_active=True).filter(Q(offices__isnull=True) | Q(is_superuser=True))
+    return (members | everywhere).distinct()
 
 
 def notify(recipients, *, type, title, message, dedupe_key, related=None):

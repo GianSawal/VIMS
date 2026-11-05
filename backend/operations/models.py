@@ -6,7 +6,7 @@ from django.db import models
 from django.db.models.functions import Coalesce
 
 from accounts.models import Office
-from accounts.permissions import VIEW_ALL_OFFICES, scope_to_offices
+from accounts.permissions import scope_to_offices, sees_all_offices
 from config.base_models import Tracked, non_negative, ordered
 from django.contrib.contenttypes.fields import GenericRelation
 
@@ -163,7 +163,7 @@ class TollTransaction(Tracked):
 class VehicleRequestQuerySet(models.QuerySet):
     def visible_to(self, user):
         """Approvers and all-office readers see every request in their offices; a requester sees only their own."""
-        if user.has_perm('operations.approve_vehiclerequest') or user.has_perm(VIEW_ALL_OFFICES):
+        if user.has_perm('operations.approve_vehiclerequest') or sees_all_offices(user):
             return scope_to_offices(self, user, 'office')
         return self.filter(requester=user)
 

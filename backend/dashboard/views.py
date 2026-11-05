@@ -18,7 +18,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from accounts.models import Office
-from accounts.permissions import scope_to_offices
+from accounts.permissions import scope_to_offices, sees_all_offices
 from fleet import documents
 from fleet.models import Driver, Vehicle, VehicleDocument
 from maintenance import service as maintenance_service
@@ -137,7 +137,7 @@ class DashboardView(APIView):
             out['pending_requests'] = (requests.filter(office=self.office) if self.office else requests).count()
         if user.has_perm('operations.view_rfidaccount'):
             accounts = RFIDAccount.objects.all()  # unassigned accounts are everyone's, as in the RFID list
-            if not user.has_perm('accounts.view_all_offices'):
+            if not sees_all_offices(user):
                 accounts = accounts.filter(Q(vehicle__office__in=user.offices.all()) | Q(vehicle__isnull=True))
             if self.office:
                 accounts = accounts.filter(vehicle__office=self.office)

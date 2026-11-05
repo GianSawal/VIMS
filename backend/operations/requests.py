@@ -14,7 +14,7 @@ from django.db import transaction
 from django.utils import timezone
 from rest_framework import serializers
 
-from accounts.permissions import VIEW_ALL_OFFICES
+from accounts.permissions import sees_all_offices
 from notifications.models import Notification
 from notifications.services import notify, recipients_for_office
 
@@ -40,7 +40,7 @@ def _tell_requester(req, title, message, event):
 
 
 def submit(*, user, office, needed_at, return_at=None, **fields):
-    if not user.has_perm(VIEW_ALL_OFFICES) and not user.offices.filter(pk=office.pk).exists():
+    if not sees_all_offices(user) and not user.offices.filter(pk=office.pk).exists():
         _fail('office', 'You can only request a vehicle for your own office.')
     if needed_at < timezone.now() - timedelta(minutes=5):
         _fail('needed_at', 'The date and time needed must be in the future.')

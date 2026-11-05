@@ -726,6 +726,18 @@ Added 2026-11-05. The return form carries the trip's reload and toll lines; opti
 -   [x] Toll form opened from a trip or vehicle also auto-picks that vehicle's active account; both forms show the current balance and the balance after the entry (red with a hint when the tolls exceed the load)
 -   [x] Tests: `operations/test_toll.py::test_return_records_the_trip_tolls_in_the_same_save`, `::test_return_toll_needs_toll_permission`; `src/pages/trips/CompleteForm.test.jsx`
 
+
+------------------------------------------------------------------------
+
+# Phase 17F --- Office-limited administrators
+
+Added 2026-11-05. A Fleet Administrator (or Viewer) assigned to an office sees only that office's vehicles and records.
+
+-   [x] `accounts.permissions.sees_all_offices()`: `view_all_offices` applies only while the user has no office assigned (superusers always see all); cached per request
+-   [x] Used by `scope_to_offices`, `check_office_access`, `/auth/me/` `view_all_offices`, dashboard RFID, display screens, RFID accounts, request visibility/submit, and office notification recipients
+-   [x] Users page hint: leave offices empty for all offices, or select offices to limit the user
+-   [x] Test: `fleet/test_vehicles.py::test_fleet_administrator_assigned_to_an_office_sees_only_that_office`
+-   [ ] Existing all-office users who had offices ticked "for information" are now limited to them; clear their offices on the Users page to restore all-office access
 ------------------------------------------------------------------------
 
 # Phase 18 --- Deployment

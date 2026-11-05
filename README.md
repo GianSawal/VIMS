@@ -138,7 +138,9 @@ offices get **404**. Users flagged `must_change_password` get 403 everywhere exc
 ### Roles and office scoping
 
 Role = Django Group (permissions set by `seed_reference`). System Administrator, Fleet Administrator and Viewer hold
-`accounts.view_all_offices`; Field Office Users only see records of offices in `User.offices`. New viewsets get
+`accounts.view_all_offices`, which only applies while the user has **no office assigned**: assigning offices to any
+user limits them to those (`accounts.permissions.sees_all_offices`). Field Office Users only see records of offices in
+`User.offices`. New viewsets get
 this by inheriting `accounts.permissions.OfficeScopedMixin` and setting `office_field`.
 
 **Requester** (Phase 17A): employees who ask for vehicles. Add, view and cancel their own vehicle requests (and their

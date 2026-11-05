@@ -194,3 +194,19 @@ def test_summary_counts_respect_filters_and_scope(fo1, fo2):
     assert admin.get('/api/vehicles/summary/?is_archived=true').json()['by_status'] == {'IN_USE': 1}
     scoped = as_role('Field Office User', [fo1])
     assert scoped.get('/api/vehicles/summary/').json()['total'] == 2  # FO2 vehicle never counted
+
+
+def test_fleet_administrator_assigned_to_an_office_sees_only_that_office(fo1, fo2):
+    make_vehicle(fo1, 'MINE 1')
+    make_vehicle(fo2, 'FAR 1')
+    regional = as_role('Fleet Administrator')  # no office assigned: every office
+    assert {v['plate_number'] for v in regional.get('/api/vehicles/').json()['results']} == {'MINE 1', 'FAR 1'}
+    assert regional.get('/api/auth/me/').json()['view_all_offices'] is True
+    c = APIClient()
+    u = User.objects.create(username='fleet_fo1')
+    u.groups.add(Group.objects.get(name='Fleet Administrator'))
+    u.offices.set([fo1])
+    c.force_authenticate(u)
+    assert [v['plate_number'] for v in c.get('/api/vehicles/').json()['results']] == ['MINE 1']
+    assert c.get('/api/auth/me/').json()['view_all_offices'] is False
+    assert c.get('/api/dashboard/').json()['vehicles']['total'] == 1

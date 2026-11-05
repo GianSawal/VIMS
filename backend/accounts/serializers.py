@@ -4,7 +4,7 @@ from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework import serializers
 
 from .models import Office, User
-from .permissions import VIEW_ALL_OFFICES
+from .permissions import sees_all_offices
 
 
 class OfficeSerializer(serializers.ModelSerializer):
@@ -52,7 +52,7 @@ class MeSerializer(serializers.ModelSerializer):
         return sorted(user.get_all_permissions())
 
     def get_view_all_offices(self, user):
-        return user.has_perm(VIEW_ALL_OFFICES)
+        return sees_all_offices(user)
 
 
 class UserSerializer(serializers.ModelSerializer):
