@@ -216,7 +216,7 @@ const NOT_SCHEDULABLE = ['UNSERVICEABLE', 'DISPOSED']
 /** Book a vehicle (driver optional) for the requested time: creates the scheduled trip. */
 function ApproveForm({ r, onClose }) {
   const vehicles = useList('/vehicles/', { page_size: 500, office: r.office, is_archived: false })  // only the requesting office's (the API checks too)
-  const drivers = useList('/drivers/', { page_size: 500, is_active: true })
+  const drivers = useList('/drivers/', { page_size: 500, is_active: true, office: r.office })  // same rule as vehicles (the API checks too)
   const { register, handleSubmit, setError, watch, formState: { errors } } = useForm({
     resolver: zodResolver(approveSchema), defaultValues: { vehicle: '', driver: '', note: '' },
   })
