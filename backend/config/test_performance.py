@@ -3,6 +3,7 @@ however many records there are (no N+1). Measured on seed_demo data, then again 
 worth of vehicles, drivers, fuel, trips, maintenance and tolls."""
 import io
 import random
+from datetime import timedelta
 
 import pytest
 from django.core.management import call_command
@@ -35,6 +36,10 @@ def measure(client, urls, params):
     for url in urls:
         slug = url.rstrip('/').rsplit('/', 1)[-1]
         query = {NEEDS[slug]: params[NEEDS[slug]]} if slug in NEEDS else {}
+        if url.startswith('/api/reports/') and slug != 'reports':
+            # A year, not the default "this month to date": early in a month that period can hold no demo jobs, and an
+            # empty run skips the per-row prefetches, so the count looked like it grew (1 -> 2) once data arrived.
+            query |= {'date_from': str(params['today'] - timedelta(days=365)), 'date_to': str(params['today'])}
         with CaptureQueriesContext(connection) as ctx:
             r = client.get(url, query)
         if r.status_code == 403:  # not this role's module (e.g. audit log for a Field Office User)
@@ -65,7 +70,7 @@ def test_query_count_does_not_grow_with_data(settings, tmp_path, username):
     # about three times the records.
     grow(['X1'], 3)
     params = {'vehicle': scope_to_offices(Vehicle.objects.all(), user, 'office').first().pk,
-              'driver': scope_to_offices(Driver.objects.all(), user, 'office').first().pk}
+              'driver': scope_to_offices(Driver.objects.all(), user, 'office').first().pk, 'today': timezone.localdate()}
     urls = get_endpoints()
     measure(c, urls, params)  # warm caches (content types, permissions)
     before = measure(c, urls, params)

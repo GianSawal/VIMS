@@ -133,6 +133,12 @@ class VehicleAssignment(Tracked):
         constraints = [ordered('start_date', 'end_date')]
         indexes = [models.Index(fields=['vehicle', 'end_date'])]
 
+    def save(self, *args, **kwargs):
+        # Names are always stored in capitals, whoever typed them (API, import, seed).
+        self.accountable_person = self.accountable_person.upper()
+        self.driver_name = self.driver_name.upper()
+        super().save(*args, **kwargs)
+
     def clean(self):
         # ponytail: MySQL has no partial unique index; the assign service also locks the vehicle row (select_for_update).
         if self.end_date is None and self.vehicle_id:

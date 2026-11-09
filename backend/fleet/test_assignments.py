@@ -51,9 +51,9 @@ def test_first_assignment_shows_on_vehicle(vehicle, fo1):
     c = as_role('Fleet Administrator')
     r = assign(c, vehicle, fo1, driver=d, start=10)
     assert r.status_code == 201, r.json()
-    assert r.json()['is_current'] and r.json()['driver_name'] == 'Pedro'
+    assert r.json()['is_current'] and r.json()['driver_name'] == 'PEDRO'
     cur = c.get(f'/api/vehicles/{vehicle.pk}/').json()['current_assignment']
-    assert cur['accountable_person'] == 'Maria Santos' and cur['driver'] == 'Pedro'
+    assert cur['accountable_person'] == 'MARIA SANTOS' and cur['driver'] == 'PEDRO'
     assert AuditLog.objects.get(action='assign').entity_id == str(vehicle.pk)
 
 
@@ -64,7 +64,7 @@ def test_vehicle_list_shows_current_assignment(vehicle, fo1):
     assign(c, other, fo1, start=10)
     c.post(f'/api/vehicles/{other.pk}/end-assignment/', {'end_date': day(1)}, format='json')
     rows = {r['plate_number']: r['assignment'] for r in c.get('/api/vehicles/').json()['results']}
-    assert rows['ASN 1'] == {'driver': 'Pedro', 'accountable_person': 'Maria Santos', 'start_date': day(10)}
+    assert rows['ASN 1'] == {'driver': 'PEDRO', 'accountable_person': 'MARIA SANTOS', 'start_date': day(10)}
     assert rows['ASN 2'] is None  # ended assignments don't count
 
 
@@ -78,14 +78,14 @@ def test_reassign_preserves_history(vehicle, fo1, fo2):
     rows = list(VehicleAssignment.objects.filter(vehicle=vehicle).order_by('start_date'))
     assert len(rows) == 2  # nothing overwritten
     old, new = rows
-    assert (old.accountable_person, old.driver_id, str(old.end_date)) == ('Maria Santos', d1.pk, day(5))
-    assert new.end_date is None and new.accountable_person == 'Ana Reyes' and new.office == fo2
+    assert (old.accountable_person, old.driver_id, str(old.end_date)) == ('MARIA SANTOS', d1.pk, day(5))
+    assert new.end_date is None and new.accountable_person == 'ANA REYES' and new.office == fo2
     assert VehicleAssignment.objects.filter(vehicle=vehicle, end_date__isnull=True).count() == 1
 
     hist = c.get(f'/api/vehicles/{vehicle.pk}/assignments/').json()
-    assert [(a['accountable_person'], a['is_current']) for a in hist['results']] == [('Ana Reyes', True), ('Maria Santos', False)]
+    assert [(a['accountable_person'], a['is_current']) for a in hist['results']] == [('ANA REYES', True), ('MARIA SANTOS', False)]
     log = AuditLog.objects.get(action='reassign')
-    assert log.changes['accountable_person'] == ['Maria Santos', 'Ana Reyes'] and log.changes['driver'] == ['Pedro', 'Juan']
+    assert log.changes['accountable_person'] == ['MARIA SANTOS', 'ANA REYES'] and log.changes['driver'] == ['PEDRO', 'JUAN']
 
 
 def test_history_keeps_names_even_after_driver_renamed(vehicle, fo1):
@@ -94,7 +94,7 @@ def test_history_keeps_names_even_after_driver_renamed(vehicle, fo1):
     assign(c, vehicle, fo1, driver=d)
     d.full_name = 'New Name'
     d.save()
-    assert c.get(f'/api/vehicles/{vehicle.pk}/assignments/').json()['results'][0]['driver_name'] == 'Old Name'
+    assert c.get(f'/api/vehicles/{vehicle.pk}/assignments/').json()['results'][0]['driver_name'] == 'OLD NAME'
 
 
 def test_date_rules(vehicle, fo1):

@@ -111,7 +111,7 @@ def test_commit_imports_every_sheet_and_rerun_creates_nothing(tmp_path):
     assert Vehicle.objects.get(plate_number='SAC-5678').office.code == 'TAR'  # via the Offices alias sheet
     assert v.current_odometer == 13050  # raised to the highest imported reading
     current = VehicleAssignment.objects.get(vehicle=v, end_date__isnull=True)
-    assert current.accountable_person == 'Maria Santos' and current.driver.license_number == 'N01-23-456789'
+    assert current.accountable_person == 'MARIA SANTOS' and current.driver.license_number == 'N01-23-456789'
     lto = VehicleDocument.objects.filter(vehicle=v, document_type='LTO_REGISTRATION')
     assert dict(lto.values_list('reference_number', 'status')) == {'OR-1': 'SUPERSEDED', 'OR-2': 'ACTIVE'}
     m = MaintenanceRecord.objects.get(vehicle=v)
