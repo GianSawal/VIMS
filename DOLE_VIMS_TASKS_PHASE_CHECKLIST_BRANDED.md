@@ -616,7 +616,7 @@ Results, defects fixed and UAT scenarios: `docs/QA.md`. Demo/QA data: `manage.py
 -   [x] API integration tests (DRF client tests per endpoint, schema-wide security and query-count tests)
 -   [ ] Browser testing (Chrome done; Edge/Firefox during UAT)
 -   [x] Responsive testing (every page at 390 px; sideways scrolling fixed on dashboard, vehicle profile, documents, fuel)
--   [ ] Phone card lists (2026-11-09): `DataTable` `mobileCard` renders cards below `md`, the table unchanged at `md`+. Done: Drivers. Other list pages to follow; not yet checked on a phone.
+-   [ ] Phone card lists (2026-11-09): `DataTable` `mobileCard` renders cards below `md`, the table unchanged at `md`+. Done: Drivers, Trips (plus a phone layout for the trip filters: 2x2 date presets, From/To side by side). Other list pages to follow; not yet checked on a phone.
 -   [x] Performance testing (300 vehicles / 12k trips: lists ≤ 180 ms, dashboard 129 ms; Excel export 35 s → 2.6 s, VEHICLE RECORD 95 s → 20 s; N+1 fixed in fuel and notifications)
 -   [ ] Backup/restore test (needs staging MySQL and the Phase 18 backup job; procedure in `docs/SECURITY.md`)
 -   [ ] Error/recovery testing (partial: server/network/rate-limit messages, session expiry, atomic writes; database outage and restart not yet)

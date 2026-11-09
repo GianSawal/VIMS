@@ -111,6 +111,52 @@ export function tripColumns({ withVehicle = true } = {}) {
   ]
 }
 
+/** Phone card for a trip (DataTable mobileCard): the same fields as tripColumns, stacked. */
+function tripCard(t) {
+  const [main, sub, subCls] = whenText(t)
+  return (
+    <div className="space-y-3">
+      <div className="flex items-start gap-3">
+        <DateChip value={t.departed_at ?? t.scheduled_departure} to={`/trips/${t.id}`} muted={t.status === 'CANCELLED'} />
+        <div className="min-w-0 flex-1">
+          <div className="font-medium tabular-nums">{main}</div>
+          <div className={`text-xs ${subCls}`}>{sub}</div>
+        </div>
+        <TripStatusBadge status={t.status} />
+      </div>
+      <div className="flex min-w-0 items-center gap-2 text-xs text-slate-500">
+        <Link to={`/trips/${t.id}`} onClick={(e) => e.stopPropagation()}
+          className="shrink-0 rounded-md border border-slate-300 bg-white px-2 py-0.5 font-mono font-semibold text-brand">{t.ticket_number}</Link>
+        <DivisionTag division={t.requesting_division} />
+        <span className="min-w-0 truncate" title={t.purpose}>{t.purpose}</span>
+      </div>
+      <div className="flex items-center gap-3">
+        <VehiclePhoto vehicle={{ photo_url: t.vehicle_photo_url, plate_number: t.plate_number, make: '', model: t.vehicle_label }} className="w-16 shrink-0 border border-slate-200" />
+        <div className="min-w-0 flex-1 text-sm">
+          <div className="truncate"><span className="font-semibold tracking-wide">{t.plate_number}</span> <span className="text-xs text-slate-500">{t.vehicle_label}</span></div>
+          <div className="mt-1 flex items-center gap-1.5 text-xs text-slate-600"><Avatar name={t.driver_name} src={t.driver_photo_url} className="h-5! w-5! text-[9px]" /><span className="truncate">{driverLabel(t)}</span></div>
+        </div>
+      </div>
+      <div className="flex items-end gap-3">
+        <ol className="relative min-w-0 flex-1 space-y-1 pl-4 text-sm" aria-label={`From ${t.origin} to ${t.destination}`}>
+          <span aria-hidden="true" className="absolute top-2 bottom-2 left-[3px] w-px bg-slate-300" />
+          <li className="relative truncate" title={t.origin}>
+            <span aria-hidden="true" className="absolute top-1.5 -left-4 h-2 w-2 rounded-full bg-brand ring-2 ring-white" />{t.origin}
+          </li>
+          <li className="relative truncate font-medium" title={t.destination}>
+            <MapPin size={12} aria-hidden="true" className="absolute top-1 -left-[18px] text-accent" />{t.destination}
+          </li>
+        </ol>
+        {t.distance_km != null && (
+          <span className="inline-flex shrink-0 items-baseline gap-1 rounded-full bg-brand-light px-2.5 py-0.5 text-brand">
+            <span className="font-semibold tabular-nums">{t.distance_km.toLocaleString('en-PH')}</span><span className="text-[11px]">km</span>
+          </span>
+        )}
+      </div>
+    </div>
+  )
+}
+
 // [label, from, to] as local YYYY-MM-DD, computed once per page visit.
 function datePresets() {
   const iso = (d) => d.toLocaleDateString('en-CA')
@@ -272,29 +318,34 @@ export default function TripList() {
     <Toolbar chips={chips} onRemove={remove} onClear={clearAll}>
       <SearchBox id="trip-search" label="Search trips" placeholder="Search ticket, plate, driver, destination…" value={search} onChange={setSearch} />
       {showOffice && (
-        <Select className={`${selectClass} w-44`} aria-label="Filter by vehicle office" value={f.office ?? ''} onChange={(e) => set('office', e.target.value)}>
+        <Select className={`${selectClass} w-full sm:w-44`} aria-label="Filter by vehicle office" value={f.office ?? ''} onChange={(e) => set('office', e.target.value)}>
           <option value="">All offices</option>
           {offices.data?.results.map((o) => <option key={o.id} value={o.id}>{o.code} - {o.name}</option>)}
         </Select>
       )}
       {!calendar && <>
-      <div role="group" aria-label="Date range" className="flex overflow-hidden rounded-md border border-slate-300 text-sm">
+      {/* Phones: presets as a full-width 2x2 grid (1px gaps draw the dividers), From/To side by side with the
+          label above. From sm up the classes fall back to the one-row toolbar exactly as before. */}
+      <div role="group" aria-label="Date range"
+        className="grid w-full grid-cols-2 gap-px overflow-hidden rounded-md border border-slate-300 bg-slate-300 text-sm sm:flex sm:w-auto sm:gap-0 sm:bg-transparent">
         {presets.map(([label, from, to]) => {
           const on = f.date_from === from && f.date_to === to
           return (
             <button key={label} type="button" aria-pressed={on} onClick={() => (on ? setRange('', '') : setRange(from, to))}
-              className={`h-9 border-r border-slate-300 px-3 last:border-r-0 ${on ? 'bg-brand text-white' : 'bg-white text-slate-700 hover:bg-slate-50'}`}>
+              className={`h-9 px-3 whitespace-nowrap sm:border-r sm:border-slate-300 sm:last:border-r-0 ${on ? 'bg-brand text-white' : 'bg-white text-slate-700 hover:bg-slate-50'}`}>
               {label}
             </button>
           )
         })}
       </div>
-      <label className="flex items-center gap-2 text-sm text-slate-600">
-        From <input type="date" className={`${selectClass} w-40`} value={f.date_from ?? ''} onChange={(e) => set('date_from', e.target.value)} />
-      </label>
-      <label className="flex items-center gap-2 text-sm text-slate-600">
-        To <input type="date" className={`${selectClass} w-40`} value={f.date_to ?? ''} onChange={(e) => set('date_to', e.target.value)} />
-      </label>
+      <div className="grid w-full grid-cols-2 gap-2 sm:contents">
+        <label className="flex min-w-0 flex-col gap-1 text-xs text-slate-600 sm:flex-row sm:items-center sm:gap-2 sm:text-sm">
+          From <input type="date" className={`${selectClass} w-full min-w-0 sm:w-40`} value={f.date_from ?? ''} onChange={(e) => set('date_from', e.target.value)} />
+        </label>
+        <label className="flex min-w-0 flex-col gap-1 text-xs text-slate-600 sm:flex-row sm:items-center sm:gap-2 sm:text-sm">
+          To <input type="date" className={`${selectClass} w-full min-w-0 sm:w-40`} value={f.date_to ?? ''} onChange={(e) => set('date_to', e.target.value)} />
+        </label>
+      </div>
       </>}
     </Toolbar>
   )
@@ -344,7 +395,7 @@ export default function TripList() {
       {calendar
         ? <TripCalendar month={f.month} onMonth={(m) => set('month', m)} filters={{ search: f.search, office: f.office }} toolbar={toolbar} />
         : <DataTable columns={tripColumns()} query={query} page={page} onPage={(p) => set('page', String(p))} toolbar={toolbar}
-          onRowClick={(t) => navigate(`/trips/${t.id}`)}
+          onRowClick={(t) => navigate(`/trips/${t.id}`)} mobileCard={tripCard}
           empty={chips.length ? 'No trips match these filters.' : 'No trips yet.'} />}
 
       <Modal open={tv} onClose={() => setTv(false)} title="TV trip board" wide>
