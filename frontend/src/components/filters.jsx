@@ -1,6 +1,7 @@
 import { useCallback } from 'react'
 import { Search, X } from 'lucide-react'
 import { inputBase } from './ui'
+import { CountUp, Reveal, RevealGroup } from './motion'
 
 // `set(key, value)` for list filters kept in the URL (pass useSearchParams' setter). A filter change goes back to
 // page 1; setting a filter to the value it already has does nothing. That matters because the setter changes with
@@ -36,10 +37,11 @@ export function Avatar({ name, src, className = '' }) {
 }
 
 /** Clickable count card used as a filter (aria-pressed). `tint` = icon background/text classes. */
+// Cards stagger in with their CardGrid, counts count up once, and a press gives a slight squeeze.
 export function StatCard({ icon: Icon, tint, label, count, loading, selected, onClick }) {
   return (
-    <button type="button" onClick={onClick} aria-pressed={selected}
-      className={`flex items-center gap-3 rounded-xl border bg-white px-3 py-3 text-left shadow-sm transition hover:shadow-md ${
+    <Reveal as="button" inherit type="button" onClick={onClick} aria-pressed={selected}
+      className={`flex items-center gap-3 rounded-xl border bg-white px-3 py-3 text-left shadow-sm transition-[box-shadow,border-color,scale] duration-150 ease-out hover:shadow-md active:scale-[.98] ${
         selected ? 'border-brand ring-1 ring-brand' : 'border-slate-200 hover:border-slate-300'}`}>
       <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${tint}`}>
         <Icon size={18} aria-hidden="true" />
@@ -47,15 +49,15 @@ export function StatCard({ icon: Icon, tint, label, count, loading, selected, on
       <span className="min-w-0">
         {loading
           ? <span className="block h-6 w-8 animate-pulse rounded bg-slate-200" />
-          : <span className="block text-xl leading-none font-semibold text-ink tabular-nums">{count ?? 0}</span>}
+          : <span className="block text-xl leading-none font-semibold text-ink tabular-nums"><CountUp value={count ?? 0} /></span>}
         <span className="mt-1 block truncate text-xs text-slate-500">{label}</span>
       </span>
-    </button>
+    </Reveal>
   )
 }
 
 export function CardGrid({ label = 'Filter', children }) {
-  return <div role="group" aria-label={label} className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-4 xl:grid-cols-6">{children}</div>
+  return <RevealGroup role="group" aria-label={label} stagger={0.04} className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-4 xl:grid-cols-6">{children}</RevealGroup>
 }
 
 export function SearchBox({ id, label, placeholder, value, onChange }) {

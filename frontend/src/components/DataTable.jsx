@@ -43,9 +43,9 @@ export default function DataTable({ columns, query, page = 1, onPage, toolbar, o
             {!isLoading && !isError && rows.length === 0 && (
               <tr><td colSpan={columns.length} className="px-4 py-12 text-center text-slate-500">{empty}</td></tr>
             )}
-            {rows.map((row) => (
-              <tr key={row.id} onClick={onRowClick && (() => onRowClick(row))}
-                className={`hover:bg-brand-light/40 ${onRowClick ? 'cursor-pointer' : ''}`}>
+            {rows.map((row, i) => (
+              <tr key={row.id} onClick={onRowClick && (() => onRowClick(row))} style={{ '--i': Math.min(i, 10) }}
+                className={`row-in hover:bg-brand-light/40 ${onRowClick ? 'cursor-pointer' : ''}`}>
                 {columns.map((c) => (
                   <td key={c.key} className={`px-4 py-3 align-middle ${c.className ?? ''}`}>{c.render ? c.render(row) : row[c.key]}</td>
                 ))}

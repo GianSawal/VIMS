@@ -24,6 +24,11 @@
 @media (prefers-reduced-motion: no-preference) {
   dialog[open]::backdrop { animation: backdrop-in 0.18s ease-out; }
   @keyframes backdrop-in { from { opacity: 0 } }
+
+  /* Table rows settle in when a page of data arrives (DataTable sets --i per row): 4px and 240ms, 25ms apart.
+     Rows keep their keys across refetches, so a background refresh never replays it. */
+  .row-in { animation: row-in 0.24s cubic-bezier(0.23, 1, 0.32, 1) calc(var(--i, 0) * 25ms) both; }
+  @keyframes row-in { from { opacity: 0; transform: translateY(4px) } }
 }
 
 /* Pearl: the base color with a soft white sheen from the top left and a faint cool lilac/blue shimmer toward the
