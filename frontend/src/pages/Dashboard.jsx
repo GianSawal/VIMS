@@ -580,17 +580,16 @@ function Activity({ items }) {
   }
   return (
     <Section title="Recent activity">
-      {/* Two columns on wide screens so short rows don't leave the right half of the card empty. */}
-      <Reveal className="gap-x-8 rounded-xl border border-slate-200 bg-white px-4 py-2 shadow-sm xl:columns-2">
+      {/* One column: the description takes the free width, the time sits at the right edge. */}
+      <Reveal className="rounded-xl border border-slate-200 bg-white px-4 py-2 shadow-sm">
         {groups.length ? groups.map((g) => (
-          // Rows (not whole days) avoid breaking, so even a single day fills both columns; a heading stays with its first row.
           <div key={g.label} className="py-2">
-            <h3 className="mb-1 break-after-avoid text-xs font-medium text-slate-500">{g.label}</h3>
+            <h3 className="mb-1 text-xs font-medium text-slate-500">{g.label}</h3>
             <ul>
               {g.items.map((a) => {
                 const [Icon, tint] = KIND[a.kind]
                 return (
-                  <li key={`${a.kind}-${a.link}-${a.at}`} className="break-inside-avoid">
+                  <li key={`${a.kind}-${a.link}-${a.at}`}>
                     <Link to={a.link} className="-mx-2 flex items-center gap-3 rounded-md px-2 py-1.5 text-sm hover:bg-slate-50">
                       <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg ${tint}`}><Icon size={14} aria-hidden="true" /></span>
                       <span className="w-20 shrink-0 font-semibold tracking-wide text-brand">{a.plate_number}</span>
