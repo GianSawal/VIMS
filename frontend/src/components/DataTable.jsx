@@ -1,5 +1,52 @@
+import { useEffect, useLayoutEffect, useRef } from 'react'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { errorMessage, PAGE_SIZE } from '../api'
+
+/**
+ * Paging through the same results keeps the table steady: column widths only grow (each page's text would
+ * otherwise resize them and shift every column) and the box keeps its tallest height (a short last page
+ * would pull the footer up). Applied before paint. Resets when the result set (count/columns) changes or
+ * the window resizes, and never grows the columns past what fits, so it adds no sideways scroll.
+ */
+function useSteadySize(data, count, cols) {
+  const box = useRef(null)
+  const kept = useRef(null)
+
+  const clear = () => {
+    kept.current = null
+    const el = box.current
+    if (!el) return
+    el.style.minHeight = ''
+    el.querySelectorAll('thead th').forEach((th) => { th.style.minWidth = '' })
+  }
+
+  useLayoutEffect(() => {
+    const el = box.current
+    if (!el || !data) return
+    if (kept.current?.count !== count || kept.current?.cols !== cols) {
+      clear()
+      kept.current = { count, cols, widths: [], height: 0 }
+    }
+    if (!data.results?.length) return
+    const ths = [...el.querySelectorAll('thead th')]
+    const k = kept.current
+    const now = ths.map((th) => th.getBoundingClientRect().width)
+    const grown = now.map((w, i) => Math.max(w, k.widths[i] ?? 0))
+    const sum = (a) => a.reduce((s, w) => s + w, 0)
+    // Wider than the box (and than the table already is): start again from this page's widths instead.
+    k.widths = sum(grown) > Math.max(el.clientWidth, sum(now)) + 1 ? now : grown
+    ths.forEach((th, i) => { th.style.minWidth = `${k.widths[i]}px` })
+    k.height = Math.max(k.height, el.offsetHeight)
+    el.style.minHeight = `${k.height}px`
+  }, [data, count, cols]) // eslint-disable-line react-hooks/exhaustive-deps -- clear only touches refs
+
+  useEffect(() => {
+    window.addEventListener('resize', clear)
+    return () => window.removeEventListener('resize', clear)
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps -- clear only touches refs
+
+  return box
+}
 
 /**
  * columns: [{ key, label, render?(row), className?, align? }]
@@ -15,13 +62,14 @@ export default function DataTable({ columns, query, page = 1, onPage, toolbar, o
   const pages = Math.max(1, Math.ceil(count / PAGE_SIZE))
   const first = count === 0 ? 0 : (page - 1) * PAGE_SIZE + 1
   const last = Math.min(page * PAGE_SIZE, count)
+  const box = useSteadySize(data, count, columns.length)
 
   return (
     <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
       {toolbar}
       {/* relative: keeps absolutely placed children (sr-only header labels) inside the scroll box, or they widen the page.
           overflow-y-hidden: the rows' 4px settle-in would otherwise flash a vertical scrollbar and resize the table. */}
-      <div className="relative overflow-x-auto overflow-y-hidden">
+      <div ref={box} className="relative overflow-x-auto overflow-y-hidden">
         <table className={`w-full text-left text-sm ${isFetching && !isLoading ? 'opacity-60' : ''}`}>
           <thead className="border-b border-slate-200 bg-slate-50 text-[11px] tracking-wider text-slate-500 uppercase">
             <tr>
