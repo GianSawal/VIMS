@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
+import { Reveal, RevealGroup } from './motion'
 
 /*
  * Small single-series charts in plain HTML/CSS (no chart library), following the dataviz skill:
@@ -69,7 +70,8 @@ export function TimeBars({ data, format, valueLabel, height = 'h-56' }) {
               {ticks.map((t) => (
                 <div key={t} aria-hidden="true" className={`absolute inset-x-0 border-t ${t === 0 ? 'border-slate-300' : 'border-dashed border-slate-200'}`} style={{ bottom: `${(t / top) * 100}%` }} />
               ))}
-              <ol className="absolute inset-0 flex items-end gap-[2px]" aria-label={`${valueLabel} by month`}>
+              {/* Bars grow from the baseline in a quick left-to-right stagger the first time the chart is seen. */}
+              <RevealGroup as="ol" stagger={0.04} className="absolute inset-0 flex items-end gap-[2px]" aria-label={`${valueLabel} by month`}>
                 {data.map((d, i) => {
                   const pct = top ? (d.value / top) * 100 : 0
                   const labelled = d.value > 0 && (i === last || i === maxIndex)
@@ -77,12 +79,12 @@ export function TimeBars({ data, format, valueLabel, height = 'h-56' }) {
                     <li key={d.key} tabIndex={0} aria-label={`${d.label}: ${format(d.value)}`}
                       className="group relative flex h-full flex-1 cursor-default items-end justify-center outline-none">
                       <span className="absolute inset-0 rounded-sm group-hover:bg-slate-100/70 group-focus-visible:bg-slate-100/70" aria-hidden="true" />
-                      <span className="relative w-full max-w-7 rounded-t bg-chart transition-opacity ease-out group-hover:opacity-85 motion-safe:transition-[height,opacity] motion-safe:duration-300"
+                      <Reveal as="span" variant="growY" inherit className="relative w-full max-w-7 rounded-t bg-chart transition-opacity ease-out group-hover:opacity-85 motion-safe:transition-[height,opacity] motion-safe:duration-300"
                         style={{ height: `${Math.max(pct, d.value > 0 ? 1 : 0)}%` }} aria-hidden="true" />
                       {labelled && (
-                        <span className="absolute -translate-y-1 text-[11px] font-semibold whitespace-nowrap text-ink tabular-nums" style={{ bottom: `${pct}%` }} aria-hidden="true">
+                        <Reveal as="span" variant="fade" inherit className="absolute -translate-y-1 text-[11px] font-semibold whitespace-nowrap text-ink tabular-nums" style={{ bottom: `${pct}%` }} aria-hidden="true">
                           ₱{compact.format(d.value)}
-                        </span>
+                        </Reveal>
                       )}
                       <span role="tooltip" className="pointer-events-none absolute bottom-full z-10 mb-2 hidden min-w-36 -translate-x-1/2 rounded-lg bg-ink px-3 py-2 text-xs text-white shadow-lg group-hover:block group-focus-visible:block" style={{ left: '50%' }}>
                         <span className="block font-semibold">{d.label}</span>
@@ -91,7 +93,7 @@ export function TimeBars({ data, format, valueLabel, height = 'h-56' }) {
                     </li>
                   )
                 })}
-              </ol>
+              </RevealGroup>
             </div>
             <div className="mt-1.5 flex gap-[2px]" aria-hidden="true">
               {data.map((d, i) => (
@@ -109,7 +111,7 @@ export function TimeBars({ data, format, valueLabel, height = 'h-56' }) {
 export function RankBars({ items }) {
   const max = Math.max(0, ...items.map((i) => i.value))
   return (
-    <ol className="space-y-3.5">
+    <RevealGroup as="ol" stagger={0.06} className="space-y-3.5">
       {items.map((it, i) => (
         <li key={it.key}>
           <div className="mb-1 flex items-baseline gap-2 text-sm">
@@ -122,12 +124,12 @@ export function RankBars({ items }) {
           </div>
           <div className="ml-6 flex items-center gap-2">
             <div className="h-2 flex-1 rounded-full bg-slate-100" aria-hidden="true">
-              <div className="h-2 rounded-full bg-chart ease-out motion-safe:transition-[width] motion-safe:duration-300" style={{ width: `${max ? (it.value / max) * 100 : 0}%` }} />
+              <Reveal variant="growX" inherit className="h-2 rounded-full bg-chart ease-out motion-safe:transition-[width] motion-safe:duration-300" style={{ width: `${max ? (it.value / max) * 100 : 0}%` }} />
             </div>
             <span className="w-24 shrink-0 text-right text-xs text-slate-500 tabular-nums">{it.detail}</span>
           </div>
         </li>
       ))}
-    </ol>
+    </RevealGroup>
   )
 }

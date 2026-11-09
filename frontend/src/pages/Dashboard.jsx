@@ -4,10 +4,12 @@ import {
   Ban, CalendarClock, Car, CircleCheck, ClipboardPen, Clock, CreditCard, FileText, Fuel, IdCard, Navigation, PackageX, Route as RouteIcon,
   ShieldCheck, TriangleAlert, UserX, Wrench,
 } from 'lucide-react'
+import { useId } from 'react'
 import { useList } from '../api'
 import { useCan, useMe } from '../auth'
 import { RankBars, TimeBars } from '../components/charts'
 import { selectClass } from '../components/filters'
+import { CountUp, EASE_FILL, Reveal, RevealGroup, useEntrance } from '../components/motion'
 import { PageHeader } from '../components/ui'
 import { useAllOffices } from './admin/Offices'
 import { LeavingToday, OpenTrips } from './trips/TripList'
@@ -36,6 +38,7 @@ const timeShort = new Intl.DateTimeFormat('en-PH', { hour: 'numeric', minute: '2
 const num = new Intl.NumberFormat('en-PH')
 const liters = (v) => `${num.format(Number(v))} L`
 const ymDate = (ym) => new Date(`${ym}-01T00:00:00`)
+const pct = (v) => `${v}%`
 const plural = (n, word) => `${num.format(n)} ${word}${n === 1 ? '' : 's'}`
 
 // '2026-10' -> ['2026-10-01', '2026-10-31'], the date_from/date_to the list pages understand.
@@ -101,10 +104,10 @@ export default function Dashboard() {
 
           {d.vehicles && (
             // Fleet status beside the per-office breakdown; the breakdown only earns a card with 2+ offices.
-            <div className={`grid gap-4 ${multiOffice ? 'xl:grid-cols-3' : ''}`}>
-              <div className={multiOffice ? 'xl:col-span-2' : ''}><FleetStatus v={d.vehicles} office={office} /></div>
+            <RevealGroup className={`grid gap-4 ${multiOffice ? 'xl:grid-cols-3' : ''}`}>
+              <Reveal inherit className={multiOffice ? 'xl:col-span-2' : ''}><FleetStatus v={d.vehicles} office={office} /></Reveal>
               {multiOffice && <ByOffice rows={d.vehicles.by_office} office={office} />}
-            </div>
+            </RevealGroup>
           )}
 
           {attention && <NeedsAttention d={d} office={office} />}
@@ -112,24 +115,24 @@ export default function Dashboard() {
           {(d.fuel || d.maintenance_cost || d.utilization) && (
             <Section title={monthName}>
               {/* Costs stacked on the left so the taller Utilization card on the right is matched. */}
-              <div className="grid gap-4 lg:grid-cols-2">
+              <RevealGroup className="grid gap-4 lg:grid-cols-2">
                 {(d.fuel || d.maintenance_cost) && (
-                  <div className="flex flex-col gap-4">
+                  <Reveal inherit className="flex flex-col gap-4">
                     {d.fuel && (
                       <MoneyTrend title="Fuel" icon={Fuel} data={d.fuel} to={href('/fuel', { date_from: from, date_to: to }, office)}
-                        stats={[[liters(d.fuel.liters), 'Purchased'], [num.format(d.fuel.count), 'Fill-ups']]}
+                            stats={[[d.fuel.liters, 'Purchased', null, liters], [d.fuel.count, 'Fill-ups']]}
                         tooltip={(m) => [`Cost: ${formatPeso(m.amount)}`, `Fuel: ${liters(m.liters)}`]} />
                     )}
                     {d.maintenance_cost && (
                       <MoneyTrend title="Maintenance cost" icon={Wrench} data={d.maintenance_cost}
                         to={href('/maintenance', { status: 'COMPLETED', date_from: from, date_to: to }, office)}
-                        stats={[[num.format(d.maintenance_cost.count), 'Completed'], [num.format(d.maintenance_cost.open), 'Open jobs', href('/maintenance', {}, office)]]}
+                        stats={[[d.maintenance_cost.count, 'Completed'], [d.maintenance_cost.open, 'Open jobs', href('/maintenance', {}, office)]]}
                         tooltip={(m) => [`Cost: ${formatPeso(m.amount)}`, `${plural(m.count, 'job')} completed`]} />
                     )}
-                  </div>
+                  </Reveal>
                 )}
-                {d.utilization && <Utilization u={d.utilization} office={office} from={from} to={to} />}
-              </div>
+                {d.utilization && <Reveal inherit><Utilization u={d.utilization} office={office} from={from} to={to} /></Reveal>}
+              </RevealGroup>
             </Section>
           )}
 
@@ -158,9 +161,9 @@ function Today({ d, office }) {
   const canChange = can('operations.change_trip')
   return (
     <Section title="Today">
-      <ul className={`mb-4 grid grid-cols-2 gap-3 sm:grid-cols-3 ${tiles.length > 4 ? 'xl:grid-cols-5' : 'xl:grid-cols-4'}`}>
+      <RevealGroup as="ul" stagger={0.04} className={`mb-4 grid grid-cols-2 gap-3 sm:grid-cols-3 ${tiles.length > 4 ? 'xl:grid-cols-5' : 'xl:grid-cols-4'}`}>
         {tiles.map(([label, n, Icon, to, urgent]) => (
-          <li key={label}>
+          <Reveal as="li" inherit key={label}>
             <Link to={to} className={`flex h-full items-center gap-3 rounded-xl border bg-white px-3 py-3 shadow-sm transition hover:shadow ${
               !n ? 'border-slate-200' : urgent ? 'border-red-200' : 'border-amber-200'}`}>
               <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${
@@ -168,15 +171,15 @@ function Today({ d, office }) {
                 <Icon size={18} aria-hidden="true" />
               </span>
               <span className="min-w-0">
-                <span className={`block text-xl leading-none font-semibold tabular-nums ${n ? 'text-ink' : 'text-slate-400'}`}>{num.format(n)}</span>
+                <span className={`block text-xl leading-none font-semibold tabular-nums ${n ? 'text-ink' : 'text-slate-400'}`}><CountUp value={n} format={num.format} /></span>
                 <span className="mt-1 block text-xs text-slate-500">{label}</span>
               </span>
             </Link>
-          </li>
+          </Reveal>
         ))}
-      </ul>
-      <LeavingToday canChange={canChange} office={office} />
-      <OpenTrips canChange={canChange} office={office} onViewAll={() => navigate(href('/trips', { status: 'DISPATCHED' }, office))} />
+      </RevealGroup>
+      <Reveal><LeavingToday canChange={canChange} office={office} /></Reveal>
+      <Reveal><OpenTrips canChange={canChange} office={office} onViewAll={() => navigate(href('/trips', { status: 'DISPATCHED' }, office))} /></Reveal>
     </Section>
   )
 }
@@ -212,21 +215,25 @@ const ViewAll = ({ to, children = 'View all' }) => <Link to={to} className="text
 // Part-to-whole bar: one segment per non-zero status, 2px surface gap, rounded ends, hover title; legend carries identity.
 function StatusBar({ byStatus, total, height = 'h-3', office, officeId }) {
   return (
-    <div className={`flex w-full gap-[2px] overflow-hidden rounded-full ${total ? '' : 'bg-slate-100'} ${height}`}>
+    <Reveal variant="growX" className={`flex w-full gap-[2px] overflow-hidden rounded-full ${total ? '' : 'bg-slate-100'} ${height}`}>
       {total > 0 && STATUSES.filter(([s]) => byStatus[s]).map(([s, label, , color]) => (
         <Link key={s} to={href('/vehicles', { status: s }, officeId ?? office)} style={{ width: `${(byStatus[s] / total) * 100}%` }}
           title={`${label}: ${byStatus[s]} of ${total}`} aria-label={`${label}: ${byStatus[s]} of ${total}`}
           className={`${color} h-full transition-opacity motion-safe:transition-[width,opacity] motion-safe:duration-300 ease-out first:rounded-l-full last:rounded-r-full hover:opacity-80`} />
       ))}
-    </div>
+    </Reveal>
   )
 }
 
 // Donut of the fleet by status: one arc per non-zero status with a small gap between arcs, total in the middle.
 // Arcs navigate on click (mouse); the legend beside it carries the same links for keyboard users.
 // Dash values go in style (not attributes) so a filter change transitions the arcs instead of jumping.
+// On first load a mask sweeps clockwise from 12 o'clock over the real arcs (speedometer fill), so the
+// proportions are exact throughout; no mask with reduced motion.
 function StatusDonut({ byStatus, total, office }) {
   const navigate = useNavigate()
+  const sweep = useEntrance()
+  const maskId = `donut-${useId().replace(/[^\w-]/g, '')}`
   const r = 42
   const c = 2 * Math.PI * r
   const parts = STATUSES.filter(([s]) => byStatus[s])
@@ -237,6 +244,13 @@ function StatusDonut({ byStatus, total, office }) {
       <svg viewBox="0 0 100 100" className="h-full w-full -rotate-90" role="img"
         aria-label={`Fleet by status: ${parts.map(([s, label]) => `${label} ${byStatus[s]}`).join(', ') || 'no vehicles'}`}>
         <circle cx="50" cy="50" r={r} fill="none" stroke="var(--color-slate-100)" strokeWidth="12" />
+        {sweep && (
+          <mask id={maskId} maskUnits="userSpaceOnUse" x="0" y="0" width="100" height="100">
+            <motion.circle cx="50" cy="50" r={r} fill="none" stroke="white" strokeWidth="14"
+              initial={{ pathLength: 0 }} animate={{ pathLength: 1 }} transition={{ duration: 1, ease: EASE_FILL }} />
+          </mask>
+        )}
+        <g mask={sweep ? `url(#${maskId})` : undefined}>
         {total > 0 && parts.map(([s, label, , , stroke]) => {
           const len = (byStatus[s] / total) * c
           const arc = (
@@ -250,9 +264,10 @@ function StatusDonut({ byStatus, total, office }) {
           offset += len
           return arc
         })}
+        </g>
       </svg>
       <Link to={href('/vehicles', {}, office)} className="absolute inset-0 m-auto flex h-24 w-24 flex-col items-center justify-center rounded-full hover:text-brand">
-        <span className="text-3xl leading-none font-semibold text-ink tabular-nums">{num.format(total)}</span>
+        <span className="text-3xl leading-none font-semibold text-ink tabular-nums"><CountUp value={total} format={num.format} duration={1} /></span>
         <span className="mt-1 text-xs text-slate-500">{total === 1 ? 'vehicle' : 'vehicles'}</span>
       </Link>
     </div>
@@ -275,7 +290,7 @@ function FleetStatus({ v, office }) {
         <div className="w-full min-w-0 flex-1">
           {available != null && (
             <div className="mb-3 flex flex-wrap items-baseline gap-x-3 border-b border-slate-100 pb-3">
-              <span className="text-2xl font-semibold text-ink tabular-nums">{available}%</span>
+              <span className="text-2xl font-semibold text-ink tabular-nums"><CountUp value={available} format={pct} /></span>
               <span className="text-sm text-slate-600">available for use</span>
               <span className="text-xs text-slate-500">Serviceable or in use, out of all vehicles not disposed.</span>
             </div>
@@ -310,7 +325,7 @@ function Counts({ urgent, upcoming }) {
   }
   const tile = (n, label, to, on) => (
     <Link key={label} to={to} className={`rounded-lg px-3 py-2 transition ${n ? on : 'bg-slate-50 text-slate-400 hover:bg-slate-100'}`}>
-      <span className="block text-xl leading-none font-semibold tabular-nums">{num.format(n)}</span>
+      <span className="block text-xl leading-none font-semibold tabular-nums"><CountUp value={n} format={num.format} /></span>
       <span className="mt-1 block text-xs">{label}</span>
     </Link>
   )
@@ -354,12 +369,12 @@ function NeedsAttention({ d, office }) {
   return (
     <Section title="Needs attention">
       {open.length > 0 && (
-        <div className={`grid items-start gap-4 ${COLS[open.length]}`}>
-          {open.map((w) => <div key={w.key}>{w.node}</div>)}
-        </div>
+        <RevealGroup className={`grid items-start gap-4 ${COLS[open.length]}`}>
+          {open.map((w) => <Reveal inherit key={w.key}>{w.node}</Reveal>)}
+        </RevealGroup>
       )}
       {clear.length > 0 && (
-        <div className={`flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm ${open.length ? 'mt-4' : ''}`}>
+        <Reveal className={`flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm ${open.length ? 'mt-4' : ''}`}>
           <span className="mr-1 flex items-center gap-1.5 text-sm font-medium text-green-800">
             <CircleCheck size={16} aria-hidden="true" /> {open.length ? 'All clear' : 'Nothing needs attention'}
           </span>
@@ -368,7 +383,7 @@ function NeedsAttention({ d, office }) {
               <Icon size={13} aria-hidden="true" /> {title}
             </Link>
           ))}
-        </div>
+        </Reveal>
       )}
     </Section>
   )
@@ -456,16 +471,20 @@ function Delta({ cur, prev, prevLabel }) {
   )
 }
 
+// stats: [[value, label, link?, format = num.format]]; values count up.
 function MiniStats({ stats }) {
   return (
     <dl className="flex flex-wrap gap-x-6 gap-y-1 text-sm">
-      {stats.map(([value, label, to]) => (
-        <div key={label} className="flex items-baseline gap-1.5">
-          <dt className="sr-only">{label}</dt>
-          <dd className="font-semibold text-ink tabular-nums">{to ? <Link to={to} className="hover:text-brand hover:underline">{value}</Link> : value}</dd>
-          <span className="text-slate-500" aria-hidden="true">{label.toLowerCase()}</span>
-        </div>
-      ))}
+      {stats.map(([raw, label, to, format = num.format]) => {
+        const value = <CountUp value={raw} format={format} />
+        return (
+          <div key={label} className="flex items-baseline gap-1.5">
+            <dt className="sr-only">{label}</dt>
+            <dd className="font-semibold text-ink tabular-nums">{to ? <Link to={to} className="hover:text-brand hover:underline">{value}</Link> : value}</dd>
+            <span className="text-slate-500" aria-hidden="true">{label.toLowerCase()}</span>
+          </div>
+        )
+      })}
     </dl>
   )
 }
@@ -478,7 +497,7 @@ function MoneyTrend({ title, icon, data, to, stats, tooltip }) {
   return (
     <Card title={title} icon={icon} action={<ViewAll to={to}>Open records</ViewAll>}>
       <div className="mb-2 flex flex-wrap items-center gap-x-3 gap-y-1">
-        <Link to={to} className="text-2xl font-semibold text-ink tabular-nums hover:text-brand">{formatPeso(data.amount)}</Link>
+        <Link to={to} className="text-2xl font-semibold text-ink tabular-nums hover:text-brand"><CountUp value={data.amount} format={formatPeso} /></Link>
         <Delta cur={data.amount} prev={data.previous_amount} prevLabel={trend.at(-2)?.short} />
       </div>
       <MiniStats stats={stats} />
@@ -493,16 +512,16 @@ function Utilization({ u, office, from, to }) {
   return (
     <Card title="Utilization" icon={RouteIcon} action={<ViewAll to={done}>Open trips</ViewAll>} className="h-full">
       <div className="mb-1 flex items-baseline gap-3">
-        <span className="text-2xl font-semibold text-ink tabular-nums">{u.rate == null ? '—' : `${u.rate}%`}</span>
+        <span className="text-2xl font-semibold text-ink tabular-nums">{u.rate == null ? '—' : <CountUp value={u.rate} format={pct} />}</span>
         <span className="text-sm text-slate-500">of vehicles used ({u.vehicles_used} of {u.operable})</span>
       </div>
       <div className="mb-3 h-2 rounded-full bg-slate-100" aria-hidden="true">
-        <div className="h-2 rounded-full bg-chart ease-out motion-safe:transition-[width] motion-safe:duration-300" style={{ width: `${u.rate ?? 0}%` }} />
+        <Reveal variant="growX" className="h-2 rounded-full bg-chart ease-out motion-safe:transition-[width] motion-safe:duration-300" style={{ width: `${u.rate ?? 0}%` }} />
       </div>
       <MiniStats stats={[
-        [num.format(u.trips), 'Trips', done], [formatKm(u.distance_km), 'Driven'],
-        [num.format(u.on_trip), 'On the road now', href('/trips', { status: 'DISPATCHED' }, office)],
-        [num.format(u.scheduled_next_7_days), 'Booked next 7 days', href('/trips', { status: 'SCHEDULED' }, office)],
+        [u.trips, 'Trips', done], [u.distance_km, 'Driven', null, formatKm],
+        [u.on_trip, 'On the road now', href('/trips', { status: 'DISPATCHED' }, office)],
+        [u.scheduled_next_7_days, 'Booked next 7 days', href('/trips', { status: 'SCHEDULED' }, office)],
       ]} />
       <h4 className="mt-4 mb-2 text-xs font-medium tracking-wide text-slate-500 uppercase">Most driven</h4>
       {u.top_vehicles.length ? (
@@ -518,7 +537,7 @@ function Utilization({ u, office, from, to }) {
 // On wide screens the card takes the fleet card's height and scrolls, instead of stretching the row.
 function ByOffice({ rows, office }) {
   return (
-    <div className="relative">
+    <Reveal inherit className="relative">
       <Card title="Vehicles by office" icon={Car} className="xl:absolute xl:inset-0">
         <ul className="min-h-0 flex-1 space-y-3.5 overflow-y-auto pr-1">
           {rows.map((r) => (
@@ -534,7 +553,7 @@ function ByOffice({ rows, office }) {
         </ul>
         <p className="mt-3 text-xs text-slate-500">Bar colors follow the fleet status legend.</p>
       </Card>
-    </div>
+    </Reveal>
   )
 }
 
@@ -562,7 +581,7 @@ function Activity({ items }) {
   return (
     <Section title="Recent activity">
       {/* Two columns on wide screens so short rows don't leave the right half of the card empty. */}
-      <div className="gap-x-8 rounded-xl border border-slate-200 bg-white px-4 py-2 shadow-sm xl:columns-2">
+      <Reveal className="gap-x-8 rounded-xl border border-slate-200 bg-white px-4 py-2 shadow-sm xl:columns-2">
         {groups.length ? groups.map((g) => (
           <div key={g.label} className="break-inside-avoid py-2">
             <h3 className="mb-1 text-xs font-medium text-slate-500">{g.label}</h3>
@@ -583,7 +602,7 @@ function Activity({ items }) {
             </ul>
           </div>
         )) : <p className="py-4 text-center text-sm text-slate-500">No activity yet.</p>}
-      </div>
+      </Reveal>
     </Section>
   )
 }
