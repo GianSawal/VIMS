@@ -1,10 +1,15 @@
 import { useState } from 'react'
-import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
+import { NavLink, useLocation, useNavigate, useOutlet } from 'react-router-dom'
 import { AnimatePresence, motion } from 'motion/react'
 import { KeyRound, LogOut, Menu, X } from 'lucide-react'
 import { useCan, useLogout, useMe } from './auth'
 import { nav } from './nav'
 import { useUnreadCount } from './notifications'
+import { EASE_OUT } from './components/motion'
+
+// Route change: the old page fades out quickly, then the new one fades in and rises 10px.
+const PAGE_OUT = { duration: 0.18, ease: 'easeOut' }
+const PAGE_IN = { opacity: { duration: 0.22, ease: 'easeOut' }, y: { duration: 0.26, ease: EASE_OUT } }
 
 export default function Layout() {
   const { data: me } = useMe()
@@ -14,6 +19,7 @@ export default function Layout() {
   const navigate = useNavigate()
   const [open, setOpen] = useState(false)
   const { pathname } = useLocation()
+  const outlet = useOutlet()
 
   const onLogout = async () => {
     await logout()
@@ -90,11 +96,15 @@ export default function Layout() {
           </button>
         </header>
         <main className="flex-1 p-4 lg:p-6">
-          {/* keyed on the path (not the query string) so filter changes don't replay the page entrance.
-              ponytail: enter only; an exit (AnimatePresence mode="wait") would delay every navigation */}
-          <motion.div key={pathname} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25, ease: 'easeOut' }}>
-            <Outlet />
-          </motion.div>
+          {/* Keyed on the path (not the query string), so filters, sorting, paging and ?tab= never replay it.
+              useOutlet() hands AnimatePresence a fixed element, so the old page stays on screen while it fades out;
+              the new page then rises in, and the window scrolls to the top only after a real page change. */}
+          <AnimatePresence mode="wait" initial={false} onExitComplete={() => window.scrollTo(0, 0)}>
+            <motion.div key={pathname} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0, transition: PAGE_IN }}
+              exit={{ opacity: 0, y: -6, transition: PAGE_OUT }}>
+              {outlet}
+            </motion.div>
+          </AnimatePresence>
         </main>
       </div>
     </div>
