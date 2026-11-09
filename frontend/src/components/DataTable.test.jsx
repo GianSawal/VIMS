@@ -44,4 +44,20 @@ describe('DataTable', () => {
     await userEvent.click(screen.getByText('XYZ 9'))
     expect(onRowClick).toHaveBeenCalledWith(expect.objectContaining({ id: 9 }))
   })
+
+  it('with mobileCard: cards for phones, the table kept for md and up', async () => {
+    const onRowClick = vi.fn()
+    const { container } = render(<DataTable columns={columns} query={page([{ id: 4, plate_number: 'CAR 4', status: 'IN_USE' }])}
+      onRowClick={onRowClick} mobileCard={(r) => <span>Card {r.plate_number}</span>} />)
+    expect(container.querySelector('table').parentElement).toHaveClass('hidden', 'md:block')
+    expect(screen.getByText('Card CAR 4').closest('.md\\:hidden')).toBeInTheDocument()
+    await userEvent.click(screen.getByText('Card CAR 4'))
+    expect(onRowClick).toHaveBeenCalledWith(expect.objectContaining({ id: 4 }))
+  })
+
+  it('without mobileCard the table shows at every width', () => {
+    const { container } = render(<DataTable columns={columns} query={page([{ id: 5, plate_number: 'CAR 5', status: 'IN_USE' }])} />)
+    expect(container.querySelector('table').parentElement).not.toHaveClass('hidden')
+    expect(container.querySelector('.md\\:hidden')).toBeNull()
+  })
 })

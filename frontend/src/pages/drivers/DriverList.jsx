@@ -87,6 +87,44 @@ export default function DriverList() {
     { key: 'is_active', label: 'Status', render: (d) => <Badge tone={d.is_active ? 'green' : 'gray'} dot>{d.is_active ? 'Active' : 'Inactive'}</Badge> },
   ]
 
+  // Phone card: who and status on top, then license, expiry and vehicle as labelled lines (same data as the columns).
+  const mobileCard = (d) => (
+    <div className="space-y-3">
+      <div className="flex items-start gap-3">
+        <Avatar name={d.full_name} src={d.photo_url} />
+        <div className="min-w-0 flex-1">
+          <Link to={`/drivers/${d.id}`} className="block truncate font-semibold text-brand">{d.full_name}</Link>
+          <div className="truncate text-xs text-slate-500">
+            {[d.employee_number ? `Emp. no. ${d.employee_number}` : 'No employee number', d.office_code].filter(Boolean).join(' · ')}
+          </div>
+        </div>
+        <Badge tone={d.is_active ? 'green' : 'gray'} dot>{d.is_active ? 'Active' : 'Inactive'}</Badge>
+      </div>
+      <dl className="grid grid-cols-[5.5rem_minmax(0,1fr)] gap-x-3 gap-y-2 text-sm">
+        <dt className="text-xs text-slate-500">License</dt>
+        <dd className="min-w-0">
+          <div className="truncate font-mono text-[13px]">{d.license_number}</div>
+          <div className="truncate text-xs text-slate-500">{[d.license_type_display, d.license_restrictions].filter(Boolean).join(' · ')}</div>
+        </dd>
+        <dt className="text-xs text-slate-500">Expires</dt>
+        <dd className="flex flex-wrap items-center gap-x-2 gap-y-1">
+          <span>{formatDate(d.license_expiry_date)}</span>
+          <LicenseBadge status={d.license_status} />
+          {d.license_status !== 'VALID' && <span className="text-xs text-slate-500">{expiryNote(d.license_expiry_date)}</span>}
+        </dd>
+        <dt className="text-xs text-slate-500">Vehicle</dt>
+        <dd className="flex flex-wrap gap-x-3">
+          {d.current_vehicles.length
+            ? d.current_vehicles.map((v) => (
+              <Link key={v.assignment_id} to={`/vehicles/${v.vehicle_id}`} onClick={(e) => e.stopPropagation()}
+                className="font-medium text-brand">{v.plate_number}</Link>
+            ))
+            : <span className="text-slate-400">Unassigned</span>}
+        </dd>
+      </dl>
+    </div>
+  )
+
   const toolbar = (
     <Toolbar chips={chips} onRemove={remove} onClear={clearAll}>
       <SearchBox id="driver-search" label="Search drivers" placeholder="Search name, employee no., license no…" value={search} onChange={setSearch} />
@@ -120,7 +158,7 @@ export default function DriverList() {
       </CardGrid>
 
       <DataTable columns={columns} query={query} page={page} onPage={(p) => set('page', String(p))} toolbar={toolbar}
-        onRowClick={(d) => navigate(`/drivers/${d.id}`)}
+        onRowClick={(d) => navigate(`/drivers/${d.id}`)} mobileCard={mobileCard}
         empty={chips.length ? 'No drivers match these filters.' : 'No drivers yet.'} />
 
       <Modal open={adding} onClose={() => setAdding(false)} title="Add driver" wide>

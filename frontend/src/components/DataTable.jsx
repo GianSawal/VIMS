@@ -54,8 +54,42 @@ function useSteadySize(data, count, cols) {
  * toolbar: optional node rendered inside the card, above the header (filters, search)
  * onRowClick: optional; mouse convenience only, so keep a real link in the row for keyboard users
  * footer: false hides the count/pagination bar (for "latest N" mini tables)
+ * mobileCard: optional (row) -> node. Below md the rows render as these cards instead of the table; md and up
+ *   keep the table exactly as without it. The toolbar and pagination are shared by both.
  */
-export default function DataTable({ columns, query, page = 1, onPage, toolbar, onRowClick, footer = true, empty = 'No records found.' }) {
+// Phone view of the rows: one card each, same loading / error / empty states as the table.
+// The whole card is tappable when onRowClick is set; the card's own link stays the keyboard route.
+function MobileList({ rows, query, onRowClick, empty, card }) {
+  const { isLoading, isError, error, isFetching } = query
+  const state = (text, tone = 'text-slate-500') => <p className={`px-4 py-10 text-center text-sm ${tone}`}>{text}</p>
+  return (
+    <div className={`md:hidden ${isFetching && !isLoading ? 'opacity-60' : ''}`}>
+      {isLoading ? (
+        <ul className="divide-y divide-slate-100" aria-busy="true">
+          {[...Array(4)].map((_, i) => (
+            <li key={i} className="flex gap-3 p-4">
+              <div className="h-10 w-10 shrink-0 animate-pulse rounded-full bg-slate-200" />
+              <div className="flex-1 space-y-2"><div className="h-4 w-2/3 animate-pulse rounded bg-slate-200" /><div className="h-3 w-1/2 animate-pulse rounded bg-slate-200" /></div>
+            </li>
+          ))}
+        </ul>
+      ) : isError ? state(errorMessage(error), 'text-danger')
+        : !rows.length ? state(empty)
+        : (
+          <ul className="divide-y divide-slate-100">
+            {rows.map((row, i) => (
+              <li key={row.id} style={{ '--i': Math.min(i, 10) }} onClick={onRowClick && (() => onRowClick(row))}
+                className={`row-in p-4 ${onRowClick ? 'cursor-pointer active:bg-brand-light/40' : ''}`}>
+                {card(row)}
+              </li>
+            ))}
+          </ul>
+        )}
+    </div>
+  )
+}
+
+export default function DataTable({ columns, query, page = 1, onPage, toolbar, onRowClick, footer = true, empty = 'No records found.', mobileCard }) {
   const { data, isLoading, isError, error, isFetching } = query
   const rows = data?.results ?? []
   const count = data?.count ?? 0
@@ -69,7 +103,8 @@ export default function DataTable({ columns, query, page = 1, onPage, toolbar, o
       {toolbar}
       {/* relative: keeps absolutely placed children (sr-only header labels) inside the scroll box, or they widen the page.
           overflow-y-hidden: the rows' 4px settle-in would otherwise flash a vertical scrollbar and resize the table. */}
-      <div ref={box} className="relative overflow-x-auto overflow-y-hidden">
+      {mobileCard && <MobileList rows={rows} query={query} onRowClick={onRowClick} empty={empty} card={mobileCard} />}
+      <div ref={box} className={`relative overflow-x-auto overflow-y-hidden ${mobileCard ? 'hidden md:block' : ''}`}>
         <table className={`w-full text-left text-sm ${isFetching && !isLoading ? 'opacity-60' : ''}`}>
           <thead className="border-b border-slate-200 bg-slate-50 text-[11px] tracking-wider text-slate-500 uppercase">
             <tr>
