@@ -227,6 +227,7 @@ archive vehicles according to role/office permissions.
 -   [x] Assignment history
 -   [x] Reassignment workflow
 -   [x] Display current assignment on vehicle profile
+-   [x] "Assigned" marker on the vehicle list (2026-11-09): `/api/vehicles/` rows carry `assignment` (driver, accountable person, start date; one prefetch query per page); the Vehicle cell shows it at the right, with the name from `xl` up and the icon only below (`test_vehicle_list_shows_current_assignment`)
 -   [x] Driver/assignment permissions (admins assign; Field Office Users view only)
 -   [x] Tests (`test_drivers.py`, `test_assignments.py`)
 

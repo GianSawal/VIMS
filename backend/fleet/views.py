@@ -1,4 +1,4 @@
-from django.db.models import Count
+from django.db.models import Count, Prefetch
 from django.utils import timezone
 from rest_framework import mixins, serializers, status, viewsets
 from rest_framework.decorators import action
@@ -12,9 +12,9 @@ from config.removal import RemoveMixin
 
 from . import assignments as assignment_service
 from .driver_serializers import AssignInputSerializer, AssignmentSerializer, EndAssignmentSerializer
-from .models import Vehicle
+from .models import Vehicle, VehicleAssignment
 from .photos import change_photo
-from .serializers import PhotoSerializer, VehicleDetailSerializer, VehicleSerializer
+from .serializers import PhotoSerializer, VehicleDetailSerializer, VehicleListSerializer
 
 CAN_CHANGE = [require('fleet.change_vehicle'), PasswordChangeNotRequired]
 CAN_VIEW_ASSIGNMENTS = [require('fleet.view_vehicleassignment'), PasswordChangeNotRequired]
@@ -42,13 +42,15 @@ class VehicleViewSet(RemoveMixin, OfficeScopedMixin, mixins.ListModelMixin, mixi
     def get_serializer_class(self):
         if self.action == 'photo':
             return PhotoSerializer
-        return VehicleSerializer if self.action == 'list' else VehicleDetailSerializer
+        return VehicleListSerializer if self.action == 'list' else VehicleDetailSerializer
 
     def get_queryset(self):
         qs = super().get_queryset()
         p = self.request.query_params
         if self.action in ('list', 'summary') and 'is_archived' not in p and not p.get('include_archived'):
             qs = qs.filter(is_archived=False)
+        if self.action == 'list':  # one query per page for the "assigned to" column
+            qs = qs.prefetch_related(Prefetch('assignments', VehicleAssignment.objects.filter(end_date__isnull=True), to_attr='open_assignments'))
         return qs
 
     def perform_create(self, serializer):

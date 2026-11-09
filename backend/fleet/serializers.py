@@ -66,6 +66,20 @@ class VehicleSerializer(serializers.ModelSerializer):
         return attrs
 
 
+class VehicleListSerializer(VehicleSerializer):
+    """List rows also say who the vehicle is assigned to, from the `open_assignments` the list view prefetches."""
+    assignment = serializers.SerializerMethodField()
+
+    class Meta(VehicleSerializer.Meta):
+        fields = VehicleSerializer.Meta.fields + ['assignment']
+
+    def get_assignment(self, v):
+        a = next(iter(getattr(v, 'open_assignments', None) or []), None)
+        if not a:
+            return None
+        return {'driver': a.driver_name or None, 'accountable_person': a.accountable_person, 'start_date': a.start_date}
+
+
 class VehicleDetailSerializer(VehicleSerializer):
     current_assignment = serializers.SerializerMethodField()
 

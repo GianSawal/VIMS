@@ -57,6 +57,17 @@ def test_first_assignment_shows_on_vehicle(vehicle, fo1):
     assert AuditLog.objects.get(action='assign').entity_id == str(vehicle.pk)
 
 
+def test_vehicle_list_shows_current_assignment(vehicle, fo1):
+    other = make_vehicle(fo1, 'ASN 2')
+    c = as_role('Fleet Administrator')
+    assign(c, vehicle, fo1, driver=make_driver(fo1, 'Pedro'), start=10)
+    assign(c, other, fo1, start=10)
+    c.post(f'/api/vehicles/{other.pk}/end-assignment/', {'end_date': day(1)}, format='json')
+    rows = {r['plate_number']: r['assignment'] for r in c.get('/api/vehicles/').json()['results']}
+    assert rows['ASN 1'] == {'driver': 'Pedro', 'accountable_person': 'Maria Santos', 'start_date': day(10)}
+    assert rows['ASN 2'] is None  # ended assignments don't count
+
+
 def test_reassign_preserves_history(vehicle, fo1, fo2):
     c = as_role('Fleet Administrator')
     d1, d2 = make_driver(fo1, 'Pedro', 'L-1'), make_driver(fo2, 'Juan', 'L-2')

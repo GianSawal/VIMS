@@ -1,14 +1,14 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import {
-  Ban, CircleCheck, FileSpreadsheet, LayoutList, Navigation, PackageX, Plus, Search, TriangleAlert, Wrench, X,
+  Ban, CircleCheck, FileSpreadsheet, LayoutList, Navigation, PackageX, Plus, Search, TriangleAlert, UserCheck, Wrench, X,
 } from 'lucide-react'
 import { useList } from '../../api'
 import { useCan, useMe } from '../../auth'
 import DataTable from '../../components/DataTable'
 import { Button, inputBase, PageHeader } from '../../components/ui'
 import { useAllOffices } from '../admin/Offices'
-import { formatKm, STATUSES, StatusBadge, TYPES, VehiclePhoto } from './common'
+import { formatDate, formatKm, STATUSES, StatusBadge, TYPES, VehiclePhoto } from './common'
 import { Select } from '../../components/Select'
 import { useSetParam } from '../../components/filters'
 
@@ -24,6 +24,26 @@ const CARDS = {
 }
 
 const control = `${inputBase} h-9 py-0`
+
+/**
+ * "Assigned" marker at the right of the Vehicle cell, in the column's spare width, so it never presses on
+ * Property No. Wide screens show who (driver, else accountable person); narrower ones keep just the icon so
+ * the make/model text keeps its room. The full detail is in the tooltip and for screen readers.
+ */
+function Assigned({ a }) {
+  const who = a.driver ?? a.accountable_person
+  const detail = `Assigned to ${a.driver ? `${a.driver} (driver), accountable: ${a.accountable_person}` : a.accountable_person} since ${formatDate(a.start_date)}`
+  return (
+    <span title={detail} className="ml-auto flex shrink-0 items-center gap-2 rounded-lg border border-brand/15 bg-brand-light/60 px-2 py-1.5 xl:px-2.5">
+      <UserCheck size={15} className="shrink-0 text-brand" aria-hidden="true" />
+      <span className="sr-only">{detail}</span>
+      <span className="hidden leading-tight xl:block" aria-hidden="true">
+        <span className="block text-[10px] font-medium tracking-wide text-slate-500 uppercase">Assigned to</span>
+        <span className="block max-w-40 truncate text-xs font-medium text-ink">{who}</span>
+      </span>
+    </span>
+  )
+}
 
 export default function VehicleList() {
   const can = useCan()
@@ -66,11 +86,12 @@ export default function VehicleList() {
     { key: 'vehicle', label: 'Vehicle', render: (v) => (
       <div className="flex items-center gap-3">
         <VehiclePhoto vehicle={v} className="w-20 shrink-0 border border-slate-200" />
-        <div className="min-w-0">
+        <div className="min-w-0 flex-1">
           <Link to={`/vehicles/${v.id}`} className="font-semibold tracking-wide text-brand hover:underline">{v.plate_number}</Link>
           <div className="truncate text-slate-700">{v.make} {v.model} {v.variant}</div>
           <div className="text-xs text-slate-500">{[v.year_model, v.vehicle_type_display].filter(Boolean).join(' · ')}</div>
         </div>
+        {v.assignment && <Assigned a={v.assignment} />}
       </div>
     ) },
     { key: 'property_number', label: 'Property No.', render: (v) => v.property_number ?? <span className="text-slate-400">—</span> },
