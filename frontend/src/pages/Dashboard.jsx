@@ -580,21 +580,21 @@ function Activity({ items }) {
   }
   return (
     <Section title="Recent activity">
-      {/* One column: the description takes the free width, the time sits at the right edge. */}
+      {/* Each day is a grid of compact entries (1 / 2 / 3 columns), read left to right, so short rows don't stretch the card. */}
       <Reveal className="rounded-xl border border-slate-200 bg-white px-4 py-2 shadow-sm">
         {groups.length ? groups.map((g) => (
           <div key={g.label} className="py-2">
-            <h3 className="mb-1 text-xs font-medium text-slate-500">{g.label}</h3>
-            <ul>
+            <h3 className="mb-1.5 text-xs font-medium text-slate-500">{g.label}</h3>
+            <ul className="grid grid-cols-1 gap-1.5 lg:grid-cols-2 2xl:grid-cols-3">
               {g.items.map((a) => {
                 const [Icon, tint] = KIND[a.kind]
                 return (
-                  <li key={`${a.kind}-${a.link}-${a.at}`}>
-                    <Link to={a.link} className="-mx-2 flex items-center gap-3 rounded-md px-2 py-1.5 text-sm hover:bg-slate-50">
-                      <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg ${tint}`}><Icon size={14} aria-hidden="true" /></span>
-                      <span className="w-20 shrink-0 font-semibold tracking-wide text-brand">{a.plate_number}</span>
-                      <span className="min-w-0 flex-1 truncate text-slate-700">{a.text}</span>
-                      <time dateTime={a.at} className="shrink-0 text-xs text-slate-500 tabular-nums">{timeShort.format(new Date(a.at))}</time>
+                  <li key={`${a.kind}-${a.link}-${a.at}`} className="min-w-0">
+                    <Link to={a.link} className="grid min-w-0 grid-cols-[1.75rem_5rem_minmax(0,1fr)_auto] items-center gap-3 rounded-lg border border-slate-100 px-2 py-2 text-sm hover:border-slate-200 hover:bg-slate-50">
+                      <span className={`flex h-7 w-7 items-center justify-center rounded-lg ${tint}`}><Icon size={14} aria-hidden="true" /></span>
+                      <span className="truncate font-semibold tracking-wide whitespace-nowrap text-brand" title={a.plate_number}>{a.plate_number}</span>
+                      <span className="truncate text-slate-700" title={a.text}>{a.text}</span>
+                      <time dateTime={a.at} className="text-right text-xs whitespace-nowrap text-slate-500 tabular-nums">{timeShort.format(new Date(a.at))}</time>
                     </Link>
                   </li>
                 )
