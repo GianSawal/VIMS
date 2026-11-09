@@ -34,10 +34,11 @@ function Assigned({ a }) {
   const who = a.driver ?? a.accountable_person
   const detail = `Assigned to ${a.driver ? `${a.driver} (driver), accountable: ${a.accountable_person}` : a.accountable_person} since ${formatDate(a.start_date)}`
   return (
-    <span title={detail} className="inline-flex items-center gap-1.5 rounded-full border border-brand/15 bg-brand-light/60 px-2 py-1 xl:pr-2.5">
+    // xl:w-44: every pill is the same width; long names truncate inside it.
+    <span title={detail} className="inline-flex items-center gap-1.5 rounded-full border border-brand/15 bg-brand-light/60 px-2 py-1 text-left xl:w-44 xl:pr-2.5">
       <UserCheck size={14} className="shrink-0 text-brand" aria-hidden="true" />
       <span className="sr-only">{detail}</span>
-      <span className="hidden max-w-32 truncate text-xs font-medium text-ink xl:block" aria-hidden="true">{who}</span>
+      <span className="hidden min-w-0 truncate text-xs font-medium text-ink xl:block" aria-hidden="true">{who}</span>
     </span>
   )
 }
@@ -80,18 +81,19 @@ export default function VehicleList() {
   const remove = (key) => { if (key === 'search') setSearch(''); set(key, '') }
 
   const columns = [
-    { key: 'vehicle', label: 'Vehicle', render: (v) => (
+    // Vehicle shrinks to its widest row (w-px + nowrap) and Assigned to takes a quarter of the table, so the slack sits
+    // on both sides of the pill and it stays centred between the vehicle text and Property No.
+    { key: 'vehicle', label: 'Vehicle', className: 'w-px', render: (v) => (
       <div className="flex items-center gap-3">
         <VehiclePhoto vehicle={v} className="w-20 shrink-0 border border-slate-200" />
         <div className="min-w-0">
           <Link to={`/vehicles/${v.id}`} className="font-semibold tracking-wide text-brand hover:underline">{v.plate_number}</Link>
-          <div className="truncate text-slate-700">{v.make} {v.model} {v.variant}</div>
+          <div className="whitespace-nowrap text-slate-700">{v.make} {v.model} {v.variant}</div>
           <div className="text-xs text-slate-500">{[v.year_model, v.vehicle_type_display].filter(Boolean).join(' · ')}</div>
         </div>
       </div>
     ) },
-    // w-px: the column shrinks to the pill, so it sits centred between Vehicle and Property No.
-    { key: 'assignment', label: 'Assigned to', className: 'w-px whitespace-nowrap text-center',
+    { key: 'assignment', label: 'Assigned to', className: 'w-1/4 whitespace-nowrap text-center',
       render: (v) => v.assignment && <Assigned a={v.assignment} /> },
     { key: 'property_number', label: 'Property No.', render: (v) => v.property_number ?? <span className="text-slate-400">—</span> },
     { key: 'office', label: 'Office', render: (v) => <span title={v.office_name}>{v.office_code}</span> },
