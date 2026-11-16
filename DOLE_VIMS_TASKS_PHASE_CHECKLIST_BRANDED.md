@@ -645,7 +645,7 @@ the deployment phases keep their numbers.
 
 -   [x] Approval chain: Fleet Administrator only (no supervisor step)
 -   [x] Accounts: one per employee (role Requester, created by the System Administrator)
--   [x] Availability: requesters see only the outcome, not the fleet schedule
+-   [x] Availability: requesters see only the outcome, not the fleet schedule (since 17L they also see booked times, without vehicle, driver or destination)
 -   [x] Driver: optional at approval, required at dispatch (same rule as scheduling)
 
 ## Backend
@@ -798,6 +798,15 @@ Added 2026-11-05. Vehicles, drivers and RFID accounts can be deleted by the Syst
 Added 2026-11-05.
 
 -   [x] `PageHeader` (18 list/admin pages): the section's menu icon in a brand tile, larger ink title, description under it, actions grouped on the right. Icon comes from the menu (`src/nav.js`, moved out of `Layout.jsx`; `navFor(pathname)`), so pages need no change; `icon` prop overrides
+
+# Phase 17L --- Vehicle schedule for requesters
+
+Added 2026-11-17.
+
+-   [x] API `GET /api/vehicle-requests/availability/?date_from=&date_to=` (`view_vehiclerequest`, max 62 days, default next six weeks): the user's offices with their serviceable/in-use vehicle count, and non-cancelled trip time slots (office, start, end, status only)
+-   [x] `pages/requests/Schedule.jsx` at `/schedule`, menu "Vehicle schedule": month calendar (free / some booked / all booked per day), office picker when the user has several, booked times for the picked day
+-   [x] Tests: `test_availability_shows_own_offices_bookings_without_details`, Vitest schedule render, requester nav
+-   [ ] Manual check as `qa_requester` on a phone
 ------------------------------------------------------------------------
 
 # Phase 18 --- Deployment

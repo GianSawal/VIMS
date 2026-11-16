@@ -31,6 +31,7 @@ import DataImport from './pages/admin/DataImport'
 import PurgeData from './pages/admin/PurgeData'
 import RequestList from './pages/requests/RequestList'
 import RequestDetail from './pages/requests/RequestDetail'
+import Schedule from './pages/requests/Schedule'
 
 // Each route gets a real page as its phase is built; Pending marks what's not built yet.
 const pending = []
@@ -85,6 +86,7 @@ export default function App() {
           <Route element={<RequirePerm perm="operations.view_vehiclerequest" />}>
             <Route path="requests" element={<RequestList />} />
             <Route path="requests/:id" element={<RequestDetail />} />
+            <Route path="schedule" element={<Schedule />} />
           </Route>
           <Route element={<RequirePerm perm="operations.view_fuelrecord" />}>
             <Route path="fuel" element={<FuelList />} />

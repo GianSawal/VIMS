@@ -1,6 +1,6 @@
 import {
   Bell, Building2, Car, ClipboardList, ClipboardPen, CreditCard, FileSpreadsheet, FileText, Fuel, IdCard, LayoutDashboard,
-  Route as RouteIcon, ScrollText, Trash2, Users, Wrench,
+  CalendarDays, Route as RouteIcon, ScrollText, Trash2, Users, Wrench,
 } from 'lucide-react'
 import { seesDashboard } from './auth'
 
@@ -8,6 +8,7 @@ import { seesDashboard } from './auth'
 export const nav = [
   ['/dashboard', 'Dashboard', LayoutDashboard, (can) => seesDashboard(can)],  // looked up at call time: ui.jsx -> nav.js -> auth.jsx can load in a cycle
   ['/requests', 'Vehicle requests', ClipboardPen, 'operations.view_vehiclerequest'],
+  ['/schedule', 'Vehicle schedule', CalendarDays, 'operations.view_vehiclerequest'],
   ['/vehicles', 'Vehicles', Car, 'fleet.view_vehicle'],
   ['/drivers', 'Drivers', IdCard, 'fleet.view_driver'],
   ['/trips', 'Trips', RouteIcon, 'operations.view_trip'],

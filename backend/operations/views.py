@@ -1,4 +1,4 @@
-from datetime import datetime, time, timedelta
+from datetime import date, datetime, time, timedelta
 from decimal import Decimal
 
 from django.db import transaction as db_transaction
@@ -15,11 +15,13 @@ from rest_framework.response import Response
 from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 
+from accounts.models import Office
 from accounts.permissions import (ModelPermissions, OfficeScopedMixin, PasswordChangeNotRequired, require, require_any,
-                                  sees_all_offices)
+                                  scope_to_offices, sees_all_offices)
 from audit.services import diff, log
 from config.removal import RemoveMixin
 from fleet.attachments_api import AttachmentsMixin
+from fleet.models import Vehicle
 
 from . import fuel as fuel_service
 from . import maps
@@ -712,6 +714,35 @@ class VehicleRequestViewSet(AttachmentsMixin, mixins.ListModelMixin, mixins.Retr
         """Counts per progress for the same filters as the list (omit `progress`)."""
         qs = self.filter_queryset(self.get_queryset()).order_by()
         return Response(qs.aggregate(total=Count('id'), **{k.lower(): Count('id', filter=q) for k, q in PROGRESS.items()}))
+
+    @action(detail=False, methods=['get'], permission_classes=CAN_VIEW_REQUEST)
+    def availability(self, request):
+        """
+        Booked vehicle time for the user's offices between ?date_from and ?date_to (max 62 days), so requesters can pick
+        a free day (default: the next six weeks). Only times, status and office: no vehicle, driver, destination or requester.
+        """
+        try:
+            today = timezone.localdate()
+            start = date.fromisoformat(request.query_params.get('date_from') or today.isoformat())
+            end = date.fromisoformat(request.query_params.get('date_to') or (today + timedelta(days=41)).isoformat())
+        except ValueError:
+            raise drf_serializers.ValidationError({'date_from': ['Give date_from and date_to as YYYY-MM-DD.']})
+        if end < start or (end - start).days > 62:
+            raise drf_serializers.ValidationError({'date_to': ['The range must be 0 to 62 days.']})
+
+        offices = scope_to_offices(Office.objects.filter(is_active=True), request.user, 'pk').annotate(
+            vehicle_count=Count('vehicles', filter=Q(vehicles__is_archived=False,
+                                                vehicles__status__in=[Vehicle.Status.SERVICEABLE, Vehicle.Status.IN_USE])))
+        trips = scope_to_offices(Trip.objects.exclude(status=Trip.Status.CANCELLED), request.user, 'vehicle__office').annotate(
+            start=Coalesce('departed_at', 'scheduled_departure'), end=Coalesce('returned_at', 'scheduled_return'),
+        ).filter(start__date__lte=end).filter(
+            Q(end__date__gte=start) | Q(end__isnull=True, start__date__gte=start)
+            | Q(status=Trip.Status.DISPATCHED, returned_at__isnull=True))  # still out, whenever it left
+        return Response({
+            'offices': [{'id': o.id, 'code': o.code, 'name': o.name, 'vehicles': o.vehicle_count} for o in offices.order_by('code')],
+            'slots': [{'office': t['vehicle__office'], 'start': t['start'], 'end': t['end'], 'status': t['status']}
+                      for t in trips.order_by('start').values('vehicle__office', 'start', 'end', 'status')],
+        })
 
     def _done(self, req, code=status.HTTP_200_OK):
         return Response(VehicleRequestSerializer(self.get_queryset().get(pk=req.pk)).data, status=code)

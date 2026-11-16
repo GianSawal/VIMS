@@ -35,7 +35,7 @@ describe('navigation follows the role (hint only; the API enforces it)', () => {
   it('a requester sees only their vehicle requests, not the fleet', () => {
     const perms = ['operations.add_vehiclerequest', 'operations.change_vehiclerequest', 'operations.view_vehiclerequest', 'notifications.view_notification']
     renderApp(null, { me: meWith(perms, { role: 'Requester' }), data: unread, routes: <Route path="*" element={<Layout />} /> })
-    expect(navLabels().map((l) => l.replace(/\d+$/, ''))).toEqual(['Vehicle requests', 'Notifications', 'Password'])
+    expect(navLabels().map((l) => l.replace(/\d+$/, ''))).toEqual(['Vehicle requests', 'Vehicle schedule', 'Notifications', 'Password'])
   })
 })
 

@@ -216,3 +216,24 @@ def test_travel_order_attachment_is_private_to_the_request(fo1):
     admin = APIClient()
     admin.force_login(approver)
     assert admin.get(url).status_code == 200
+
+
+def test_availability_shows_own_offices_bookings_without_details(fo1, fo2):
+    from operations.test_schedule import make_scheduled
+    make_vehicle(fo1, 'IDLE 1')
+    make_scheduled(make_vehicle(fo1, 'BUSY 1'), None, at(3, 8), at(3, 17))
+    make_scheduled(make_vehicle(fo1, 'LATE 1'), None, at(40, 8))                # outside the range
+    make_scheduled(make_vehicle(fo2, 'FAR 1'), None, at(3, 8))                  # other office
+    Trip.objects.create(ticket_number='X-1', status='CANCELLED', vehicle=make_vehicle(fo1, 'GONE 1'),
+                        scheduled_departure=at(3, 8), origin='RO', destination='Tarlac', purpose='x')
+    _, c = requester('ana', fo1)
+    r = c.get('/api/vehicle-requests/availability/', {'date_from': TODAY.isoformat(),
+                                                      'date_to': (TODAY + timedelta(days=30)).isoformat()})
+    assert r.status_code == 200, r.json()
+    body = r.json()
+    assert body['offices'] == [{'id': fo1.pk, 'code': 'FO1', 'name': 'Field Office 1', 'vehicles': 4}]
+    assert len(body['slots']) == 1
+    assert set(body['slots'][0]) == {'office', 'start', 'end', 'status'}  # no vehicle, driver or destination
+    assert c.get('/api/vehicle-requests/availability/', {'date_from': 'x', 'date_to': 'y'}).status_code == 400
+    assert c.get('/api/vehicle-requests/availability/', {'date_from': TODAY.isoformat(),
+                                                         'date_to': (TODAY + timedelta(days=90)).isoformat()}).status_code == 400
