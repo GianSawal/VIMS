@@ -807,6 +807,16 @@ Added 2026-11-17.
 -   [x] `pages/requests/Schedule.jsx` at `/schedule`, menu "Vehicle schedule": month calendar in the same style as the staff Trips calendar: each day shows "N of M free" (green / amber / red) and its booked time slots, office picker when the user has several
 -   [x] Tests: `test_availability_shows_own_offices_bookings_without_details`, Vitest schedule render, requester nav
 -   [ ] Manual check as `qa_requester` on a phone
+
+# Phase 17M --- Requester home refresh
+
+Added 2026-11-17. The requester home was a heading and one empty card.
+
+-   [x] Brand-blue banner with date, greeting and the Request a vehicle button (logo watermark)
+-   [x] "This week" strip (`WeekStrip` in `pages/requests/Schedule.jsx`, same availability API): 7 days with free vehicles per day; tapping a free day opens the request form for 8:00 that day (`RequestForm` `neededAt` prop), link to the full schedule
+-   [x] Two columns on desktop: requests on the left; latest 3 notifications and a "How it works" card on the right. Compact empty state; staggered fade-in
+-   [x] Vitest: empty state, week strip (full day not clickable, picked day prefills the form)
+-   [ ] Manual check as `qa_requester` on a phone
 ------------------------------------------------------------------------
 
 # Phase 18 --- Deployment

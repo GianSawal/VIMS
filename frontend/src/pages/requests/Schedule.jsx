@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { CalendarDays, ChevronLeft, ChevronRight, Clock } from 'lucide-react'
 import { useList } from '../../api'
 import { Select } from '../../components/Select'
@@ -19,6 +20,58 @@ function daysOf(slot, today) {
   const out = []
   for (let d = new Date(start.getFullYear(), start.getMonth(), start.getDate()); d <= end; d.setDate(d.getDate() + 1)) out.push(iso(d))
   return out
+}
+
+/** Next 7 days' free vehicles for the requester's (first) office. `onPick(date)` on a day with a free vehicle. */
+export function WeekStrip({ onPick }) {
+  const [now] = useState(() => new Date())
+  const days = Array.from({ length: 7 }, (_, i) => new Date(now.getFullYear(), now.getMonth(), now.getDate() + i))
+  const q = useList('/vehicle-requests/availability/', { date_from: iso(days[0]), date_to: iso(days[6]) })
+  // ponytail: first office only; requesters normally have one. The full schedule page has the office picker.
+  const office = q.data?.offices?.[0]
+  if (q.isError || (q.data && !office)) return null
+  const total = office?.vehicles ?? 0
+  const booked = {}
+  for (const s of q.data?.slots ?? []) if (s.office === office.id) for (const d of daysOf(s, now)) booked[d] = (booked[d] ?? 0) + 1
+
+  return (
+    <section aria-labelledby="week-heading" className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+      <div className="mb-3 flex flex-wrap items-baseline gap-x-3 gap-y-1">
+        <h2 id="week-heading" className="text-sm font-semibold tracking-wide text-slate-500 uppercase">This week</h2>
+        {office && <span className="text-xs text-slate-400">{office.code} · {total} {total === 1 ? 'vehicle' : 'vehicles'}</span>}
+        <Link to="/schedule" className="ml-auto inline-flex items-center gap-0.5 text-sm font-medium text-brand hover:underline">Full schedule <ChevronRight size={16} aria-hidden="true" /></Link>
+      </div>
+      <ol className="grid grid-cols-7 gap-1.5 sm:gap-2">
+        {days.map((d, i) => {
+          const key = iso(d)
+          const free = Math.max(total - (booked[key] ?? 0), 0)
+          const tone = !q.data ? 'border-slate-200 bg-slate-50 animate-pulse' : !free ? 'border-red-200 bg-red-50' : free < total ? 'border-amber-200 bg-amber-50' : 'border-green-200 bg-green-50'
+          const label = `${d.toLocaleDateString('en-PH', { weekday: 'long', month: 'long', day: 'numeric' })}: ${free} of ${total} vehicles free`
+          const body = (
+            <>
+              <span className="text-[11px] font-medium text-slate-500 uppercase">{i === 0 ? 'Today' : d.toLocaleDateString('en-PH', { weekday: 'short' })}</span>
+              <span className="text-lg leading-tight font-bold text-ink tabular-nums sm:text-xl">{d.getDate()}</span>
+              {q.data && (
+                <span className={`text-[11px] font-semibold ${!free ? 'text-danger' : free < total ? 'text-amber-800' : 'text-green-700'}`}>
+                  {free ? <><span className="sm:hidden">{free}</span><span className="hidden sm:inline">{free} free</span></> : 'Full'}
+                </span>
+              )}
+            </>
+          )
+          const cls = `flex w-full flex-col items-center rounded-xl border px-1 py-2 ${tone}`
+          return (
+            <li key={key}>
+              {onPick && free > 0
+                ? <button type="button" aria-label={`${label}. Request a vehicle for this day`} onClick={() => onPick(d)}
+                    className={`${cls} transition hover:-translate-y-0.5 hover:shadow-md`}>{body}</button>
+                : <div aria-label={label} className={cls}>{body}</div>}
+            </li>
+          )
+        })}
+      </ol>
+      {onPick && <p className="mt-2 text-xs text-slate-400">Tap a day with a free vehicle to request it.</p>}
+    </section>
+  )
 }
 
 function span(slot, day) {

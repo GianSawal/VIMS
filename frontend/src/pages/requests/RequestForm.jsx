@@ -26,8 +26,8 @@ const FIELDS = Object.keys(schema.shape)
 
 const tomorrowAt8 = () => { const d = new Date(); d.setDate(d.getDate() + 1); d.setHours(8, 0, 0, 0); return toLocalInput(d) }
 
-/** New vehicle request. On success the caller opens the request (to attach the travel order there). */
-export default function RequestForm({ onClose, onSaved }) {
+/** New vehicle request. On success the caller opens the request (to attach the travel order there). `neededAt` (datetime-local string) prefills the departure. */
+export default function RequestForm({ onClose, onSaved, neededAt }) {
   const { data: me } = useMe()
   const offices = me?.offices ?? []
   const qc = useQueryClient()
@@ -47,7 +47,7 @@ export default function RequestForm({ onClose, onSaved }) {
   const [error, setFormError] = useState('')
   const { register, handleSubmit, setError, setValue, formState: { errors } } = useForm({
     resolver: zodResolver(schema),
-    defaultValues: { ...Object.fromEntries(FIELDS.map((k) => [k, ''])), office: offices.length === 1 ? String(offices[0].id) : '', needed_at: tomorrowAt8() },
+    defaultValues: { ...Object.fromEntries(FIELDS.map((k) => [k, ''])), office: offices.length === 1 ? String(offices[0].id) : '', needed_at: neededAt ?? tomorrowAt8() },
   })
 
   const save = useMutation({

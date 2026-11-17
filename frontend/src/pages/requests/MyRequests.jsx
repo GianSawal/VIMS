@@ -1,12 +1,15 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { motion } from 'motion/react'
-import { Car, ChevronRight, ClipboardPen, MapPin, Phone, Plus, UserRound } from 'lucide-react'
+import { Bell, Car, CheckCircle2, ChevronRight, ClipboardPen, Flag, MapPin, Phone, Plus, UserRound } from 'lucide-react'
 import { useList } from '../../api'
 import { useCan, useMe } from '../../auth'
-import { Button, formatDateTime, Modal } from '../../components/ui'
+import { EASE_OUT } from '../../components/motion'
+import { formatDateTime, Modal } from '../../components/ui'
+import { toLocalInput } from '../trips/common'
 import { PROGRESS, ProgressBadge } from './common'
 import RequestForm from './RequestForm'
+import { WeekStrip } from './Schedule'
 
 // The requester's own page: their current request(s) up front with progress and the booked vehicle, then a short
 // history. Approvers keep the queue in RequestList.
@@ -41,26 +44,50 @@ export default function MyRequests() {
   const shown = tab ? all.filter((r) => r.progress === tab) : all
   const canAdd = can('operations.add_vehiclerequest')
 
+  // A day picked on the week strip: 8:00 that day, or the next full hour if today is already past 8.
+  const requestOn = (day) => {
+    const d = new Date(day)
+    d.setHours(8, 0, 0, 0)
+    const now = new Date()
+    if (d < now) d.setTime(new Date(now.getFullYear(), now.getMonth(), now.getDate(), now.getHours() + 1).getTime())
+    setAdding({ neededAt: toLocalInput(d) })
+  }
+  const rise = (i) => ({ initial: { opacity: 0, y: 10 }, animate: { opacity: 1, y: 0 }, transition: { duration: 0.3, delay: i * 0.06, ease: EASE_OUT } })
+
   return (
     <div className="space-y-6">
-      <header className="flex flex-wrap items-end gap-4">
-        <div className="mr-auto">
-          <h1 className="text-2xl font-bold text-brand sm:text-3xl">{greeting()}{me?.first_name ? `, ${me.first_name}` : ''}</h1>
-          <p className="text-slate-500">Ask for a vehicle and follow your request until the trip is done.</p>
+      <motion.header {...rise(0)} className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-brand to-brand-dark px-5 py-6 text-white shadow-lg shadow-brand/20 sm:px-8 sm:py-8">
+        <img src="/dole-logo.png" alt="" aria-hidden="true" className="pointer-events-none absolute -top-6 -right-6 h-44 w-44 opacity-10 sm:h-56 sm:w-56" />
+        <div className="relative flex flex-wrap items-end gap-4">
+          <div className="mr-auto min-w-0">
+            <p className="text-sm text-white/70">{new Date().toLocaleDateString('en-PH', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}</p>
+            <h1 className="mt-1 text-2xl font-bold sm:text-3xl">{greeting()}{me?.first_name ? `, ${me.first_name}` : ''}</h1>
+            <p className="mt-1 text-white/80">Ask for a vehicle and follow your request until the trip is done.</p>
+          </div>
+          {canAdd && (
+            <button type="button" onClick={() => setAdding({})}
+              className="inline-flex items-center gap-2 rounded-lg bg-white px-5 py-3 font-semibold text-brand shadow-sm transition hover:bg-brand-light active:scale-[.97]">
+              <Plus size={18} aria-hidden="true" /> Request a vehicle
+            </button>
+          )}
         </div>
-        {canAdd && <Button className="px-5 py-3 text-base shadow-sm" onClick={() => setAdding(true)}><Plus size={18} /> Request a vehicle</Button>}
-      </header>
+      </motion.header>
 
+      <motion.div {...rise(1)}><WeekStrip onPick={canAdd ? requestOn : undefined} /></motion.div>
+
+      <div className="grid gap-6 lg:grid-cols-[1fr_20rem]">
+      <motion.div {...rise(2)} className="min-w-0 space-y-6">
       {query.isLoading ? (
         <div className="h-48 animate-pulse rounded-2xl bg-white/70" />
       ) : query.isError ? (
         <p role="alert" className="rounded-lg bg-red-50 px-4 py-3 text-sm text-danger">Could not load your requests. Please refresh the page.</p>
       ) : all.length === 0 ? (
-        <section className="flex flex-col items-center rounded-2xl border border-dashed border-slate-300 bg-white/70 px-6 py-14 text-center">
-          <span className="mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-brand-light text-brand"><Car size={28} aria-hidden="true" /></span>
-          <h2 className="text-lg font-semibold text-ink">No requests yet</h2>
-          <p className="mt-1 max-w-sm text-sm text-slate-500">Tell us where you need to go and when. The fleet team books a vehicle and you will be notified.</p>
-          {canAdd && <Button className="mt-5 px-5 py-3 text-base" onClick={() => setAdding(true)}><Plus size={18} /> Request a vehicle</Button>}
+        <section className="flex items-center gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-brand-light text-brand"><Car size={24} aria-hidden="true" /></span>
+          <div className="min-w-0">
+            <h2 className="font-semibold text-ink">No requests yet</h2>
+            <p className="text-sm text-slate-500">Pick a free day above or use Request a vehicle. You will be notified as it moves along.</p>
+          </div>
         </section>
       ) : (
         <>
@@ -105,11 +132,76 @@ export default function MyRequests() {
           </section>
         </>
       )}
+      </motion.div>
 
-      <Modal open={adding} onClose={() => setAdding(false)} title="Request a vehicle" wide>
-        {adding && <RequestForm onClose={() => setAdding(false)} onSaved={(r) => navigate(`/requests/${r.id}`)} />}
+      <motion.aside {...rise(3)} className="space-y-6">
+        <LatestNotifications />
+        <HowItWorks />
+      </motion.aside>
+      </div>
+
+      <Modal open={!!adding} onClose={() => setAdding(false)} title="Request a vehicle" wide>
+        {adding && <RequestForm neededAt={adding.neededAt} onClose={() => setAdding(false)} onSaved={(r) => navigate(`/requests/${r.id}`)} />}
       </Modal>
     </div>
+  )
+}
+
+function LatestNotifications() {
+  const q = useList('/notifications/', { page: 1, page_size: 3 })
+  const items = q.data?.results ?? []
+  return (
+    <section aria-labelledby="notif-heading" className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+      <div className="mb-2 flex items-center">
+        <h2 id="notif-heading" className="mr-auto text-sm font-semibold tracking-wide text-slate-500 uppercase">Latest updates</h2>
+        <Link to="/notifications" className="text-sm font-medium text-brand hover:underline">See all</Link>
+      </div>
+      {q.isLoading ? <div className="h-20 animate-pulse rounded-lg bg-slate-50" />
+        : !items.length ? (
+          <p className="flex items-center gap-2 py-3 text-sm text-slate-500"><Bell size={16} className="text-slate-400" aria-hidden="true" /> Nothing yet. Updates on your requests show here.</p>
+        ) : (
+          <ul className="divide-y divide-slate-100">
+            {items.map((n) => (
+              <li key={n.id}>
+                <Link to={n.link || '/notifications'} className="-mx-2 flex gap-2 rounded-lg px-2 py-2 transition hover:bg-slate-50">
+                  <span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${n.is_read ? 'bg-slate-200' : 'bg-brand'}`} aria-label={n.is_read ? undefined : 'Unread'} />
+                  <span className="min-w-0">
+                    <span className="block truncate text-sm font-medium text-ink">{n.title}</span>
+                    <span className="block text-xs text-slate-400">{formatDateTime(n.created_at)}</span>
+                  </span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
+    </section>
+  )
+}
+
+const HOW = [
+  [ClipboardPen, 'Submit', 'Say where, when and why. Attach your travel order.'],
+  [CheckCircle2, 'Approved', 'The fleet team books a vehicle and driver.'],
+  [Car, 'On trip', 'You get the plate and the driver\'s number.'],
+  [Flag, 'Completed', 'The trip is closed when the vehicle is back.'],
+]
+
+function HowItWorks() {
+  return (
+    <section aria-labelledby="how-heading" className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+      <h2 id="how-heading" className="mb-3 text-sm font-semibold tracking-wide text-slate-500 uppercase">How it works</h2>
+      <ol className="space-y-3">
+        {HOW.map(([Icon, title, text], i) => (
+          <li key={title} className="relative flex gap-3">
+            {i < HOW.length - 1 && <span className="absolute top-9 bottom-[-0.75rem] left-[1.05rem] w-px bg-slate-200" aria-hidden="true" />}
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand-light text-brand"><Icon size={18} aria-hidden="true" /></span>
+            <span className="min-w-0 pt-0.5">
+              <span className="block text-sm font-semibold text-ink">{i + 1}. {title}</span>
+              <span className="block text-xs text-slate-500">{text}</span>
+            </span>
+          </li>
+        ))}
+      </ol>
+    </section>
   )
 }
 

@@ -73,13 +73,26 @@ describe('vehicle request list', () => {
     expect(screen.queryByText('Requested by')).not.toBeInTheDocument()
   })
 
-  it('requester with no requests gets a welcome and the request button', () => {
+  it('requester with no requests gets a welcome, the week strip and the request button', () => {
+    const iso = (d) => d.toLocaleDateString('en-CA')
+    const now = new Date()
+    const day = (n) => new Date(now.getFullYear(), now.getMonth(), now.getDate() + n)
+    const tomorrow8 = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 8).toISOString()
     renderApp(<RequestList />, {
       me: meWith(REQUESTER), path: '/requests',
-      data: { '["/vehicle-requests/",{"page_size":100}]': { count: 0, results: [] } },
+      data: {
+        '["/vehicle-requests/",{"page_size":100}]': { count: 0, results: [] },
+        [JSON.stringify(['/vehicle-requests/availability/', { date_from: iso(day(0)), date_to: iso(day(6)) }])]: {
+          offices: [{ id: 2, code: 'TAR', name: 'Tarlac', vehicles: 1 }],
+          slots: [{ office: 2, start: tomorrow8, end: tomorrow8, status: 'SCHEDULED' }] },
+        '["/notifications/",{"page":1,"page_size":3}]': { count: 0, results: [] },
+      },
     })
     expect(screen.getByRole('heading', { name: 'No requests yet' })).toBeInTheDocument()
-    expect(screen.getAllByRole('button', { name: /request a vehicle/i })).toHaveLength(2)
+    expect(screen.getAllByRole('button', { name: 'Request a vehicle' })).toHaveLength(1)
+    expect(screen.getByLabelText(/0 of 1 vehicles free$/)).toBeInTheDocument()  // tomorrow is full: not clickable
+    fireEvent.click(screen.getAllByRole('button', { name: /1 of 1 vehicles free\. Request a vehicle for this day/ })[1])  // day after tomorrow
+    expect(screen.getByLabelText(/date and time needed/i)).toHaveValue(`${iso(day(2))}T08:00`)
   })
 
   it('approver keeps the queue with status cards', () => {
