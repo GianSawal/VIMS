@@ -804,7 +804,7 @@ Added 2026-11-05.
 Added 2026-11-17.
 
 -   [x] API `GET /api/vehicle-requests/availability/?date_from=&date_to=` (`view_vehiclerequest`, max 62 days, default next six weeks): the user's offices with their serviceable/in-use vehicle count, and non-cancelled trip time slots (office, start, end, status only)
--   [x] `pages/requests/Schedule.jsx` at `/schedule`, menu "Vehicle schedule": month calendar (free / some booked / all booked per day), office picker when the user has several, booked times for the picked day
+-   [x] `pages/requests/Schedule.jsx` at `/schedule`, menu "Vehicle schedule": month calendar in the same style as the staff Trips calendar: each day shows "N of M free" (green / amber / red) and its booked time slots, office picker when the user has several
 -   [x] Tests: `test_availability_shows_own_offices_bookings_without_details`, Vitest schedule render, requester nav
 -   [ ] Manual check as `qa_requester` on a phone
 ------------------------------------------------------------------------

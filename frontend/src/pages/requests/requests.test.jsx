@@ -96,20 +96,21 @@ describe('vehicle request list', () => {
 })
 
 describe('vehicle schedule', () => {
-  it('marks booked days and lists the picked day without trip details', async () => {
+  it('marks booked days in the grid without trip details', async () => {
     const { default: Schedule } = await import('./Schedule')
     const now = new Date()
-    const first = new Date(now.getFullYear(), now.getMonth(), 1 - new Date(now.getFullYear(), now.getMonth(), 1).getDay())
-    const iso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-    const last = new Date(first.getFullYear(), first.getMonth(), first.getDate() + 41)
-    const at = (days, h) => new Date(now.getFullYear(), now.getMonth(), now.getDate() + days, h).toISOString()
+    const first = new Date(now.getFullYear(), now.getMonth(), 1)
+    const weeks = Math.ceil((first.getDay() + new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate()) / 7)
+    const start = new Date(now.getFullYear(), now.getMonth(), 1 - first.getDay())
+    const end = new Date(start.getFullYear(), start.getMonth(), start.getDate() + weeks * 7 - 1)
+    const iso = (d) => d.toLocaleDateString('en-CA')
+    const at = (h) => new Date(now.getFullYear(), now.getMonth(), now.getDate(), h).toISOString()
     const data = { offices: [{ id: 2, code: 'TAR', name: 'Tarlac', vehicles: 2 }],
-                   slots: [{ office: 2, start: at(0, 8), end: at(1, 17), status: 'SCHEDULED' },
-                           { office: 9, start: at(0, 8), end: null, status: 'SCHEDULED' }] }  // other office: ignored
+                   slots: [{ office: 2, start: at(8), end: at(17), status: 'SCHEDULED' },
+                           { office: 9, start: at(8), end: null, status: 'SCHEDULED' }] }  // other office: ignored
     renderApp(<Schedule />, { me: meWith(REQUESTER),
-      data: { [JSON.stringify(['/vehicle-requests/availability/', { date_from: iso(first), date_to: iso(last) }])]: data } })
-    expect(screen.getByText('1 of 2 vehicles free')).toBeInTheDocument()
-    expect(screen.getByText(/Vehicle booked · .* – later/)).toBeInTheDocument()
-    expect(screen.getAllByText('1 booked').length).toBeGreaterThanOrEqual(1)
+      data: { [JSON.stringify(['/vehicle-requests/availability/', { date_from: iso(start), date_to: iso(end) }])]: data } })
+    expect(screen.getByText('1 of 2 free')).toBeInTheDocument()
+    expect(screen.getAllByText('Vehicle booked')).toHaveLength(1)
   })
 })
