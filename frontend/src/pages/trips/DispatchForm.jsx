@@ -9,7 +9,7 @@ import { useToast } from '../../components/toast'
 import PlaceSearch, { EMPTY_PLACE, MapSwitch, useMapsEnabled } from '../../components/PlaceSearch'
 import RouteEstimate from '../../components/RouteEstimate'
 import { useAllOffices } from '../admin/Offices'
-import { DIVISIONS, bookingLabel, bookingWindow, endOfDay, fromLocalInput, km, toLocalInput } from './common'
+import { DIVISIONS, bookingLabel, bookingWindow, departureOn, endOfDay, fromLocalInput, km, toLocalInput } from './common'
 import { odometerField } from '../vehicles/common'
 import { Select } from '../../components/Select'
 
@@ -45,15 +45,6 @@ const schemas = {
 
 // Tomorrow 8:00 AM, a sensible default for a booking.
 const tomorrowAt8 = () => { const d = new Date(); d.setDate(d.getDate() + 1); d.setHours(8, 0, 0, 0); return toLocalInput(d) }
-
-/** 8:00 AM on `day` (YYYY-MM-DD); today past 8 AM gets the next full hour instead. */
-const departureOn = (day) => {
-  const [y, m, d] = day.split('-').map(Number)
-  const at = new Date(y, m - 1, d, 8)
-  const now = new Date()
-  if (at < now) { at.setTime(now.getTime()); at.setHours(now.getHours() + 1, 0, 0, 0) }
-  return toLocalInput(at)
-}
 
 const isoDay = (d) => d.toLocaleDateString('en-CA')
 const validDate = (d) => d instanceof Date && !isNaN(d)

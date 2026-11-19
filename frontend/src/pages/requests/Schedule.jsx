@@ -1,9 +1,12 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
-import { CalendarDays, ChevronLeft, ChevronRight, Clock } from 'lucide-react'
+import { Link, useNavigate } from 'react-router-dom'
+import { CalendarDays, ChevronLeft, ChevronRight, Clock, Plus } from 'lucide-react'
 import { useList } from '../../api'
+import { useCan } from '../../auth'
 import { Select } from '../../components/Select'
-import { Button, inputBase, PageHeader } from '../../components/ui'
+import { Button, inputBase, Modal, PageHeader } from '../../components/ui'
+import { departureOn } from '../trips/common'
+import RequestForm from './RequestForm'
 
 // Requesters' view of how booked their office's vehicles are, from /vehicle-requests/availability/ (times only:
 // no vehicle, driver or destination). Same look as the staff TripCalendar. A day is "full" when every
@@ -81,6 +84,9 @@ function span(slot, day) {
 }
 
 export default function Schedule() {
+  const navigate = useNavigate()
+  const canAdd = useCan()('operations.add_vehiclerequest')
+  const [neededAt, setNeededAt] = useState(null) // set when a free day is pressed: opens the request form
   const [now] = useState(() => new Date())
   const [first, setFirst] = useState(() => new Date(now.getFullYear(), now.getMonth(), 1))
   const [office, setOffice] = useState('')
@@ -103,7 +109,7 @@ export default function Schedule() {
 
   return (
     <div>
-      <PageHeader title="Vehicle schedule">See which days already have trips booked before you request a vehicle.</PageHeader>
+      <PageHeader title="Vehicle schedule">See which days already have trips booked{canAdd ? ', then press a free day to request a vehicle for it' : ' before you request a vehicle'}.</PageHeader>
 
       {q.isError ? (
         <p role="alert" className="rounded-lg bg-red-50 px-4 py-3 text-sm text-danger">Could not load the schedule. Please refresh the page.</p>
@@ -149,8 +155,10 @@ export default function Schedule() {
                 const past = key < today
                 const weekend = d.getDay() === 0 || d.getDay() === 6
                 const pill = !slots.length ? 'bg-green-50 text-green-700' : free ? 'bg-amber-100 text-amber-800' : 'bg-red-50 text-danger'
+                const pickable = canAdd && inMonth && !past && free > 0
                 return (
-                  <div key={key} className={`min-h-32 border-r border-b border-slate-100 p-2 nth-[7n]:border-r-0
+                  <div key={key} onClick={pickable ? () => setNeededAt(departureOn(key)) : undefined}
+                    className={`group min-h-32 border-r border-b border-slate-100 p-2 nth-[7n]:border-r-0 ${pickable ? 'cursor-pointer transition-colors hover:bg-green-50/40' : ''}
                     ${isToday ? 'bg-brand-light/40' : !inMonth ? 'bg-slate-50/70' : weekend ? 'bg-slate-50/40' : ''}`}>
                     <div className="mb-1.5 flex items-center justify-between gap-1">
                       <span className={`flex h-7 w-7 items-center justify-center rounded-full text-sm tabular-nums
@@ -169,6 +177,13 @@ export default function Schedule() {
                         </li>
                       ))}
                     </ul>
+                    {pickable && (
+                      <button type="button" onClick={(e) => { e.stopPropagation(); setNeededAt(departureOn(key)) }}
+                        aria-label={`Request a vehicle on ${d.toLocaleDateString('en-PH', { dateStyle: 'long' })}`}
+                        className="mt-1 inline-flex items-center gap-1 rounded-md px-1.5 py-1 text-[11px] font-medium text-brand opacity-0 transition group-hover:opacity-100 hover:bg-brand-light focus-visible:opacity-100">
+                        <Plus size={12} aria-hidden="true" />Request
+                      </button>
+                    )}
                   </div>
                 )
               })}
@@ -176,6 +191,10 @@ export default function Schedule() {
           </div>
         </div>
       )}
+
+      <Modal open={!!neededAt} onClose={() => setNeededAt(null)} title="Request a vehicle" wide>
+        {neededAt && <RequestForm neededAt={neededAt} onClose={() => setNeededAt(null)} onSaved={(r) => navigate(`/requests/${r.id}`)} />}
+      </Modal>
     </div>
   )
 }

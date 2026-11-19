@@ -6,7 +6,7 @@ import { useList } from '../../api'
 import { useCan, useMe } from '../../auth'
 import { EASE_OUT } from '../../components/motion'
 import { formatDateTime, Modal } from '../../components/ui'
-import { toLocalInput } from '../trips/common'
+import { departureOn } from '../trips/common'
 import { PROGRESS, ProgressBadge } from './common'
 import RequestForm from './RequestForm'
 import { WeekStrip } from './Schedule'
@@ -44,14 +44,7 @@ export default function MyRequests() {
   const shown = tab ? all.filter((r) => r.progress === tab) : all
   const canAdd = can('operations.add_vehiclerequest')
 
-  // A day picked on the week strip: 8:00 that day, or the next full hour if today is already past 8.
-  const requestOn = (day) => {
-    const d = new Date(day)
-    d.setHours(8, 0, 0, 0)
-    const now = new Date()
-    if (d < now) d.setTime(new Date(now.getFullYear(), now.getMonth(), now.getDate(), now.getHours() + 1).getTime())
-    setAdding({ neededAt: toLocalInput(d) })
-  }
+  const requestOn = (day) => setAdding({ neededAt: departureOn(day) }) // a day picked on the week strip
   const rise = (i) => ({ initial: { opacity: 0, y: 10 }, animate: { opacity: 1, y: 0 }, transition: { duration: 0.3, delay: i * 0.06, ease: EASE_OUT } })
 
   return (

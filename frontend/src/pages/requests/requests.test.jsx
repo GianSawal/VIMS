@@ -125,5 +125,11 @@ describe('vehicle schedule', () => {
       data: { [JSON.stringify(['/vehicle-requests/availability/', { date_from: iso(start), date_to: iso(end) }])]: data } })
     expect(screen.getByText('1 of 2 free')).toBeInTheDocument()
     expect(screen.getAllByText('Vehicle booked')).toHaveLength(1)
+
+    // a free day opens the request form for that day; past days cannot be picked
+    const label = (d) => `Request a vehicle on ${d.toLocaleDateString('en-PH', { dateStyle: 'long' })}`
+    if (now.getDate() > 1) expect(screen.queryByRole('button', { name: label(new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1)) })).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: label(now) }))
+    expect((await screen.findByLabelText(/Date and time needed/)).value.slice(0, 10)).toBe(iso(now))
   })
 })

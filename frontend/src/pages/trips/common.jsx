@@ -23,6 +23,13 @@ export const toLocalInput = (value = new Date()) => {
   const d = new Date(value)
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
 }
+// Departure picked from a calendar day (Date or 'YYYY-MM-DD'): 8:00 AM, or the next full hour when that has passed.
+export const departureOn = (day) => {
+  const [y, m, d] = typeof day === 'string' ? day.split('-').map(Number) : [day.getFullYear(), day.getMonth() + 1, day.getDate()]
+  const at = new Date(y, m - 1, d, 8)
+  const now = new Date()
+  return toLocalInput(at >= now ? at : new Date(now.getFullYear(), now.getMonth(), now.getDate(), now.getHours() + 1))
+}
 // datetime-local value -> ISO with the browser's offset, so the server stores the right instant.
 export const fromLocalInput = (value) => new Date(value).toISOString()
 
