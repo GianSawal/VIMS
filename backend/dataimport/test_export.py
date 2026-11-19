@@ -64,6 +64,11 @@ def test_export_fills_the_form_per_vehicle(records):
     assert [ws.cell(9, c).value for c in (8, 9, 10)] == [65, 34.89, 61.5]
     log = [[ws.cell(r, c).value for c in (12, 14, 15)] for r in range(3, 11)]
     assert ['RO3-002', None, None] in log  # the trip line
+    cols = {ws.cell(2, c).value: c for c in range(1, ws.max_column + 1)}
+    trip_row = next(r for r in range(3, 11) if ws.cell(r, 12).value == 'RO3-002')
+    odo = ws.cell(trip_row, cols['ODO OUT'])
+    assert odo.value == 900 and odo.number_format == '#,##0'  # whole km, not the DEBIT column's 0.00
+    assert ws.cell(trip_row, cols['TIME OUT']).number_format == 'h:mm AM/PM'
     assert [None, 1000, None] in log and ['RO3-001', None, 632] in log
     assert [ws.cell(r, 16).value for r in range(3, 9)] == [1000, 368, 368, 272, 5272, 5000]  # running balance as numbers
     assert ws.cell(9, 16).value == 5500 and ws['P10'].value == '=P9+N10-O10'  # last row, then the form's formula

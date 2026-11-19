@@ -25,7 +25,7 @@ from maintenance.models import MaintenanceRecord
 from operations.models import FuelRecord, RFIDAccount, TollTransaction, Trip
 from operations.toll import mask_account
 
-from .legacy import FORM, FORM_SHEET, NEW_DRIVER, PO_PRICE, header_cols, log_row, maint_row, master_rows, po_row
+from .legacy import FORM, FORM_SHEET, NEW_DRIVER, ODO_COLUMNS, ODO_FORMAT, PO_PRICE, header_cols, log_row, maint_row, master_rows, po_row
 
 CATEGORY_COLUMNS = {'ENGINE': 'Engine', 'TIRE': 'Tires', 'BRAKES': 'Brakes', 'AIRCON': 'Air Conditioning',
                     'BATTERY': 'Battery', 'BODY': 'Body'}  # row 1 labels of a vehicle sheet -> category
@@ -235,6 +235,8 @@ def fill_vehicle_sheet(ws, v, assignment, see, po_rows):
         for name, value in line.items():
             if name in cols and value not in (None, ''):
                 write(ws.cell(r, cols[name]), value)
+                if name in ODO_COLUMNS:  # forms prepared before ODO_FORMAT still carry DEBIT's 0.00 format
+                    ws.cell(r, cols[name]).number_format = ODO_FORMAT
         running = round(running + (line.get('CREDIT') or 0) - (line.get('DEBIT') or 0), 2)
         if 'BALANCE' in cols:
             ws.cell(r, cols['BALANCE']).value = running  # the form's formulas below (=P{r-1}+N{r}-O{r}) continue from it

@@ -58,6 +58,7 @@ LOOKS_LIKE = {'FUEL TYPE': 'REMARKS', 'VEHICLE TYPE': 'REMARKS', 'START DATE': '
               'LICENSE TYPE': 'PLACE', FUEL_PRICE: 'FUEL LITERS', 'TIME OUT': 'DATE', 'TIME IN': 'DATE',
               'ODO OUT': 'DEBIT', 'ODO IN': 'DEBIT', PO_PRICE: 'FUEL LITER'}
 TIME_COLUMNS, TIME_FORMAT = ('TIME OUT', 'TIME IN'), 'h:mm AM/PM'
+ODO_COLUMNS, ODO_FORMAT = ('ODO OUT', 'ODO IN'), '#,##0'  # whole km; DEBIT's look but not its peso decimals
 CREDENTIAL_COLUMNS = ['USERNAME', 'PW']  # RO3 EasyTrip logins: never read, and blanked in the prepared copy
 
 
@@ -168,6 +169,8 @@ def prepare(source, target):
             ws.cell(r, col)._style = copy(ws.cell(r, like_col)._style)
             if r > head and name in TIME_COLUMNS:
                 ws.cell(r, col).number_format = TIME_FORMAT
+            if r > head and name in ODO_COLUMNS:
+                ws.cell(r, col).number_format = ODO_FORMAT
         ws.cell(head, col).value = name
         src, dst = ws.cell(1, like_col).column_letter, ws.cell(1, col).column_letter
         # Only columns without a width of their own: on RO3 the driver list shares columns with the vehicle list.
