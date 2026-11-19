@@ -46,6 +46,15 @@ const schemas = {
 // Tomorrow 8:00 AM, a sensible default for a booking.
 const tomorrowAt8 = () => { const d = new Date(); d.setDate(d.getDate() + 1); d.setHours(8, 0, 0, 0); return toLocalInput(d) }
 
+/** 8:00 AM on `day` (YYYY-MM-DD); today past 8 AM gets the next full hour instead. */
+const departureOn = (day) => {
+  const [y, m, d] = day.split('-').map(Number)
+  const at = new Date(y, m - 1, d, 8)
+  const now = new Date()
+  if (at < now) { at.setTime(now.getTime()); at.setHours(now.getHours() + 1, 0, 0, 0) }
+  return toLocalInput(at)
+}
+
 const isoDay = (d) => d.toLocaleDateString('en-CA')
 const validDate = (d) => d instanceof Date && !isNaN(d)
 
@@ -78,8 +87,9 @@ export function useAvailability({ start, end, point, excludeId }) {
  * Modal body. mode="dispatch": the vehicle leaves now (odometer required).
  * mode="schedule": book ahead; the odometer is entered on the day, when it is dispatched.
  * `vehicle` (optional) pre-selects and locks the vehicle, e.g. from a vehicle's Trips tab.
+ * `date` (optional, YYYY-MM-DD) pre-fills the scheduled departure, e.g. from a calendar day.
  */
-export default function DispatchForm({ vehicle, mode = 'dispatch', onClose, onSaved }) {
+export default function DispatchForm({ vehicle, date, mode = 'dispatch', onClose, onSaved }) {
   const scheduling = mode === 'schedule'
   const schema = schemas[mode]
   const FIELDS = Object.keys(schema.shape) // zod v4 keeps .shape after .refine()
@@ -95,7 +105,7 @@ export default function DispatchForm({ vehicle, mode = 'dispatch', onClose, onSa
       ...Object.fromEntries(FIELDS.map((k) => [k, ''])),
       vehicle: vehicle ? String(vehicle.id) : '',
       ...(scheduling
-        ? { scheduled_departure: tomorrowAt8(), scheduled_return: '' }
+        ? { scheduled_departure: date ? departureOn(date) : tomorrowAt8(), scheduled_return: '' }
         : { departed_at: toLocalInput(), odometer_start: vehicle ? String(vehicle.current_odometer) : '' }),
     },
   })

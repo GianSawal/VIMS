@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { CalendarDays, ChevronLeft, ChevronRight, Clock, MapPin } from 'lucide-react'
+import { CalendarDays, ChevronLeft, ChevronRight, Clock, MapPin, Plus } from 'lucide-react'
 import { useList } from '../../api'
 import { Avatar } from '../../components/filters'
 import { Button } from '../../components/ui'
@@ -19,8 +19,11 @@ function monthStart(month) {
   return y && m ? new Date(y, m - 1, 1) : new Date(now.getFullYear(), now.getMonth(), 1)
 }
 
-/** Month grid of scheduled trips. `month` is YYYY-MM (kept in the URL by the caller). */
-export default function TripCalendar({ month, onMonth, filters, toolbar }) {
+/**
+ * Month grid of scheduled trips. `month` is YYYY-MM (kept in the URL by the caller).
+ * `onPickDay(YYYY-MM-DD)` (optional): pressing today or a later day books a trip on it.
+ */
+export default function TripCalendar({ month, onMonth, filters, toolbar, onPickDay }) {
   const first = monthStart(month)
   const gridStart = new Date(first.getFullYear(), first.getMonth(), 1 - first.getDay())
   const last = new Date(first.getFullYear(), first.getMonth() + 1, 0)
@@ -73,14 +76,23 @@ export default function TripCalendar({ month, onMonth, filters, toolbar }) {
             const inMonth = d.getMonth() === first.getMonth()
             const isToday = key === today
             const weekend = d.getDay() === 0 || d.getDay() === 6
+            const bookable = onPickDay && key >= today
             return (
-              <div key={key} className={`group min-h-32 border-r border-b border-slate-100 p-2 transition-colors nth-[7n]:border-r-0 hover:bg-slate-50/80
+              <div key={key} onClick={bookable ? () => onPickDay(key) : undefined}
+                className={`group min-h-32 ${bookable ? 'cursor-pointer' : ''} border-r border-b border-slate-100 p-2 transition-colors nth-[7n]:border-r-0 hover:bg-slate-50/80
                 ${isToday ? 'bg-brand-light/40' : !inMonth ? 'bg-slate-50/70' : weekend ? 'bg-slate-50/40' : ''}`}>
                 <div className="mb-1.5 flex items-center justify-between">
                   <span className={`flex h-7 w-7 items-center justify-center rounded-full text-sm tabular-nums
                     ${isToday ? 'bg-brand font-semibold text-white shadow-sm' : inMonth ? (key < today ? 'text-slate-400' : 'font-medium text-slate-700') : 'text-slate-300'}`}>
                     {d.getDate()}
                   </span>
+                  {bookable && (
+                    <button type="button" aria-label={`Schedule a trip on ${d.toLocaleDateString('en-PH', { dateStyle: 'long' })}`}
+                      onClick={(e) => { e.stopPropagation(); onPickDay(key) }}
+                      className="ml-auto mr-1 flex h-6 w-6 items-center justify-center rounded-full text-brand opacity-0 transition group-hover:opacity-100 hover:bg-brand-light focus-visible:opacity-100">
+                      <Plus size={14} aria-hidden="true" />
+                    </button>
+                  )}
                   {dayTrips.length > 1 && <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-800">{dayTrips.length} trips</span>}
                 </div>
                 <ul className="max-h-56 space-y-1.5 overflow-y-auto">
@@ -88,7 +100,7 @@ export default function TripCalendar({ month, onMonth, filters, toolbar }) {
                     const missed = t.schedule_day === 'MISSED'
                     return (
                       <li key={t.id}>
-                        <Link to={`/trips/${t.id}`} title={`${t.ticket_number} · ${driverLabel(t)} · to ${t.destination}${missed ? ' · missed' : ''}`}
+                        <Link to={`/trips/${t.id}`} onClick={(e) => e.stopPropagation()} title={`${t.ticket_number} · ${driverLabel(t)} · to ${t.destination}${missed ? ' · missed' : ''}`}
                           className={`block overflow-hidden rounded-lg border border-l-4 bg-white p-2 text-xs shadow-sm transition hover:-translate-y-px hover:shadow-md
                             ${missed ? 'border-red-200 border-l-danger' : 'border-slate-200 border-l-amber-500'}`}>
                           <div className="mb-1.5 flex items-center justify-between gap-1">

@@ -268,6 +268,8 @@ export default function TripList() {
   const navigate = useNavigate()
   const offices = useAllOffices()
   const [newTrip, setNewTrip] = useState(null) // 'schedule' | 'dispatch'
+  const [newTripDate, setNewTripDate] = useState(null) // YYYY-MM-DD when booked from a calendar day
+  const openNewTrip = (mode, date = null) => { setNewTripDate(date); setNewTrip(mode) }
   const [tv, setTv] = useState(false)
   const [params, setParams] = useSearchParams()
   const [search, setSearch] = useState(params.get('search') ?? '')
@@ -356,8 +358,8 @@ export default function TripList() {
         <div className="flex gap-2">
           {can('operations.view_displayscreen') && <Button variant="secondary" onClick={() => setTv(true)}><Monitor size={16} /> TV board</Button>}
           {can('operations.add_trip') && <>
-            <Button variant="secondary" onClick={() => setNewTrip('schedule')}><CalendarPlus size={16} /> Schedule trip</Button>
-            <Button onClick={() => setNewTrip('dispatch')}><Plus size={16} /> Dispatch now</Button>
+            <Button variant="secondary" onClick={() => openNewTrip('schedule')}><CalendarPlus size={16} /> Schedule trip</Button>
+            <Button onClick={() => openNewTrip('dispatch')}><Plus size={16} /> Dispatch now</Button>
           </>}
         </div>
       )}>Book trips ahead, dispatch on the day and record returns.</PageHeader>
@@ -393,7 +395,8 @@ export default function TripList() {
         </div>
       )}
       {calendar
-        ? <TripCalendar month={f.month} onMonth={(m) => set('month', m)} filters={{ search: f.search, office: f.office }} toolbar={toolbar} />
+        ? <TripCalendar month={f.month} onMonth={(m) => set('month', m)} filters={{ search: f.search, office: f.office }} toolbar={toolbar}
+          onPickDay={can('operations.add_trip') ? (day) => openNewTrip('schedule', day) : undefined} />
         : <DataTable columns={tripColumns()} query={query} page={page} onPage={(p) => set('page', String(p))} toolbar={toolbar}
           onRowClick={(t) => navigate(`/trips/${t.id}`)} mobileCard={tripCard}
           empty={chips.length ? 'No trips match these filters.' : 'No trips yet.'} />}
@@ -402,7 +405,7 @@ export default function TripList() {
         {tv && <TvScreens />}
       </Modal>
       <Modal open={!!newTrip} onClose={() => setNewTrip(null)} title={newTrip === 'schedule' ? 'Schedule a trip' : 'Dispatch a trip now'} wide>
-        {newTrip && <DispatchForm mode={newTrip} onClose={() => setNewTrip(null)} onSaved={(t) => navigate(`/trips/${t.id}`)} />}
+        {newTrip && <DispatchForm mode={newTrip} date={newTripDate} onClose={() => setNewTrip(null)} onSaved={(t) => navigate(`/trips/${t.id}`)} />}
       </Modal>
     </div>
   )
