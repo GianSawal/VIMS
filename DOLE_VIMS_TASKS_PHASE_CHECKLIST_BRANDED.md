@@ -666,7 +666,7 @@ the deployment phases keep their numbers.
 
 -   [x] Requester layout/nav (Vehicle requests, Notifications, Password; lands on /requests, no dashboard)
 -   [x] Request list: status cards (Pending / Approved / On trip / Completed / Declined / Cancelled) + table with search; "My vehicle requests" for requesters, "Vehicle requests" queue for approvers
--   [x] New Request form with place search and route estimate (maps allowed for requesters)
+-   [x] New Request form with place search and route estimate (maps allowed for requesters; "Use map" switch off by default since 2026-11-19)
 -   [x] Request detail: progress timeline, booked vehicle/plate/photo, driver name/contact (or "to be assigned"), decline reason, cancel button, route map, travel order attachments
 -   [x] Approve dialog (vehicle + optional driver, booked/unavailable ones disabled, conflict warnings) and Decline (reason)
 -   [x] Dashboard banner "N vehicle requests waiting for approval" for approvers (now a tile in the Phase 17B "Today" section)

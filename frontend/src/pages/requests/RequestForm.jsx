@@ -33,7 +33,7 @@ export default function RequestForm({ onClose, onSaved, neededAt }) {
   const qc = useQueryClient()
   const toast = useToast()
   const mapsAvailable = useMapsEnabled()
-  const [useMap, setUseMap] = useState(true) // the requester can skip the map and type places as plain text
+  const [useMap, setUseMap] = useState(false) // off by default: places are plain text until the requester turns the map on
   const mapsOn = mapsAvailable && useMap
   const toggleMap = (on) => {
     setUseMap(on)
