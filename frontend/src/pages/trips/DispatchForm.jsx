@@ -102,7 +102,7 @@ export default function DispatchForm({ vehicle, mode = 'dispatch', onClose, onSa
   const chosen = vehicles.data?.results.find((v) => String(v.id) === watch('vehicle')) ?? vehicle
   // Origin/destination: the text is the record; coordinates and the route line come from the map when available.
   const mapsAvailable = useMapsEnabled()
-  const [useMap, setUseMap] = useState(true) // the user can skip the map and type places as plain text
+  const [useMap, setUseMap] = useState(false) // off by default: places are plain text until the user turns the map on
   const mapsOn = mapsAvailable && useMap
   const toggleMap = (on) => {
     setUseMap(on)
