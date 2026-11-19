@@ -1,9 +1,10 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { api, applyFieldErrors, invalidatePrefix, useList } from '../../api'
+import { useMe } from '../../auth'
 import { Button, Field, inputClass } from '../../components/ui'
 import { useToast } from '../../components/toast'
 import PlaceSearch, { EMPTY_PLACE, MapSwitch, useMapsEnabled } from '../../components/PlaceSearch'
@@ -114,6 +115,19 @@ export default function DispatchForm({ vehicle, date, mode = 'dispatch', onClose
   const [origin, setOrigin] = useState(EMPTY_PLACE)
   const [dest, setDest] = useState(EMPTY_PLACE)
   const [estimate, setEstimate] = useState(null)
+
+  // Map off: the origin starts as the user's office (e.g. "Bulacan Provincial Office"), or the vehicle's office for
+  // users with no office. It follows changes (vehicle picked, map switched off) until the user types their own.
+  // ponytail: first office only; users with several offices can retype it.
+  const { data: me } = useMe()
+  const homeOffice = me?.offices?.[0]?.name ?? chosen?.office_name ?? ''
+  const autoOrigin = useRef('')
+  useEffect(() => {
+    if (mapsOn || !homeOffice || (origin.text && origin.text !== autoOrigin.current)) return
+    autoOrigin.current = homeOffice
+    setOrigin({ ...EMPTY_PLACE, text: homeOffice })
+    setValue('origin', homeOffice)
+  }, [mapsOn, homeOffice, origin.text, setValue])
 
   const save = useMutation({
     mutationFn: (body) => api.post(scheduling ? '/trips/schedule/' : '/trips/', body),

@@ -243,7 +243,7 @@ instead of overwriting it.
 -   [x] Vehicle selection
 -   [x] Driver selection
 -   [x] Passenger/requesting office
--   [x] Origin/destination (place search, route map, driving distance and time via LocationIQ (default, falls back to Geoapify when its limit is used up) or Geoapify; a "Use map" switch on the schedule/dispatch form (off by default since 2026-11-19; the user turns it on) turns it off for plain-text places + OpenStreetMap + React Leaflet; locations, coordinates, route and estimate saved on the trip; added 2026-10-12, needs GEOAPIFY_API_KEY, see README)
+-   [x] Origin/destination (place search, route map, driving distance and time via LocationIQ (default, falls back to Geoapify when its limit is used up) or Geoapify; a "Use map" switch on the schedule/dispatch form (off by default since 2026-11-19; the user turns it on; with it off the origin starts as the user's office name, or the vehicle's office for users without one, and stays editable; test `DispatchForm.test.jsx`) turns it off for plain-text places + OpenStreetMap + React Leaflet; locations, coordinates, route and estimate saved on the trip; added 2026-10-12, needs GEOAPIFY_API_KEY, see README)
 -   [x] Purpose
 -   [x] Date/time out
 -   [x] Date/time returned
