@@ -233,7 +233,9 @@ def test_availability_shows_own_offices_bookings_without_details(fo1, fo2):
     body = r.json()
     assert body['offices'] == [{'id': fo1.pk, 'code': 'FO1', 'name': 'Field Office 1', 'vehicles': 4}]
     assert len(body['slots']) == 1
-    assert set(body['slots'][0]) == {'office', 'start', 'end', 'status'}  # no vehicle, driver or destination
+    slot = body['slots'][0]
+    assert set(slot) == {'office', 'start', 'end', 'status', 'vehicle', 'plate_number', 'vehicle_label'}  # no driver or destination
+    assert slot['plate_number'] == 'BUSY 1'
     assert c.get('/api/vehicle-requests/availability/', {'date_from': 'x', 'date_to': 'y'}).status_code == 400
     assert c.get('/api/vehicle-requests/availability/', {'date_from': TODAY.isoformat(),
                                                          'date_to': (TODAY + timedelta(days=90)).isoformat()}).status_code == 400

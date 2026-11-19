@@ -84,7 +84,7 @@ describe('vehicle request list', () => {
         '["/vehicle-requests/",{"page_size":100}]': { count: 0, results: [] },
         [JSON.stringify(['/vehicle-requests/availability/', { date_from: iso(day(0)), date_to: iso(day(6)) }])]: {
           offices: [{ id: 2, code: 'TAR', name: 'Tarlac', vehicles: 1 }],
-          slots: [{ office: 2, start: tomorrow8, end: tomorrow8, status: 'SCHEDULED' }] },
+          slots: [{ office: 2, start: tomorrow8, end: tomorrow8, status: 'SCHEDULED', vehicle: 5 }] },
         '["/notifications/",{"page":1,"page_size":3}]': { count: 0, results: [] },
       },
     })
@@ -119,12 +119,15 @@ describe('vehicle schedule', () => {
     const iso = (d) => d.toLocaleDateString('en-CA')
     const at = (h) => new Date(now.getFullYear(), now.getMonth(), now.getDate(), h).toISOString()
     const data = { offices: [{ id: 2, code: 'TAR', name: 'Tarlac', vehicles: 2 }],
-                   slots: [{ office: 2, start: at(8), end: at(17), status: 'SCHEDULED' },
-                           { office: 9, start: at(8), end: null, status: 'SCHEDULED' }] }  // other office: ignored
+                   slots: [{ office: 2, start: at(8), end: at(10), status: 'SCHEDULED', vehicle: 5, plate_number: 'SAB 1234', vehicle_label: 'Toyota Innova' },
+                           { office: 2, start: at(13), end: at(17), status: 'SCHEDULED', vehicle: 5, plate_number: 'SAB 1234', vehicle_label: 'Toyota Innova' },
+                           { office: 9, start: at(8), end: null, status: 'SCHEDULED', vehicle: 7, plate_number: 'FAR 1', vehicle_label: 'X' }] }  // other office: ignored
     renderApp(<Schedule />, { me: meWith(REQUESTER),
       data: { [JSON.stringify(['/vehicle-requests/availability/', { date_from: iso(start), date_to: iso(end) }])]: data } })
-    expect(screen.getByText('1 of 2 free')).toBeInTheDocument()
-    expect(screen.getAllByText('Vehicle booked')).toHaveLength(1)
+    expect(screen.getByText('1 of 2 free')).toBeInTheDocument()  // one vehicle twice is still one booked
+    expect(screen.getAllByText('SAB 1234')).toHaveLength(2)
+    expect(screen.getAllByText('Toyota Innova')).toHaveLength(2)
+    expect(screen.queryByText('FAR 1')).toBeNull()
 
     // a free day opens the request form for that day; past days cannot be picked
     const label = (d) => `Request a vehicle on ${d.toLocaleDateString('en-PH', { dateStyle: 'long' })}`

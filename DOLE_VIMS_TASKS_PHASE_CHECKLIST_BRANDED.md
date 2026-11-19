@@ -487,7 +487,7 @@ permissions. — met; tests compare the dashboard with the list summary endpoint
 -   [x] Print view (`/reports/:slug/print`, A4 landscape, opens the print dialog)
 -   [x] PDF export (reportlab, DOLE header and logo, repeated header row, page footer)
 -   [x] Excel/CSV export (openpyxl with numeric cells and formats; CSV UTF-8 with BOM); exports are audit-logged
--   [x] VEHICLE RECORD export: the system's records in the old workbook layout (RO3 list, one sheet per plate, PO log); Vehicles page button and Data Import page ("Form with current data"), `/api/export/vehicle-record/`, office-scoped, per-section permissions, masked RFID numbers, audit-logged (`dataimport/export.py`, `test_export.py`)
+-   [x] VEHICLE RECORD export: the system's records in the old workbook layout (RO3 list, one sheet per plate, PO log); Vehicles page button and Data Import page ("Form with current data"), `/api/export/vehicle-record/`, office-scoped, per-section permissions, masked RFID numbers, audit-logged (`dataimport/export.py`, `test_export.py`). ODO OUT / IN as whole km (`#,##0`, was the DEBIT column's `0.00`; 2026-11-19)
 -   [x] Verify report totals (`reports/test_reports.py` compares totals with the fuel, maintenance, trip and vehicle summaries; every report and format tested)
 
 **Phase gate:** Client verifies that required official reports contain
@@ -803,7 +803,7 @@ Added 2026-11-05.
 
 Added 2026-11-17.
 
--   [x] API `GET /api/vehicle-requests/availability/?date_from=&date_to=` (`view_vehiclerequest`, max 62 days, default next six weeks): the user's offices with their serviceable/in-use vehicle count, and non-cancelled trip time slots (office, start, end, status only)
+-   [x] API `GET /api/vehicle-requests/availability/?date_from=&date_to=` (`view_vehiclerequest`, max 62 days, default next six weeks): the user's offices with their serviceable/in-use vehicle count, and non-cancelled trip time slots (office, start, end, status; since 2026-11-19 also vehicle id, plate and make/model, shown on the calendar; free = total minus distinct booked vehicles)
 -   [x] `pages/requests/Schedule.jsx` at `/schedule`, menu "Vehicle schedule": month calendar in the same style as the staff Trips calendar: each day shows "N of M free" (green / amber / red) and its booked time slots, office picker when the user has several. Pressing a free day (today or later) opens the request form for that day at 8:00 AM (2026-11-19, test in `requests.test.jsx`)
 -   [x] Tests: `test_availability_shows_own_offices_bookings_without_details`, Vitest schedule render, requester nav
 -   [ ] Manual check as `qa_requester` on a phone

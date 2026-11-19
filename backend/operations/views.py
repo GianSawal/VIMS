@@ -719,7 +719,8 @@ class VehicleRequestViewSet(AttachmentsMixin, mixins.ListModelMixin, mixins.Retr
     def availability(self, request):
         """
         Booked vehicle time for the user's offices between ?date_from and ?date_to (max 62 days), so requesters can pick
-        a free day (default: the next six weeks). Only times, status and office: no vehicle, driver, destination or requester.
+        a free day (default: the next six weeks). Times, status, office and the vehicle (plate and model, as on the public
+        TV board): no driver, destination, purpose or requester.
         """
         try:
             today = timezone.localdate()
@@ -740,8 +741,11 @@ class VehicleRequestViewSet(AttachmentsMixin, mixins.ListModelMixin, mixins.Retr
             | Q(status=Trip.Status.DISPATCHED, returned_at__isnull=True))  # still out, whenever it left
         return Response({
             'offices': [{'id': o.id, 'code': o.code, 'name': o.name, 'vehicles': o.vehicle_count} for o in offices.order_by('code')],
-            'slots': [{'office': t['vehicle__office'], 'start': t['start'], 'end': t['end'], 'status': t['status']}
-                      for t in trips.order_by('start').values('vehicle__office', 'start', 'end', 'status')],
+            'slots': [{'office': t['vehicle__office'], 'start': t['start'], 'end': t['end'], 'status': t['status'],
+                       'vehicle': t['vehicle'], 'plate_number': t['vehicle__plate_number'],
+                       'vehicle_label': f"{t['vehicle__make']} {t['vehicle__model']}".strip()}
+                      for t in trips.order_by('start').values('vehicle__office', 'start', 'end', 'status', 'vehicle',
+                                                              'vehicle__plate_number', 'vehicle__make', 'vehicle__model')],
         })
 
     def _done(self, req, code=status.HTTP_200_OK):

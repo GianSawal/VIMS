@@ -8,8 +8,8 @@ import { Button, inputBase, Modal, PageHeader } from '../../components/ui'
 import { departureOn } from '../trips/common'
 import RequestForm from './RequestForm'
 
-// Requesters' view of how booked their office's vehicles are, from /vehicle-requests/availability/ (times only:
-// no vehicle, driver or destination). Same look as the staff TripCalendar. A day is "full" when every
+// Requesters' view of how booked their office's vehicles are, from /vehicle-requests/availability/ (times and the
+// vehicle; no driver or destination). Same look as the staff TripCalendar. A day is "full" when every
 // serviceable vehicle has a trip touching it.
 const iso = (d) => d.toLocaleDateString('en-CA')
 const clock = new Intl.DateTimeFormat('en-PH', { hour: 'numeric', minute: '2-digit' })
@@ -34,8 +34,8 @@ export function WeekStrip({ onPick }) {
   const office = q.data?.offices?.[0]
   if (q.isError || (q.data && !office)) return null
   const total = office?.vehicles ?? 0
-  const booked = {}
-  for (const s of q.data?.slots ?? []) if (s.office === office.id) for (const d of daysOf(s, now)) booked[d] = (booked[d] ?? 0) + 1
+  const booked = {} // day -> Set of booked vehicle ids
+  for (const s of q.data?.slots ?? []) if (s.office === office.id) for (const d of daysOf(s, now)) (booked[d] ??= new Set()).add(s.vehicle)
 
   return (
     <section aria-labelledby="week-heading" className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
@@ -47,7 +47,7 @@ export function WeekStrip({ onPick }) {
       <ol className="grid grid-cols-7 gap-1.5 sm:gap-2">
         {days.map((d, i) => {
           const key = iso(d)
-          const free = Math.max(total - (booked[key] ?? 0), 0)
+          const free = Math.max(total - (booked[key]?.size ?? 0), 0)
           const tone = !q.data ? 'border-slate-200 bg-slate-50 animate-pulse' : !free ? 'border-red-200 bg-red-50' : free < total ? 'border-amber-200 bg-amber-50' : 'border-green-200 bg-green-50'
           const label = `${d.toLocaleDateString('en-PH', { weekday: 'long', month: 'long', day: 'numeric' })}: ${free} of ${total} vehicles free`
           const body = (
@@ -149,7 +149,7 @@ export default function Schedule() {
               {days.map((d) => {
                 const key = iso(d)
                 const slots = byDay[key] ?? []
-                const free = Math.max(total - slots.length, 0)
+                const free = Math.max(total - new Set(slots.map((s) => s.vehicle)).size, 0)
                 const inMonth = d.getMonth() === first.getMonth()
                 const isToday = key === today
                 const past = key < today
@@ -173,7 +173,8 @@ export default function Schedule() {
                       {slots.map((s, i) => (
                         <li key={i} className="rounded-lg border border-l-4 border-slate-200 border-l-amber-500 bg-white p-2 text-xs shadow-sm">
                           <span className="inline-flex items-center gap-1 font-semibold text-amber-700 tabular-nums"><Clock size={12} aria-hidden="true" />{span(s, key)}</span>
-                          <div className="text-[11px] text-slate-500">Vehicle booked</div>
+                          <div className="mt-0.5 truncate font-semibold tracking-wide text-ink" title={s.vehicle_label}>{s.plate_number}</div>
+                          <div className="truncate text-[11px] text-slate-500">{s.vehicle_label}</div>
                         </li>
                       ))}
                     </ul>
