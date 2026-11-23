@@ -245,19 +245,23 @@ export function OpenTrips({ canChange, onViewAll, office }) {
                 <span className="text-xs font-semibold tracking-wider text-brand uppercase">On trip</span>
                 <Link to={`/trips/${t.id}`} className="font-mono text-sm font-semibold text-brand hover:underline">{t.ticket_number}</Link>
               </div>
-              <div className="flex flex-col gap-3 @2xl:flex-row @2xl:items-center @2xl:gap-4">
-                <div className="@2xl:w-64 @2xl:shrink-0"><TripIdentity t={t} /></div>
-                <p className="flex min-w-0 items-center gap-2 text-sm @2xl:flex-1"><DivisionTag division={t.requesting_division} /><span className="truncate" title={t.destination}><span className="text-slate-500">To</span> {t.destination}</span></p>
-                <div className="flex items-center gap-2 border-t border-slate-100 pt-3 text-sm @2xl:border-0 @2xl:pt-0">
-                  <Clock size={15} className={long ? 'text-amber-600' : 'text-slate-400'} aria-hidden="true" />
-                  <span className={`whitespace-nowrap ${long ? 'font-medium text-amber-800' : 'text-slate-600'}`}>
-                    Out {tripDuration(t.departed_at)}{long && ' · long trip'}
-                  </span>
-                  {canChange && (
-                    <Button variant="secondary" className="ml-auto min-h-9 @2xl:ml-2" onClick={() => setReturning(t)}>
-                      <CircleCheck size={16} /> Record return
-                    </Button>
-                  )}
+              {/* Wide: vehicle block at its natural width (no truncated driver name); beside it a column whose top
+                  (destination) lines up with the plate and bottom (time + action) with the driver row. */}
+              <div className="flex flex-col gap-3 @2xl:flex-row @2xl:gap-6">
+                <div className="@2xl:max-w-sm @2xl:shrink-0"><TripIdentity t={t} /></div>
+                <div className="flex min-w-0 flex-1 flex-col gap-3 @2xl:justify-between @2xl:border-l @2xl:border-slate-100 @2xl:pl-6">
+                  <p className="flex min-w-0 items-center gap-2 text-sm"><DivisionTag division={t.requesting_division} /><span className="truncate" title={t.destination}><span className="text-slate-500">To</span> <span className="font-medium">{t.destination}</span></span></p>
+                  <div className="flex items-center gap-2 border-t border-slate-100 pt-3 text-sm @2xl:border-0 @2xl:pt-0">
+                    <Clock size={15} className={long ? 'text-amber-600' : 'text-slate-400'} aria-hidden="true" />
+                    <span className={`whitespace-nowrap ${long ? 'font-medium text-amber-800' : 'text-slate-600'}`}>
+                      Out {tripDuration(t.departed_at)}{long && ' · long trip'}
+                    </span>
+                    {canChange && (
+                      <Button variant="secondary" className="ml-auto min-h-9" onClick={() => setReturning(t)}>
+                        <CircleCheck size={16} /> Record return
+                      </Button>
+                    )}
+                  </div>
                 </div>
               </div>
             </article>
