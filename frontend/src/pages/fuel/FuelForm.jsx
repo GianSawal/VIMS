@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -52,6 +52,12 @@ export default function FuelForm({ record, vehicle, onClose, onSaved }) {
   const liters = num(watch('liters'))
   const price = num(watch('unit_price'))
   const computed = liters > 0 && price > 0 ? Math.round(liters * price * 100) / 100 : null
+  // The total follows liters × price until the user types their own (a receipt can differ by centavos).
+  // An existing record whose total differs from liters × price keeps its total.
+  const ownTotal = useRef(!!record?.total_amount && Math.abs(num(record.total_amount) - (computed ?? 0)) >= 0.005)
+  useEffect(() => {
+    if (!ownTotal.current) setValue('total_amount', computed ? computed.toFixed(2) : '')
+  }, [computed, setValue])
 
   const save = useMutation({
     mutationFn: (body) => (isNew ? api.post('/fuel-records/', body) : api.patch(`/fuel-records/${record.id}/`, body)),
@@ -74,9 +80,9 @@ export default function FuelForm({ record, vehicle, onClose, onSaved }) {
     odometer: Number(parseKm(v.odometer)),
   })
 
-  const text = (name, label, { hint, ...props } = {}) => (
+  const text = (name, label, { hint, rules, ...props } = {}) => (
     <Field label={label} htmlFor={name} error={errors[name]?.message} hint={hint}>
-      <input id={name} className={inputClass} {...register(name)} {...props} />
+      <input id={name} className={inputClass} {...register(name, rules)} {...props} />
     </Field>
   )
   const vehicleField = register('vehicle')
@@ -124,8 +130,9 @@ export default function FuelForm({ record, vehicle, onClose, onSaved }) {
         {text('unit_price', 'Price per liter (₱) *', { inputMode: 'decimal', placeholder: '60.50' })}
         {text('total_amount', 'Total on receipt (₱)', {
           inputMode: 'decimal',
-          placeholder: computed ? computed.toFixed(2) : 'Computed automatically',
-          hint: computed ? `Liters × price = ${formatPeso(computed)}. Leave blank to use it; the receipt total may differ by up to ₱1.` : 'Leave blank to compute liters × price.',
+          placeholder: 'Computed automatically',
+          rules: { onChange: (e) => { ownTotal.current = e.target.value.trim() !== '' } }, // cleared = follow liters × price again
+          hint: computed ? `Liters × price = ${formatPeso(computed)}. Change it if the receipt differs (by up to ₱1).` : 'Filled in from liters × price.',
         })}
       </Group>
 

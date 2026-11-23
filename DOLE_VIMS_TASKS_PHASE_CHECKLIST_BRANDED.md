@@ -316,7 +316,7 @@ approved for public display.
 -   [x] Fuel type (must match a gasoline/diesel vehicle)
 -   [x] Fuel quantity
 -   [x] Unit price
--   [x] Total cost (computed from liters × price; receipt total accepted within ₱1)
+-   [x] Total cost (computed from liters × price; receipt total accepted within ₱1). Form fills the total in as liters × price until the user types their own (2026-11-19, `FuelForm.test.jsx`)
 -   [x] Odometer (newest fill-up moves the vehicle odometer forward)
 -   [x] Receipt/reference
 -   [x] Attachment (receipt/PO scans)
