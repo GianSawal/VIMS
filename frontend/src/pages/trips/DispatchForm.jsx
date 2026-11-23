@@ -175,7 +175,7 @@ export default function DispatchForm({ vehicle, date, mode = 'dispatch', onClose
   const when = (name) => (watch(name) ? new Date(watch(name)) : null)
   // Preview of the automatic ticket (the server assigns the number): driver initials + departure month.
   const departure = watch(scheduling ? 'scheduled_departure' : 'departed_at')
-  const ticketPreview = chosenDriver && departure ? `${ticketInitials(chosenDriver.full_name)}-${departure.slice(5, 7)}-` : ''
+  const ticketPreview = chosenDriver && departure ? `${ticketInitials(chosenDriver.full_name)}-${departure.slice(5, 7)}${departure.slice(2, 4)}-` : '' // MMYY
   const avail = useAvailability(scheduling
     ? { start: when('scheduled_departure'), end: when('scheduled_return') }
     : { point: when('departed_at') })
@@ -303,7 +303,7 @@ export default function DispatchForm({ vehicle, date, mode = 'dispatch', onClose
         </Field>
         {text('ticket_number', 'Trip ticket no.', {
           placeholder: ticketPreview ? `${ticketPreview}·· (numbered on save)` : 'Auto-numbered if blank', className: `${inputClass} uppercase`,
-          hint: 'Leave blank to number it from the driver: initials, month, next number (e.g. GGG-11-01). Or type the paper ticket number.',
+          hint: 'Leave blank to number it from the driver: initials, month and year, next number (e.g. GGG-1126-01). Or type the paper ticket number.',
         })}
         <Field label="Passengers" htmlFor="passengers" error={errors.passengers?.message}>
           <textarea id="passengers" rows={2} className={inputClass} placeholder="One name per line" {...register('passengers')} />

@@ -70,7 +70,7 @@ def test_schedule_has_no_odometer_and_keeps_vehicle_free(vehicle, driver):
     t = r.json()
     assert t['status'] == 'SCHEDULED' and t['schedule_day'] == 'UPCOMING'
     assert t['odometer_start'] is None and t['departed_at'] is None
-    assert t['ticket_number'] == f'P-{at(2, 8):%m}-01'
+    assert t['ticket_number'] == f'P-{at(2, 8):%m%y}-01'
     vehicle.refresh_from_db()
     assert vehicle.status == 'SERVICEABLE'  # booking ahead does not take the vehicle out of service
     assert AuditLog.objects.filter(action='trip_schedule').exists()
@@ -168,13 +168,13 @@ def test_reschedule_and_cancel_scheduled(vehicle, driver, fo1):
     r = c.post(f'/api/trips/{t["id"]}/reschedule/', {'vehicle': vehicle.pk, 'driver': other.pk,
                                                      'scheduled_departure': at(3, 9).isoformat()}, format='json')
     assert r.status_code == 200 and r.json()['driver_name'] == 'Juan'
-    assert r.json()['ticket_number'] == f'J-{at(3, 9):%m}-01'  # renumbered for the new driver
+    assert r.json()['ticket_number'] == f'J-{at(3, 9):%m%y}-01'  # renumbered for the new driver
     # a booking with no driver yet gets TT-YYYY-NNNNN, renumbered when a driver is assigned; a typed ticket is kept
     open_ = book(c, make_vehicle(fo1, 'SCH 7'), None, at(4, 8)).json()
     assert open_['ticket_number'].startswith(f'TT-{at(4, 8):%Y}-')
     r = c.post(f'/api/trips/{open_["id"]}/reschedule/', {'vehicle': open_['vehicle'], 'driver': driver.pk,
                                                          'scheduled_departure': at(4, 8).isoformat()}, format='json')
-    assert r.json()['ticket_number'] == f'P-{at(4, 8):%m}-01'  # Pedro's earlier P-..-01 became J-..-01 above
+    assert r.json()['ticket_number'] == f'P-{at(4, 8):%m%y}-01'  # Pedro's earlier P-..-01 became J-..-01 above
     typed = book(c, make_vehicle(fo1, 'SCH 8'), None, at(6, 8), ticket_number='RO3-555').json()
     r = c.post(f'/api/trips/{typed["id"]}/reschedule/', {'vehicle': typed['vehicle'], 'driver': other.pk,
                                                          'scheduled_departure': at(6, 8).isoformat()}, format='json')
