@@ -98,6 +98,9 @@ def test_summary_and_filters(fo1):
     assert s == {'total': 3, 'credit': '500.00', 'debit': '110.00', 'net': '390.00'}
     assert c.get('/api/toll-transactions/summary/', {'kind': 'debit'}).json()['total'] == 2
     assert c.get('/api/toll-transactions/', {'vehicle': v1.pk}).json()['count'] == 2
+    # date_from/date_to cover whole local days (date_to used to mean midnight and drop that day's tolls)
+    day = timezone.localdate().isoformat()
+    assert c.get('/api/toll-transactions/', {'date_from': day, 'date_to': day}).json()['count'] == 3
 
     # office scope: an FO1 user sees FO1 toll only, and unassigned accounts but not FO2's
     unassigned = RFIDAccount.objects.create(provider='OTHER', account_number='POOL-1')

@@ -11,14 +11,15 @@ import MaintenanceForm from '../maintenance/MaintenanceForm'
 import ScheduleForm from '../maintenance/ScheduleForm'
 import { formatDate, formatKm, formatPeso } from './common'
 
-export default function MaintenanceTab({ v }) {
+export default function MaintenanceTab({ v, range = {} }) {
   const can = useCan()
   const navigate = useNavigate()
   const [page, setPage] = useState(1)
   const [dialog, setDialog] = useState(null) // 'record' | 'schedule' | schedule object
-  const records = useList('/maintenance/', { vehicle: v.id, page })
+  // The period filters the history only; preventive schedules always show their current state.
+  const records = useList('/maintenance/', { vehicle: v.id, page, ...range })
   const schedules = useList('/maintenance-schedules/', { vehicle: v.id, page_size: 50 })
-  const summary = useList('/maintenance/summary/', { vehicle: v.id })
+  const summary = useList('/maintenance/summary/', { vehicle: v.id, ...range })
   const s = summary.data
   const canEditSchedule = can('maintenance.change_maintenanceschedule')
   const editing = dialog && typeof dialog === 'object'
@@ -80,7 +81,7 @@ export default function MaintenanceTab({ v }) {
           {s && <span className="text-sm text-slate-500">{s.total} record{s.total === 1 ? '' : 's'} · completed work <strong className="text-ink">{formatPeso(s.cost)}</strong></span>}
         </div>
         <DataTable columns={recordColumns({ withVehicle: false })} query={records} page={page} onPage={setPage}
-          onRowClick={(r) => navigate(`/maintenance/${r.id}`)} empty="No maintenance recorded for this vehicle yet." />
+          onRowClick={(r) => navigate(`/maintenance/${r.id}`)} empty={range.date_from ? 'No maintenance in this period.' : 'No maintenance recorded for this vehicle yet.'} />
       </section>
 
       <Modal open={dialog === 'record'} onClose={() => setDialog(null)} title={`Add maintenance: ${v.plate_number}`} wide>

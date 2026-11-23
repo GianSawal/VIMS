@@ -11,13 +11,14 @@ import RfidForm from '../rfid/RfidForm'
 import TollForm from '../rfid/TollForm'
 import { formatPeso } from './common'
 
-export default function RfidTab({ v }) {
+export default function RfidTab({ v, range = {} }) {
   const can = useCan()
   const navigate = useNavigate()
   const [page, setPage] = useState(1)
   const [dialog, setDialog] = useState(null) // 'account' | 'toll'
+  // The period filters the toll history only; account cards always show the live balance.
   const accounts = useList('/rfid-accounts/', { vehicle: v.id, page_size: 50 })
-  const tolls = useList('/toll-transactions/', { vehicle: v.id, page })
+  const tolls = useList('/toll-transactions/', { vehicle: v.id, page, ...range })
 
   return (
     <div className="space-y-4">
@@ -55,7 +56,7 @@ export default function RfidTab({ v }) {
         <h2 id="rfid-hist" className="mb-2 font-semibold text-ink">Toll history</h2>
         <DataTable columns={tollColumns({ withVehicle: false })} query={tolls} page={page} onPage={setPage}
           onRowClick={can('operations.change_tolltransaction') ? (t) => setDialog(t) : undefined}
-          empty="No toll transactions recorded for this vehicle yet." />
+          empty={range.date_from ? 'No toll transactions in this period.' : 'No toll transactions recorded for this vehicle yet.'} />
       </section>
 
       <Modal open={dialog === 'account'} onClose={() => setDialog(null)} title={`Add RFID account: ${v.plate_number}`} wide>

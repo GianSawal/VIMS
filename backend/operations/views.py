@@ -559,9 +559,10 @@ class RFIDAccountViewSet(RemoveMixin, OfficeScopedMixin, mixins.ListModelMixin, 
 class TollFilter(filters.FilterSet):
     office = filters.NumberFilter(field_name='vehicle__office')
     provider = filters.CharFilter(field_name='account__provider')
-    date_from = filters.DateTimeFilter(field_name='transacted_at', lookup_expr='gte')
-    date_to = filters.DateTimeFilter(field_name='transacted_at', lookup_expr='lte')
-    kind = filters.ChoiceFilter(method='by_kind', choices=[('credit', 'Load'), ('debit', 'Charge')])
+    # Whole local days: a DateTimeFilter read date_to=YYYY-MM-DD as midnight and dropped that day's tolls.
+    date_from = filters.DateFilter(field_name='transacted_at', lookup_expr='date__gte')
+    date_to = filters.DateFilter(field_name='transacted_at', lookup_expr='date__lte')
+    kind =filters.ChoiceFilter(method='by_kind', choices=[('credit', 'Load'), ('debit', 'Charge')])
 
     class Meta:
         model = TollTransaction

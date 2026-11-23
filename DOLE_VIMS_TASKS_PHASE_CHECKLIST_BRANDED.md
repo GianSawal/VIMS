@@ -182,7 +182,7 @@ records even by directly calling the API.
 -   [x] Add Vehicle form
 -   [x] Edit Vehicle form
 -   [x] Vehicle status badges
--   [x] Vehicle profile layout
+-   [x] Vehicle profile layout. Month and optional day filter (in the URL) for the KPI tiles and the Trips, Fuel, Maintenance history and Toll history tabs; schedules, RFID balances and "on a trip now" ignore it (2026-11-23). Toll `date_to` now covers the whole day (was midnight; `test_toll.py`)
 -   [x] Overview tab
 -   [x] Empty/loading/error states
 -   [x] Confirmation dialogs

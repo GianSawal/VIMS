@@ -9,13 +9,13 @@ import FuelForm from '../fuel/FuelForm'
 import { fuelColumns } from '../fuel/FuelList'
 import { formatPeso } from './common'
 
-export default function FuelTab({ v }) {
+export default function FuelTab({ v, range = {} }) {
   const can = useCan()
   const navigate = useNavigate()
   const [page, setPage] = useState(1)
   const [adding, setAdding] = useState(false)
-  const query = useList('/fuel-records/', { vehicle: v.id, page })
-  const summary = useList('/fuel-records/summary/', { vehicle: v.id })
+  const query = useList('/fuel-records/', { vehicle: v.id, page, ...range })
+  const summary = useList('/fuel-records/summary/', { vehicle: v.id, ...range })
   const s = summary.data
   const usual = query.data?.results.find((r) => r.usual_km_per_liter)?.usual_km_per_liter
 
@@ -32,7 +32,7 @@ export default function FuelTab({ v }) {
         )}
       </div>
       <DataTable columns={fuelColumns({ withVehicle: false })} query={query} page={page} onPage={setPage}
-        onRowClick={(r) => navigate(`/fuel/${r.id}`)} empty="No fuel records for this vehicle yet." />
+        onRowClick={(r) => navigate(`/fuel/${r.id}`)} empty={range.date_from ? 'No fuel records in this period.' : 'No fuel records for this vehicle yet.'} />
       <Modal open={adding} onClose={() => setAdding(false)} title={`Add fuel record: ${v.plate_number}`} wide>
         {adding && <FuelForm vehicle={v} onClose={() => setAdding(false)} />}
       </Modal>

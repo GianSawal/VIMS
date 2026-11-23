@@ -9,15 +9,16 @@ import DispatchForm from '../trips/DispatchForm'
 import { tripColumns } from '../trips/TripList'
 import { km } from '../trips/common'
 
-export default function TripsTab({ v }) {
+export default function TripsTab({ v, range = {} }) {
   const can = useCan()
   const navigate = useNavigate()
   const [page, setPage] = useState(1)
   const [mode, setMode] = useState(null) // 'schedule' | 'dispatch'
-  const query = useList('/trips/', { vehicle: v.id, page })
-  const summary = useList('/trips/summary/', { vehicle: v.id })
-  const s = summary.data
-  const onTrip = (s?.by_status.DISPATCHED ?? 0) > 0
+  const query = useList('/trips/', { vehicle: v.id, page, ...range })
+  const s = useList('/trips/summary/', { vehicle: v.id, ...range }).data
+  // "Right now" ignores the period: a trip dispatched last month can still be out.
+  const now = useList('/trips/summary/', { vehicle: v.id }).data
+  const onTrip = (now?.by_status.DISPATCHED ?? 0) > 0
   const available = !v.is_archived && ['SERVICEABLE', 'IN_USE'].includes(v.status)
   const bookable = !v.is_archived && !['UNSERVICEABLE', 'DISPOSED'].includes(v.status)
 
@@ -26,7 +27,7 @@ export default function TripsTab({ v }) {
       <div className="mb-3 flex flex-wrap items-center gap-x-8 gap-y-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
         <Fact label="Trips recorded" value={s ? s.total : '…'} />
         <Fact label="Completed distance" value={s ? km(s.distance_km) : '…'} />
-        <Fact label="Right now" value={s ? (onTrip ? 'Out on a trip' : 'Not on a trip') : '…'} />
+        <Fact label="Right now" value={now ? (onTrip ? 'Out on a trip' : 'Not on a trip') : '…'} />
         {can('operations.add_trip') && (
           <div className="ml-auto flex items-center gap-3">
             {!available && <span className="text-xs text-slate-500">{v.is_archived ? 'Archived' : v.status_display}: cannot be dispatched</span>}
@@ -38,7 +39,7 @@ export default function TripsTab({ v }) {
       </div>
 
       <DataTable columns={tripColumns({ withVehicle: false })} query={query} page={page} onPage={setPage}
-        onRowClick={(t) => navigate(`/trips/${t.id}`)} empty="No trips recorded for this vehicle yet." />
+        onRowClick={(t) => navigate(`/trips/${t.id}`)} empty={range.date_from ? 'No trips in this period.' : 'No trips recorded for this vehicle yet.'} />
 
       <Modal open={!!mode} onClose={() => setMode(null)} title={`${mode === 'schedule' ? 'Schedule' : 'Dispatch'} ${v.plate_number}`} wide>
         {mode && <DispatchForm mode={mode} vehicle={v} onClose={() => setMode(null)} onSaved={(t) => navigate(`/trips/${t.id}`)} />}

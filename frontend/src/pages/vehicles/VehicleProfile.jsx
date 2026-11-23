@@ -43,8 +43,16 @@ export default function VehicleProfile() {
   const [params, setParams] = useSearchParams()
   const tab = params.get('tab') ?? 'overview'
   const [confirm, setConfirm] = useState(false)
-  const [month, setMonth] = useState('')  // '' = all time, else 'YYYY-MM'
-  const range = month ? { date_from: `${month}-01`, date_to: monthEnd(month) } : {}
+  // Period for the KPI tiles and the Trips / Fuel / Maintenance / RFID tabs, kept in the URL so it survives a reload
+  // and tab switches. No month = all time; a day narrows it to that one day.
+  const month = params.get('month') ?? ''
+  const day = params.get('day') ?? ''
+  const range = day ? { date_from: day, date_to: day } : month ? { date_from: `${month}-01`, date_to: monthEnd(month) } : {}
+  const setPeriod = (m, d = '') => setParams((p) => {
+    const n = new URLSearchParams(p)
+    for (const [k, val] of [['month', m], ['day', d]]) { if (val) n.set(k, val); else n.delete(k) }
+    return n
+  }, { replace: true })
 
   const query = useQuery({ queryKey: ['/vehicles/', id], queryFn: () => api.get(`/vehicles/${id}/`).then((r) => r.data) })
   const tripStats = useList('/trips/summary/', { vehicle: id, ...range })
@@ -72,7 +80,13 @@ export default function VehicleProfile() {
   const trips = tripStats.data
   const fuel = fuelStats.data
   const usual = fuelLatest.data?.results[0]?.usual_km_per_liter
-  const goto = (key) => setParams(key === 'overview' ? {} : { tab: key }, { replace: true })
+  const goto = (key) => setParams((p) => {
+    const n = new URLSearchParams(p)
+    if (key === 'overview') n.delete('tab')
+    else n.set('tab', key)
+    return n
+  }, { replace: true })
+  const periodTab = ['trips', 'fuel', 'maintenance', 'rfid'].includes(tab)
 
   return (
     <div>
@@ -130,10 +144,14 @@ export default function VehicleProfile() {
       )}
 
       {/* KPI tiles */}
-      <div className="mb-2 flex items-center justify-end gap-2 text-sm">
-        <label htmlFor="kpi-month" className="text-slate-500">Trips &amp; fuel for</label>
-        <input id="kpi-month" type="month" value={month} onChange={(e) => setMonth(e.target.value)} className={`${inputBase} w-44`} />
-        {month && <button type="button" onClick={() => setMonth('')} className="text-brand hover:underline">All time</button>}
+      <div className="mb-2 flex flex-wrap items-center justify-end gap-2 text-sm">
+        <span className="text-slate-500">{periodTab ? 'Show records for' : 'Trips & fuel for'}</span>
+        <label htmlFor="period-month" className="sr-only">Month</label>
+        <input id="period-month" type="month" value={month} onChange={(e) => setPeriod(e.target.value)} className={`${inputBase} w-44`} />
+        <label htmlFor="period-day" className="sr-only">Day (optional)</label>
+        <input id="period-day" type="date" value={day} min={month ? `${month}-01` : undefined} max={month ? monthEnd(month) : undefined}
+          onChange={(e) => setPeriod(e.target.value ? e.target.value.slice(0, 7) : month, e.target.value)} className={`${inputBase} w-40`} />
+        {(month || day) && <button type="button" onClick={() => setPeriod('')} className="text-brand hover:underline">All time</button>}
       </div>
       <div className="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Kpi icon={Gauge} tint="bg-brand-light text-brand" label="Odometer" value={formatKm(v.current_odometer)} sub="Last recorded reading" />
@@ -155,14 +173,15 @@ export default function VehicleProfile() {
         ))}
       </div>
 
-      <div role="tabpanel">
+      {/* Keyed by the period so a change starts the tab's table back at page 1. */}
+      <div role="tabpanel" key={`${month}|${day}`}>
         {tab === 'overview' ? <Overview v={v} onGo={goto} />
           : tab === 'assignments' ? <AssignmentsTab v={v} />
-          : tab === 'trips' ? <TripsTab v={v} />
-          : tab === 'fuel' ? <FuelTab v={v} />
-          : tab === 'maintenance' ? <MaintenanceTab v={v} />
+          : tab === 'trips' ? <TripsTab v={v} range={range} />
+          : tab === 'fuel' ? <FuelTab v={v} range={range} />
+          : tab === 'maintenance' ? <MaintenanceTab v={v} range={range} />
           : tab === 'documents' ? <DocumentsTab v={v} />
-          : tab === 'rfid' ? <RfidTab v={v} />
+          : tab === 'rfid' ? <RfidTab v={v} range={range} />
           : (
             <div className="rounded-xl border border-dashed border-slate-300 bg-white p-10 text-center text-slate-500">
               {TABS.find(([k]) => k === tab)?.[1] ?? 'This section'} arrives in Phase {TABS.find(([k]) => k === tab)?.[2]}.
