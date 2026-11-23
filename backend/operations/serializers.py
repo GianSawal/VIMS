@@ -84,7 +84,7 @@ class TripSerializer(serializers.ModelSerializer):
 
 class DispatchSerializer(serializers.Serializer):
     ticket_number = serializers.CharField(max_length=40, required=False, allow_blank=True, default='',
-                                          help_text='Leave blank to auto-number (TT-YYYY-00001).')
+                                          help_text='Leave blank to auto-number: driver initials-month-number (GGG-11-01); TT-YYYY-00001 until a driver is set.')
     vehicle = serializers.PrimaryKeyRelatedField(queryset=Vehicle.objects.all())
     driver = serializers.PrimaryKeyRelatedField(queryset=Driver.objects.all())
     requesting_office = serializers.PrimaryKeyRelatedField(queryset=Office.objects.filter(is_active=True),

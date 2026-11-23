@@ -47,6 +47,11 @@ const schemas = {
 // Tomorrow 8:00 AM, a sensible default for a booking.
 const tomorrowAt8 = () => { const d = new Date(); d.setDate(d.getDate() + 1); d.setHours(8, 0, 0, 0); return toLocalInput(d) }
 
+// Same rule as the server's ticket_initials(): first letter of each name part, without suffixes/titles.
+const NOT_INITIALS = new Set(['JR', 'SR', 'II', 'III', 'IV', 'V', 'ATTY', 'ENGR', 'DR', 'MR', 'MRS', 'MS'])
+const ticketInitials = (name) =>
+  ((name ?? '').match(/[A-Za-zÑñ]+/g) ?? []).filter((w) => !NOT_INITIALS.has(w.toUpperCase())).map((w) => w[0]).join('').toUpperCase() || 'X'
+
 const isoDay = (d) => d.toLocaleDateString('en-CA')
 const validDate = (d) => d instanceof Date && !isNaN(d)
 
@@ -168,6 +173,9 @@ export default function DispatchForm({ vehicle, date, mode = 'dispatch', onClose
 
   const chosenDriver = drivers.data?.results.find((d) => String(d.id) === watch('driver'))
   const when = (name) => (watch(name) ? new Date(watch(name)) : null)
+  // Preview of the automatic ticket (the server assigns the number): driver initials + departure month.
+  const departure = watch(scheduling ? 'scheduled_departure' : 'departed_at')
+  const ticketPreview = chosenDriver && departure ? `${ticketInitials(chosenDriver.full_name)}-${departure.slice(5, 7)}-` : ''
   const avail = useAvailability(scheduling
     ? { start: when('scheduled_departure'), end: when('scheduled_return') }
     : { point: when('departed_at') })
@@ -294,8 +302,8 @@ export default function DispatchForm({ vehicle, date, mode = 'dispatch', onClose
           </Select>
         </Field>
         {text('ticket_number', 'Trip ticket no.', {
-          placeholder: 'Auto-numbered if blank', className: `${inputClass} uppercase`,
-          hint: 'Type the paper trip ticket number, or leave blank for TT-YYYY-00001.',
+          placeholder: ticketPreview ? `${ticketPreview}·· (numbered on save)` : 'Auto-numbered if blank', className: `${inputClass} uppercase`,
+          hint: 'Leave blank to number it from the driver: initials, month, next number (e.g. GGG-11-01). Or type the paper ticket number.',
         })}
         <Field label="Passengers" htmlFor="passengers" error={errors.passengers?.message}>
           <textarea id="passengers" rows={2} className={inputClass} placeholder="One name per line" {...register('passengers')} />

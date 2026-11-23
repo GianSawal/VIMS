@@ -63,7 +63,7 @@ def test_full_trip_moves_vehicle_odometer_and_status(vehicle, driver):
     r = dispatch(c, vehicle, driver)
     assert r.status_code == 201, r.json()
     t = r.json()
-    assert t['ticket_number'] == f'TT-{timezone.localtime(NOW):%Y}-{t["id"]:05d}'
+    assert t['ticket_number'] == f'P-{timezone.localtime(NOW):%m}-01'  # driver "Pedro": initials-month-number
     assert t['status'] == 'DISPATCHED' and t['distance_km'] is None
     vehicle.refresh_from_db()
     assert vehicle.status == 'IN_USE'
@@ -76,6 +76,28 @@ def test_full_trip_moves_vehicle_odometer_and_status(vehicle, driver):
     log = AuditLog.objects.get(action='odometer_update')
     assert log.entity_id == str(vehicle.pk) and log.changes == {'current_odometer': ['10000', '10150']}
     assert {'trip_dispatch', 'trip_complete'} <= set(AuditLog.objects.values_list('action', flat=True))
+
+
+def test_ticket_initials():
+    from operations.trips import ticket_initials
+    assert ticket_initials('GILBERT G. GOMEZ') == 'GGG'
+    assert ticket_initials('Juan D. dela Cruz Jr.') == 'JDDC'
+    assert ticket_initials('Ma. Niña Santos') == 'MNS'
+
+
+def test_auto_ticket_counts_up_per_driver_initials_and_month(vehicle, fo1):
+    c = as_role('Fleet Administrator')
+    mm = f'{timezone.localtime(NOW):%m}'
+    gilbert = make_driver(fo1, 'GILBERT G. GOMEZ', 'L-G1')
+    tickets = []
+    for i in range(2):  # dispatch and return twice: GGG-MM-01, GGG-MM-02
+        t = dispatch(c, vehicle, gilbert, departed_at=ago(5 - i * 2), odometer_start=10000 + i * 100).json()
+        tickets.append(t['ticket_number'])
+        assert complete(c, t['id'], 10050 + i * 100, hours=4 - i * 2).status_code == 200
+    assert tickets == [f'GGG-{mm}-01', f'GGG-{mm}-02']
+    # another driver with the same initials continues the same counter, so codes stay unique
+    other = make_driver(fo1, 'Grace G. Garcia', 'L-G2')
+    assert dispatch(c, make_vehicle(fo1, 'TRP 9'), other).json()['ticket_number'] == f'GGG-{mm}-03'
 
 
 def test_manual_ticket_normalized_and_unique(vehicle, driver, fo1):
