@@ -19,23 +19,15 @@ describe('Users page', () => {
     expect(screen.getByLabelText('New temporary password')).toHaveValue('') // blank keeps the current password
   })
 
-  it('asks which driver a new Driver login belongs to', async () => {
-    const drivers = { count: 2, results: [
-      { id: 7, full_name: 'Gilbert G. Gomez', office_code: 'RO3', employee_number: null, account_id: null },
-      { id: 8, full_name: 'Has Login', office_code: 'RO3', employee_number: null, account_id: 99 },
-    ] }
+  it('offers the Driver role only for logins made from a driver record', () => {
     const users = { count: 0, results: [] }
     renderApp(<Users />, {
       me: meWith(['accounts.view_user', 'accounts.change_user', 'accounts.add_user']),
-      data: { '["/users/",{"page":1,"search":"","groups__name":"","is_active":""}]': users, '["/users/",{"page_size":500}]': users,
-        '["/drivers/",{"is_active":"true","page_size":500}]': drivers },
+      data: { '["/users/",{"page":1,"search":"","groups__name":"","is_active":""}]': users, '["/users/",{"page_size":500}]': users },
     })
     fireEvent.click(screen.getByRole('button', { name: /Add user/ }))
-    expect(screen.queryByLabelText('Driver *')).not.toBeInTheDocument()
     fireEvent.click(screen.getByLabelText('Role'))
-    fireEvent.click(screen.getByRole('option', { name: 'Driver' }))
-    fireEvent.click(await screen.findByLabelText('Driver *'))
-    expect(screen.getByRole('option', { name: /Gilbert G\. Gomez · RO3/ })).toBeInTheDocument()
-    expect(screen.queryByText(/Has Login/)).not.toBeInTheDocument() // already linked to another login
+    expect(screen.getByRole('option', { name: 'Requester' })).toBeInTheDocument()
+    expect(screen.queryByRole('option', { name: 'Driver' })).not.toBeInTheDocument()
   })
 })

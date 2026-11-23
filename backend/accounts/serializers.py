@@ -1,10 +1,7 @@
 from django.contrib.auth.models import Group
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError as DjangoValidationError
-from django.db import transaction
 from rest_framework import serializers
-
-from fleet.models import Driver
 
 from .models import Office, User
 from .permissions import sees_all_offices
@@ -65,9 +62,7 @@ class UserSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, required=False, allow_blank=True, style={'input_type': 'password'},
                                      help_text='Initial password on create; on edit, a new temporary password (blank keeps the current one). '
                                                'The user must change it at next login.')
-    # Driver accounts: the driver record this login belongs to (its trips are what the driver sees).
-    driver = serializers.PrimaryKeyRelatedField(queryset=Driver.objects.select_related('user', 'office'), required=False,
-                                                allow_null=True, write_only=True)
+    # Driver logins are created from the driver record (fleet/driver_accounts.py); shown here, not set here.
     driver_id = serializers.IntegerField(source='driver.id', read_only=True, default=None)
     driver_name = serializers.CharField(source='driver.full_name', read_only=True, default=None)
 
@@ -75,7 +70,7 @@ class UserSerializer(serializers.ModelSerializer):
         model = User
         fields = ['id', 'username', 'first_name', 'last_name', 'email', 'is_active', 'role', 'role_name',
                   'offices', 'office_details', 'password', 'must_change_password', 'last_login', 'date_joined',
-                  'driver', 'driver_id', 'driver_name']
+                  'driver_id', 'driver_name']
         read_only_fields = ['must_change_password', 'last_login', 'date_joined']
 
     def get_role_name(self, user):
@@ -103,44 +98,21 @@ class UserSerializer(serializers.ModelSerializer):
         offices = attrs['offices'] if 'offices' in attrs else self.instance and list(self.instance.offices.all())
         if role == 'Requester' and not offices:
             raise serializers.ValidationError({'offices': 'Select the office this requester belongs to.'})
-        current = getattr(self.instance, 'driver', None) if self.instance else None
-        driver = attrs.get('driver', current)
-        if role == 'Driver':
-            if driver is None:
-                raise serializers.ValidationError({'driver': 'Select the driver this login belongs to.'})
-            if driver.user_id and driver.user_id != (self.instance and self.instance.pk):
-                raise serializers.ValidationError({'driver': f'{driver.full_name} already has a login ({driver.user.username}).'})
-            if not driver.is_active and driver != current:
-                raise serializers.ValidationError({'driver': f'{driver.full_name} is inactive.'})
-            if not offices:
-                attrs['offices'] = [driver.office]  # the driver's office, for their vehicle requests
-        elif attrs.get('driver'):
-            raise serializers.ValidationError({'driver': 'Only Driver accounts are linked to a driver.'})
+        # A Driver login without a driver record would see no trips: those are made from the Drivers page.
+        if role == 'Driver' and getattr(self.instance, 'driver', None) is None:
+            raise serializers.ValidationError({'role': 'Driver accounts are created from the Drivers page (Create account).'})
         return attrs
 
-    @staticmethod
-    def _link(user, driver):
-        """Point `driver` at this login, unlinking any other driver record it had."""
-        Driver.objects.filter(user=user).exclude(pk=driver.pk).update(user=None)
-        Driver.objects.filter(pk=driver.pk).update(user=user)
-        user._state.fields_cache.pop('driver', None)  # so the response and audit snapshot read the new link
-
-    @transaction.atomic
     def create(self, data):
-        driver = data.pop('driver', None)
         role, offices, password = data.pop('role'), data.pop('offices', []), data.pop('password')
         user = User(**data, must_change_password=True)
         user.set_password(password)
         user.save()
         user.groups.set([role])
         user.offices.set(offices)
-        if driver:
-            self._link(user, driver)
         return user
 
-    @transaction.atomic
     def update(self, user, data):
-        driver = data.pop('driver', None)
         role, offices = data.pop('role', None), data.pop('offices', None)
         password = data.pop('password', None)
         if password:
@@ -153,8 +125,6 @@ class UserSerializer(serializers.ModelSerializer):
             user.groups.set([role])
         if offices is not None:
             user.offices.set(offices)
-        if driver:
-            self._link(user, driver)
         return user
 
 

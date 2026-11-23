@@ -8,7 +8,7 @@ import { Avatar, CardGrid, SearchBox, selectClass, StatCard, Toolbar, useSetPara
 import { Badge, Button, Modal, PageHeader } from '../../components/ui'
 import { useAllOffices } from '../admin/Offices'
 import { formatDate } from '../vehicles/common'
-import { CreateLoginsButton } from './accounts'
+import { CreateLoginsButton, DriverLogin } from './accounts'
 import DriverForm from './DriverForm'
 import { expiryNote, LICENSE_STATUSES, LicenseBadge } from './common'
 import { Select } from '../../components/Select'
@@ -85,6 +85,10 @@ export default function DriverList() {
           className="block font-medium text-brand hover:underline">{v.plate_number}</Link>
       ))
       : <span className="text-slate-400">Unassigned</span> },
+    ...(can('accounts.view_user') ? [{ key: 'account', label: 'Account', className: 'whitespace-nowrap', render: (d) => (
+      // stopPropagation: the row opens the profile on click; this cell has its own buttons and dialogs.
+      <span onClick={(e) => e.stopPropagation()} className="text-sm"><DriverLogin driver={d} /></span>
+    ) }] : []),
     { key: 'is_active', label: 'Status', render: (d) => <Badge tone={d.is_active ? 'green' : 'gray'} dot>{d.is_active ? 'Active' : 'Inactive'}</Badge> },
   ]
 

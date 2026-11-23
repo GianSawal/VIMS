@@ -10,7 +10,7 @@ import { useToast } from '../../components/toast'
 function useCreateLogins(path, onDone) {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: () => api.post(path).then((r) => r.data),
+    mutationFn: (body) => api.post(path, body).then((r) => r.data),
     onSuccess: (data) => {
       invalidatePrefix(qc, '/drivers/')
       onDone(data.created ?? [data])
@@ -27,21 +27,21 @@ export function CreateLoginsButton() {
   if (!can('accounts.add_user')) return null
   return (
     <>
-      <Button variant="secondary" onClick={() => { create.reset(); setConfirm(true) }}><KeyRound size={16} /> Create driver logins</Button>
-      <ConfirmDialog open={confirm} title="Create driver logins" confirmLabel="Create logins" busy={create.isPending}
+      <Button variant="secondary" onClick={() => { create.reset(); setConfirm(true) }}><KeyRound size={16} /> Create all accounts</Button>
+      <ConfirmDialog open={confirm} title="Create all driver accounts" confirmLabel="Create accounts" busy={create.isPending}
         onConfirm={() => create.mutate()} onClose={() => setConfirm(false)}
         message={create.isError ? errorMessage(create.error)
-          : 'Every active driver without a login gets one (role Driver: their own trips and recording the return). Each temporary password is shown once, on the next screen.'} />
+          : 'Every active driver without an account gets one, with a generated username and initial password (role Driver: their own trips and recording the return). Each password is shown once, on the next screen.'} />
       <Credentials rows={made} onClose={() => setMade(null)} />
     </>
   )
 }
 
-/** Driver profile: the login's username, or a button to create one. */
+/** Driver profile and list: the login's username, or Create account (typed username and initial password). */
 export function DriverLogin({ driver }) {
   const can = useCan()
   const [made, setMade] = useState(null)
-  const create = useCreateLogins(`/drivers/${driver.id}/account/`, setMade)
+  const [creating, setCreating] = useState(false)
   const [renaming, setRenaming] = useState(false)
   if (driver.account_username) {
     return (
@@ -58,15 +58,52 @@ export function DriverLogin({ driver }) {
       </span>
     )
   }
-  if (!can('accounts.add_user') || !driver.is_active) return 'None'
+  if (!can('accounts.add_user') || !driver.is_active) return <span className="text-slate-500">None</span>
   return (
     <>
-      <button type="button" className="font-medium text-brand hover:underline disabled:opacity-60" disabled={create.isPending} onClick={() => create.mutate()}>
-        {create.isPending ? 'Creating…' : 'Create login'}
-      </button>
-      {create.isError && <span role="alert" className="ml-2 text-danger">{errorMessage(create.error)}</span>}
+      <button type="button" className="font-medium text-brand hover:underline" onClick={() => setCreating(true)}>Create account</button>
+      <Modal open={creating} onClose={() => setCreating(false)} title={`Account for ${driver.full_name}`}>
+        {creating && <CreateAccountForm driver={driver} onClose={() => setCreating(false)} onMade={setMade} />}
+      </Modal>
       <Credentials rows={made} onClose={() => setMade(null)} />
     </>
+  )
+}
+
+function CreateAccountForm({ driver, onClose, onMade }) {
+  const [form, setForm] = useState({ username: '', password: '' })
+  const [errors, setErrors] = useState({})
+  const [error, setError] = useState('')
+  const create = useCreateLogins(`/drivers/${driver.id}/account/`, (rows) => { onClose(); onMade(rows) })
+  const set = (k) => (e) => { setForm({ ...form, [k]: e.target.value }); setErrors({ ...errors, [k]: undefined }) }
+  const submit = (e) => {
+    e.preventDefault()
+    if (form.password && form.password.length < 8) return setErrors({ password: 'At least 8 characters' })
+    create.mutate({ username: form.username.trim(), password: form.password }, {
+      onError: (err) => setError(applyFieldErrors(err, (k, v) => setErrors((x) => ({ ...x, [k]: v.message })), ['username', 'password'])),
+    })
+  }
+  return (
+    <form noValidate className="space-y-4" onSubmit={submit}>
+      {error && <div role="alert" className="rounded-md bg-red-50 px-3 py-2 text-sm text-danger">{error}</div>}
+      <p className="text-sm text-slate-600">
+        Role Driver: {driver.full_name} sees their own trips and records the return. Office: {driver.office_code}.
+      </p>
+      <Field label="Username" htmlFor="acct-username" error={errors.username}
+        hint="Leave blank to use the employee number, or first initial + surname.">
+        <input id="acct-username" autoFocus autoComplete="off" maxLength={150} className={`${inputClass} font-mono`}
+          value={form.username} onChange={set('username')} />
+      </Field>
+      <Field label="Initial password" htmlFor="acct-password" error={errors.password}
+        hint="They must change it at first sign-in. Leave blank to generate one (shown on the next screen).">
+        <input id="acct-password" type="password" autoComplete="new-password" className={inputClass}
+          value={form.password} onChange={set('password')} />
+      </Field>
+      <div className="flex justify-end gap-2">
+        <Button variant="secondary" onClick={onClose}>Cancel</Button>
+        <Button type="submit" disabled={create.isPending}>{create.isPending ? 'Creating…' : 'Create account'}</Button>
+      </div>
+    </form>
   )
 }
 

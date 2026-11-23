@@ -7,6 +7,8 @@ import re
 
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
+from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import transaction
 from django.utils.crypto import get_random_string
 from rest_framework.exceptions import ValidationError
@@ -35,8 +37,31 @@ def username_for(driver):
     return name
 
 
-def create_account(driver):
-    """Returns (user, temporary_password). Refuses inactive drivers and drivers who already have a login."""
+def check_credentials(username, password):
+    """Validate an administrator's typed username/initial password; returns the cleaned username."""
+    User = get_user_model()
+    errors = {}
+    username = (username or '').strip()
+    if username:
+        try:
+            User._meta.get_field('username').run_validators(username)
+        except DjangoValidationError as e:
+            errors['username'] = e.messages
+        if User.objects.filter(username__iexact=username).exists():  # MySQL collation ignores case
+            errors['username'] = ['This username is already taken.']
+    if password:
+        try:
+            validate_password(password, User(username=username))
+        except DjangoValidationError as e:
+            errors['password'] = e.messages
+    if errors:
+        raise ValidationError(errors)
+    return username
+
+
+def create_account(driver, username='', password=''):
+    """Returns (user, initial_password). Username and password are generated when not given (bulk creation).
+    Refuses inactive drivers and drivers who already have a login."""
     try:
         role = Group.objects.get(name=ROLE)
     except Group.DoesNotExist:
@@ -47,10 +72,11 @@ def create_account(driver):
             raise ValidationError(f'{d.full_name} already has an account ({d.user.username}).')
         if not d.is_active:
             raise ValidationError(f'{d.full_name} is inactive. Activate the driver first.')
-        password = get_random_string(10, PASSWORD_CHARS)
+        username = check_credentials(username, password) or username_for(d)
+        password = password or get_random_string(10, PASSWORD_CHARS)
         *first, last = d.full_name.split() or ['']
         user = get_user_model().objects.create_user(
-            username_for(d), password=password, first_name=' '.join(first)[:150], last_name=last[:150],
+            username, password=password, first_name=' '.join(first)[:150], last_name=last[:150],
             must_change_password=True)
         user.groups.add(role)
         user.offices.add(d.office)

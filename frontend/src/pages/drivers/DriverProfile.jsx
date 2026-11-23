@@ -72,7 +72,7 @@ export default function DriverProfile() {
               <Meta icon={Building2} label="Office" value={d.office_name} />
               <Meta icon={Phone} label="Contact" value={d.contact_number
                 ? <a href={`tel:${d.contact_number}`} className="hover:text-brand hover:underline">{d.contact_number}</a> : 'Not recorded'} />
-              <Meta icon={KeyRound} label="Login" value={<DriverLogin driver={d} />} />
+              <Meta icon={KeyRound} label="Account" value={<DriverLogin driver={d} />} />
             </dl>
           </div>
         </div>

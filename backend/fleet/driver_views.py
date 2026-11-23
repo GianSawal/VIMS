@@ -113,9 +113,11 @@ class DriverViewSet(RemoveMixin, AttachmentsMixin, OfficeScopedMixin, mixins.Lis
 
     @action(detail=True, methods=['post'], permission_classes=CAN_MAKE_ACCOUNTS)
     def account(self, request, pk=None):
-        """Create this driver's login (role Driver). The temporary password is in the response only, once."""
+        """Create this driver's login (role Driver). Optional `username` and `password` (initial password; the driver
+        must change it at first login); blank ones are generated and returned in the response only, once."""
         d = self.get_object()
-        user, password = driver_accounts.create_account(d)
+        user, password = driver_accounts.create_account(
+            d, str(request.data.get('username') or ''), str(request.data.get('password') or ''))
         return Response(self._account_created(request, d, user, password), status=status.HTTP_201_CREATED, headers=NO_STORE)
 
     @action(detail=False, methods=['post'], url_path='create-accounts', permission_classes=CAN_MAKE_ACCOUNTS)
