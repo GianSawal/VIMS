@@ -42,7 +42,7 @@ export default function MyProfile() {
           <img src="/dole-logo.png" alt="" className="absolute -top-6 right-2 h-32 w-32 opacity-10" />
         </div>
         <div className="flex flex-col gap-4 px-5 pb-5 sm:flex-row sm:items-end">
-          <div className="-mt-12 shrink-0">
+          <div className="relative z-10 -mt-12 shrink-0"> {/* above the positioned banner strip, which would otherwise paint over it */}
             {d.photo_url
               ? <img src={d.photo_url} alt={`Photo of ${d.full_name}`} className="h-24 w-24 rounded-2xl border-4 border-white bg-white object-cover shadow-md" />
               : <div role="img" aria-label="No photo" className="flex h-24 w-24 items-center justify-center rounded-2xl border-4 border-white bg-brand-light text-3xl font-bold text-brand shadow-md">{initials(d.full_name)}</div>}
