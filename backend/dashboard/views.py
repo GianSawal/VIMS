@@ -19,6 +19,7 @@ from rest_framework.views import APIView
 
 from accounts.models import Office
 from accounts.permissions import scope_to_offices, sees_all_offices
+from dashboard import activity as feed
 from fleet import documents
 from fleet.models import Driver, Vehicle, VehicleDocument
 from maintenance import service as maintenance_service
@@ -72,12 +73,12 @@ class DashboardView(APIView):
         if user.has_perm('fleet.view_vehicle'):
             vehicles = scoped(Vehicle.objects.filter(is_archived=False), 'office')
             out['vehicles'] = self._vehicles(vehicles)
-            activity += self._vehicle_activity(vehicles)
+            activity.append(feed.vehicles(vehicles, ACTIVITY))
         if user.has_perm('fleet.view_vehicledocument'):
             docs = scoped(VehicleDocument.objects.filter(status=VehicleDocument.Status.ACTIVE), 'vehicle__office')
             out['renewals'] = {'lto': self._renewals(docs, LTO_TYPES), 'insurance': self._renewals(docs, INSURANCE_TYPES),
                                'window_days': max(documents.thresholds())}
-            activity += self._document_activity(scoped(VehicleDocument.objects.all(), 'vehicle__office'))
+            activity.append(feed.documents(scoped(VehicleDocument.objects.all(), 'vehicle__office'), ACTIVITY))
         if user.has_perm('maintenance.view_maintenanceschedule'):
             out['maintenance_due'] = self._maintenance_due(scoped(MaintenanceSchedule.objects.filter(is_active=True), 'vehicle__office'))
         if user.has_perm('fleet.view_driver'):
@@ -85,17 +86,17 @@ class DashboardView(APIView):
         if user.has_perm('operations.view_fuelrecord'):
             fuel = scoped(FuelRecord.objects.all(), 'vehicle__office')
             out['fuel'] = self._fuel(fuel)
-            activity += self._fuel_activity(fuel)
+            activity.append(feed.fuel(fuel, ACTIVITY))
         if user.has_perm('maintenance.view_maintenancerecord'):
             records = scoped(MaintenanceRecord.objects.all(), 'vehicle__office')
             out['maintenance_cost'] = self._maintenance_cost(records)
-            activity += self._maintenance_activity(records)
+            activity.append(feed.maintenance(records, ACTIVITY))
         if user.has_perm('operations.view_trip'):
             trips = scoped(Trip.objects.all(), 'vehicle__office')
             fleet = scoped(Vehicle.objects.filter(is_archived=False), 'office')
             out['utilization'] = self._utilization(trips, fleet)
-            activity += self._trip_activity(trips)
-        out['activity'] = sorted(activity, key=lambda a: a['at'], reverse=True)[:ACTIVITY]
+            activity.append(feed.trips(trips, ACTIVITY))
+        out['activity'] = feed.merge(activity, ACTIVITY)
         return Response(out)
 
     # ---- params --------------------------------------------------------------------------------
@@ -239,30 +240,3 @@ class DashboardView(APIView):
                               'distance_km': t['km'] or 0} for t in top],
         }
 
-    # ---- recent activity -----------------------------------------------------------------------
-    # Built from the office-scoped records themselves (the audit log has no office), newest first.
-
-    def _vehicle_activity(self, qs):
-        return [{'kind': 'vehicle', 'at': v.created_at, 'link': f'/vehicles/{v.id}', 'plate_number': v.plate_number,
-                 'text': f'Vehicle added: {v.make} {v.model}'} for v in qs.order_by('-created_at')[:ACTIVITY]]
-
-    def _document_activity(self, qs):
-        return [{'kind': 'document', 'at': d.created_at, 'link': f'/documents/{d.id}', 'plate_number': d.vehicle.plate_number,
-                 'text': f'{d.get_document_type_display()} recorded' + (f', expires {d.expiry_date:%b %d, %Y}' if d.expiry_date else '')}
-                for d in qs.select_related('vehicle').order_by('-created_at')[:ACTIVITY]]
-
-    def _fuel_activity(self, qs):
-        return [{'kind': 'fuel', 'at': r.created_at, 'link': f'/fuel/{r.id}', 'plate_number': r.vehicle.plate_number,
-                 'text': f'Fuel: {r.liters.normalize():f} L, ₱{r.total_amount:,.2f}'}
-                for r in qs.select_related('vehicle').order_by('-created_at')[:ACTIVITY]]
-
-    def _maintenance_activity(self, qs):
-        return [{'kind': 'maintenance', 'at': r.updated_at, 'link': f'/maintenance/{r.id}', 'plate_number': r.vehicle.plate_number,
-                 'text': f'Maintenance {r.get_status_display().lower()}: {r.description[:60]}'}
-                for r in qs.select_related('vehicle').order_by('-updated_at')[:ACTIVITY]]
-
-    def _trip_activity(self, qs):
-        verb = {'SCHEDULED': 'Trip scheduled to', 'DISPATCHED': 'Dispatched to', 'COMPLETED': 'Returned from', 'CANCELLED': 'Trip cancelled to'}
-        return [{'kind': 'trip', 'at': t.updated_at, 'link': f'/trips/{t.id}', 'plate_number': t.vehicle.plate_number,
-                 'text': f'{verb[t.status]} {t.destination}'}
-                for t in qs.select_related('vehicle').order_by('-updated_at')[:ACTIVITY]]

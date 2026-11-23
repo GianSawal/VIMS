@@ -9,6 +9,7 @@ from rest_framework.response import Response
 from accounts.permissions import OfficeScopedMixin, PasswordChangeNotRequired, require
 from audit.services import diff, log
 from config.removal import RemoveMixin
+from dashboard.activity import for_vehicle as vehicle_activity
 
 from . import assignments as assignment_service
 from .driver_serializers import AssignInputSerializer, AssignmentSerializer, EndAssignmentSerializer
@@ -18,6 +19,7 @@ from .serializers import PhotoSerializer, VehicleDetailSerializer, VehicleListSe
 
 CAN_CHANGE = [require('fleet.change_vehicle'), PasswordChangeNotRequired]
 CAN_VIEW_ASSIGNMENTS = [require('fleet.view_vehicleassignment'), PasswordChangeNotRequired]
+ACTIVITY_LIMIT = 30
 CAN_PHOTO = [require('fleet.change_vehicle', 'fleet.manage_vehicle_photo'), PasswordChangeNotRequired]
 
 AUDITED = ['plate_number', 'property_number', 'engine_number', 'chassis_number', 'office', 'status',
@@ -102,6 +104,12 @@ class VehicleViewSet(RemoveMixin, OfficeScopedMixin, mixins.ListModelMixin, mixi
         v = self.get_object()
         change_photo(request, v)
         return Response(VehicleDetailSerializer(v, context={'request': request}).data)
+
+    @action(detail=True, methods=['get'], permission_classes=[require('fleet.view_vehicle'), PasswordChangeNotRequired])
+    def activity(self, request, pk=None):
+        """Latest 30 events for this vehicle (added, assignments, documents, fuel, maintenance, trips), newest first.
+        Built from the records, so each type appears only if the user may view it; not the audit log (admin only)."""
+        return Response(vehicle_activity(request.user, self.get_object(), ACTIVITY_LIMIT))
 
     # ---- assignments (history is append-only: reassigning ends the old row and starts a new one) ----
 

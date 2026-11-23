@@ -11,6 +11,7 @@ import { initials } from '../../components/filters'
 import PhotoUpload from '../../components/PhotoUpload'
 import { Button, ConfirmDialog, formatDateTime, inputBase } from '../../components/ui'
 import { useToast } from '../../components/toast'
+import { Activity } from '../Dashboard'
 import { NotFound } from '../Errors'
 import { TripStatusBadge } from '../trips/common'
 import AssignmentsTab from './AssignmentsTab'
@@ -31,7 +32,7 @@ const TABS = [
   ['maintenance', 'Maintenance'],
   ['documents', 'Documents'],
   ['rfid', 'RFID / Toll'],
-  ['activity', 'Activity', 14],
+  ['activity', 'Activity'],
 ]
 
 export default function VehicleProfile() {
@@ -188,11 +189,8 @@ export default function VehicleProfile() {
           : tab === 'maintenance' ? <MaintenanceTab v={v} range={range} />
           : tab === 'documents' ? <DocumentsTab v={v} />
           : tab === 'rfid' ? <RfidTab v={v} range={range} />
-          : (
-            <div className="rounded-xl border border-dashed border-slate-300 bg-white p-10 text-center text-slate-500">
-              {TABS.find(([k]) => k === tab)?.[1] ?? 'This section'} arrives in Phase {TABS.find(([k]) => k === tab)?.[2]}.
-            </div>
-          )}
+          : tab === 'activity' ? <ActivityTab v={v} />
+          : <Overview v={v} onGo={goto} />}
       </div>
 
       <ConfirmDialog
@@ -312,6 +310,21 @@ function Overview({ v, onGo }) {
         <p className="text-xs text-slate-400">Added {formatDateTime(v.created_at)} · Last updated {formatDateTime(v.updated_at)}</p>
       </div>
     </div>
+  )
+}
+
+// Latest events built from the vehicle's records (any role that sees the vehicle); System Administrators also get
+// the full audit trail (every field change, who made it), which only they may read.
+function ActivityTab({ v }) {
+  const can = useCan()
+  const query = useQuery({ queryKey: ['/vehicles/', String(v.id), 'activity'], queryFn: () => api.get(`/vehicles/${v.id}/activity/`).then((r) => r.data) })
+  if (query.isLoading) return <div className="h-40 animate-pulse rounded-xl bg-slate-100" />
+  if (query.isError) return <p className="text-sm text-danger">{errorMessage(query.error)}</p>
+  return (
+    <Activity items={query.data} title="Latest activity" plate={false} deferred={false}
+      action={can('audit.view_auditlog') && (
+        <Link to={`/audit-logs?entity_type=fleet.Vehicle&entity_id=${v.id}`} className="text-sm text-brand hover:underline">Full audit log</Link>
+      )} />
   )
 }
 

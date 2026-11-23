@@ -2,7 +2,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { motion } from 'motion/react'
 import {
   Ban, CalendarClock, Car, CircleCheck, ClipboardPen, Clock, CreditCard, FileText, Fuel, IdCard, Navigation, PackageX, Route as RouteIcon,
-  ShieldCheck, TriangleAlert, UserX, Wrench,
+  ShieldCheck, TriangleAlert, UserRound, UserX, Wrench,
 } from 'lucide-react'
 import { useId } from 'react'
 import { useList } from '../api'
@@ -192,10 +192,13 @@ function Skeleton({ className }) {
   return <div aria-hidden="true" className={`rounded-xl bg-slate-100 motion-safe:animate-pulse ${className}`} />
 }
 
-function Section({ title, children }) {
+function Section({ title, action, children }) {
   return (
     <section>
-      <h2 className="mb-2 text-xs font-semibold tracking-wide text-slate-500 uppercase">{title}</h2>
+      <div className="mb-2 flex items-baseline justify-between gap-2">
+        <h2 className="text-xs font-semibold tracking-wide text-slate-500 uppercase">{title}</h2>
+        {action}
+      </div>
       {children}
     </section>
   )
@@ -562,7 +565,7 @@ function ByOffice({ rows, office }) {
 }
 
 const KIND = {
-  vehicle: [Car, 'bg-brand-light text-brand'], document: [FileText, 'bg-slate-100 text-slate-600'],
+  vehicle: [Car, 'bg-brand-light text-brand'], assignment: [UserRound, 'bg-violet-50 text-violet-700'], document: [FileText, 'bg-slate-100 text-slate-600'],
   fuel: [Fuel, 'bg-green-50 text-green-700'], maintenance: [Wrench, 'bg-amber-50 text-amber-700'], trip: [RouteIcon, 'bg-sky-50 text-sky-700'],
 }
 
@@ -575,15 +578,16 @@ function dayLabel(iso) {
   return new Intl.DateTimeFormat('en-PH', { dateStyle: 'medium' }).format(new Date(iso))
 }
 
-function Activity({ items }) {
+// Also the vehicle profile's Activity tab (plate={false}: every row is the same vehicle; deferred={false}: it is on screen).
+export function Activity({ items, title = 'Recent activity', plate = true, deferred = true, action }) {
   // Items arrive newest first, so key insertion order keeps the days in order.
   const groups = Object.entries(Object.groupBy(items, (a) => dayLabel(a.at))).map(([label, items]) => ({ label, items }))
   return (
-    <Section title="Recent activity">
+    <Section title={title} action={action}>
       {/* Each day is a grid of compact entries (1 / 2 / 3 columns), read left to right, so short rows don't stretch the card.
-          Always below the fold: content-visibility skips its layout/paint until it nears the viewport; the intrinsic size
-          placeholder (remembered once rendered) stops the scrollbar jumping. */}
-      <Reveal className="rounded-xl border border-slate-200 bg-white px-4 py-2 shadow-sm [content-visibility:auto] [contain-intrinsic-size:auto_none_auto_480px]">
+          On the dashboard it is always below the fold: content-visibility skips its layout/paint until it nears the
+          viewport; the intrinsic size placeholder (remembered once rendered) stops the scrollbar jumping. */}
+      <Reveal className={`rounded-xl border border-slate-200 bg-white px-4 py-2 shadow-sm ${deferred ? '[content-visibility:auto] [contain-intrinsic-size:auto_none_auto_480px]' : ''}`}>
         {groups.length ? groups.map((g) => (
           <div key={g.label} className="py-2">
             <h3 className="mb-1.5 text-xs font-medium text-slate-500">{g.label}</h3>
@@ -592,9 +596,9 @@ function Activity({ items }) {
                 const [Icon, tint] = KIND[a.kind]
                 return (
                   <li key={`${a.kind}-${a.link}-${a.at}`} className="min-w-0">
-                    <Link to={a.link} className="grid min-w-0 grid-cols-[1.75rem_5rem_minmax(0,1fr)_auto] items-center gap-3 rounded-lg border border-slate-100 px-2 py-2 text-sm hover:border-slate-200 hover:bg-slate-50">
+                    <Link to={a.link} className={`grid min-w-0 ${plate ? 'grid-cols-[1.75rem_5rem_minmax(0,1fr)_auto]' : 'grid-cols-[1.75rem_minmax(0,1fr)_auto]'} items-center gap-3 rounded-lg border border-slate-100 px-2 py-2 text-sm hover:border-slate-200 hover:bg-slate-50`}>
                       <span className={`flex h-7 w-7 items-center justify-center rounded-lg ${tint}`}><Icon size={14} aria-hidden="true" /></span>
-                      <span className="truncate font-semibold tracking-wide whitespace-nowrap text-brand" title={a.plate_number}>{a.plate_number}</span>
+                      {plate && <span className="truncate font-semibold tracking-wide whitespace-nowrap text-brand" title={a.plate_number}>{a.plate_number}</span>}
                       <span className="truncate text-slate-700" title={a.text}>{a.text}</span>
                       <time dateTime={a.at} className="text-right text-xs whitespace-nowrap text-slate-500 tabular-nums">{timeShort.format(new Date(a.at))}</time>
                     </Link>

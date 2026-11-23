@@ -210,3 +210,16 @@ def test_fleet_administrator_assigned_to_an_office_sees_only_that_office(fo1, fo
     assert [v['plate_number'] for v in c.get('/api/vehicles/').json()['results']] == ['MINE 1']
     assert c.get('/api/auth/me/').json()['view_all_offices'] is False
     assert c.get('/api/dashboard/').json()['vehicles']['total'] == 1
+
+
+def test_vehicle_activity_feed_newest_first_and_office_scoped(fo1, fo2):
+    from django.utils import timezone
+
+    from fleet.models import VehicleAssignment
+    v = make_vehicle(fo1, 'ACT 1')
+    make_vehicle(fo1, 'ACT 2')  # another vehicle's events never appear
+    VehicleAssignment.objects.create(vehicle=v, office=fo1, accountable_person='JUAN DELA CRUZ', start_date=timezone.localdate())
+    feed = as_role('Fleet Administrator').get(f'/api/vehicles/{v.pk}/activity/').json()
+    assert [e['kind'] for e in feed] == ['assignment', 'vehicle']
+    assert feed[0]['text'] == 'Assigned to JUAN DELA CRUZ (FO1)' and {e['plate_number'] for e in feed} == {'ACT 1'}
+    assert as_role('Field Office User', offices=[fo2]).get(f'/api/vehicles/{v.pk}/activity/').status_code == 404

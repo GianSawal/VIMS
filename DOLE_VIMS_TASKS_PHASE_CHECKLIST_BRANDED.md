@@ -512,6 +512,8 @@ correct records and totals. — pending client review; totals are checked agains
 -   [x] Prevent modification/deletion by normal users (no write API; admin read-only; `AuditLog.save()` refuses updates and `delete()` raises)
 -   [x] Tests (`audit/test_audit.py`: fuel/maintenance/document diffs, filters, facets, role access, no writes, append-only model, 401)
 
+-   [x] Vehicle profile Activity tab (2026-11-23): `GET /api/vehicles/{id}/activity/`, latest 30 events (added, assignments, documents, fuel, maintenance, trips) built from the records by `dashboard/activity.py`, which the dashboard feed now shares; each type only with its view permission. System Administrators also get a "Full audit log" link (`/audit-logs?entity_type=fleet.Vehicle&entity_id=`). Test in `fleet/test_vehicles.py`
+
 Deferred: the dashboard's "Recent activity" still reads the office-scoped records, because the audit log has no office field. Adding one would let field users see their own office's history.
 
 **Phase gate:** Critical changes can be traced to user, timestamp,
