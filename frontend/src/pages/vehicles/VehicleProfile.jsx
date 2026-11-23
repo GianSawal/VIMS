@@ -86,7 +86,19 @@ export default function VehicleProfile() {
     else n.set('tab', key)
     return n
   }, { replace: true })
+  // Above the KPI tiles on other tabs; on the filtered tabs it sits under the tab strip, next to the records it filters.
   const periodTab = ['trips', 'fuel', 'maintenance', 'rfid'].includes(tab)
+  const periodBar = (
+    <div className={`flex flex-wrap items-center gap-2 text-sm ${periodTab ? 'mb-4 rounded-xl border border-slate-200 bg-white px-4 py-2.5 shadow-sm' : 'mb-2 justify-end'}`}>
+      <span className={periodTab ? 'mr-auto font-medium text-ink' : 'text-slate-500'}>{periodTab ? 'Show records for' : 'Trips & fuel for'}</span>
+      <label htmlFor="period-month" className="text-slate-500">Month</label>
+      <input id="period-month" type="month" value={month} onChange={(e) => setPeriod(e.target.value)} className={`${inputBase} w-44`} />
+      <label htmlFor="period-day" className="text-slate-500">Day</label>
+      <input id="period-day" type="date" value={day} min={month ? `${month}-01` : undefined} max={month ? monthEnd(month) : undefined}
+        onChange={(e) => setPeriod(e.target.value ? e.target.value.slice(0, 7) : month, e.target.value)} className={`${inputBase} w-40`} />
+      {(month || day) && <button type="button" onClick={() => setPeriod('')} className="text-brand hover:underline">All time</button>}
+    </div>
+  )
 
   return (
     <div>
@@ -144,15 +156,7 @@ export default function VehicleProfile() {
       )}
 
       {/* KPI tiles */}
-      <div className="mb-2 flex flex-wrap items-center justify-end gap-2 text-sm">
-        <span className="text-slate-500">{periodTab ? 'Show records for' : 'Trips & fuel for'}</span>
-        <label htmlFor="period-month" className="sr-only">Month</label>
-        <input id="period-month" type="month" value={month} onChange={(e) => setPeriod(e.target.value)} className={`${inputBase} w-44`} />
-        <label htmlFor="period-day" className="sr-only">Day (optional)</label>
-        <input id="period-day" type="date" value={day} min={month ? `${month}-01` : undefined} max={month ? monthEnd(month) : undefined}
-          onChange={(e) => setPeriod(e.target.value ? e.target.value.slice(0, 7) : month, e.target.value)} className={`${inputBase} w-40`} />
-        {(month || day) && <button type="button" onClick={() => setPeriod('')} className="text-brand hover:underline">All time</button>}
-      </div>
+      {!periodTab && periodBar}
       <div className="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Kpi icon={Gauge} tint="bg-brand-light text-brand" label="Odometer" value={formatKm(v.current_odometer)} sub="Last recorded reading" />
         <Kpi icon={RouteIcon} tint="bg-green-50 text-green-700" label="Trips completed" value={trips ? trips.by_status.COMPLETED.toLocaleString('en-PH') : '…'}
@@ -172,6 +176,8 @@ export default function VehicleProfile() {
           </button>
         ))}
       </div>
+
+      {periodTab && periodBar}
 
       {/* Keyed by the period so a change starts the tab's table back at page 1. */}
       <div role="tabpanel" key={`${month}|${day}`}>
