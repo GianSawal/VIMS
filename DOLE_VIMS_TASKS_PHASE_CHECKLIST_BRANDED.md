@@ -98,6 +98,7 @@ environments, run React, run Django, and connect to MySQL.
 - [ ] Verify accessible contrast and visible focus indicators
 - [ ] Verify responsive appearance across desktop and mobile
     - Phone header (2026-11-23): the top bar with the menu button stays pinned while scrolling (`sticky top-0 z-10`, under the menu overlay and drawer).
+    - Phone header contents (2026-11-23, `MobileHeader` in `Layout.jsx`): menu button, or a back arrow on detail pages (history back, else the list); logo + current page name; office chip for multi-office users (All offices / N offices); notification bell with the unread count; avatar (driver photo or initials) opening an account popover (name, role, offices, My profile for drivers, Change password, Log out). Native `popover`, so Esc and tapping outside close it. `Layout.test.jsx`
 - [x] Document logo asset path and selected colors (README → Branding)
 - [ ] Confirm branding consistency during UAT
 

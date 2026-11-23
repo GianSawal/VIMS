@@ -1,9 +1,12 @@
-import { Fragment, useState } from 'react'
-import { NavLink, useLocation, useNavigate, useOutlet } from 'react-router-dom'
+import { Fragment, useRef, useState } from 'react'
+import { Link, NavLink, useLocation, useNavigate, useOutlet } from 'react-router-dom'
 import { AnimatePresence, motion } from 'motion/react'
-import { KeyRound, LogOut, Menu, X } from 'lucide-react'
-import { useCan, useLogout, useMe } from './auth'
-import { nav } from './nav'
+import { useQuery } from '@tanstack/react-query'
+import { ArrowLeft, Bell, Building2, KeyRound, LogOut, Menu, UserRound, X } from 'lucide-react'
+import { api } from './api'
+import { drivesOnly, useCan, useLogout, useMe } from './auth'
+import { Avatar } from './components/filters'
+import { nav, navFor } from './nav'
 import { useUnreadCount } from './notifications'
 import { EASE_OUT } from './components/motion'
 
@@ -96,11 +99,7 @@ export default function Layout() {
       </AnimatePresence>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-10 flex items-center gap-3 border-b border-slate-200 bg-white px-4 py-3 lg:hidden">
-          <button onClick={() => setOpen(true)} aria-label="Open menu">
-            <Menu size={22} />
-          </button>
-        </header>
+        <MobileHeader me={me} unread={unread} onMenu={() => setOpen(true)} onLogout={onLogout} />
         <main className="flex-1 p-4 lg:p-6">
           {/* Keyed on the path (not the query string), so filters, sorting, paging and ?tab= never replay it.
               useOutlet() hands AnimatePresence a fixed element, so the old page stays on screen while it fades out;
@@ -114,5 +113,81 @@ export default function Layout() {
         </main>
       </div>
     </div>
+  )
+}
+
+/** Phone/tablet top bar (hidden on desktop, where the sidebar shows all of this). Left: menu, or back on a detail page
+ *  (a trip, vehicle, report...). Middle: logo and the page name. Right: office chip for multi-office users, the
+ *  notification bell with the unread count, and the account menu. */
+function MobileHeader({ me, unread, onMenu, onLogout }) {
+  const can = useCan()
+  const navigate = useNavigate()
+  const { pathname } = useLocation()
+  const menu = useRef(null)
+  const entry = navFor(pathname)
+  const detail = entry && pathname !== entry[0] // e.g. /trips/12 under Trips
+  const title = entry?.[1] ?? 'DOLE VRS'
+  const driver = drivesOnly(can)
+  // Same query as the driver pages (already cached there): the driver's photo for the avatar.
+  const home = useQuery({ queryKey: ['/driver/home/'], queryFn: () => api.get('/driver/home/').then((r) => r.data), enabled: driver })
+  const name = [me?.first_name, me?.last_name].filter(Boolean).join(' ') || me?.username
+  const offices = me?.offices ?? []
+  const officeChip = me?.view_all_offices ? 'All offices' : offices.length > 1 ? `${offices.length} offices` : null
+  const back = () => (window.history.state?.idx > 0 ? navigate(-1) : navigate(entry[0]))
+  const close = () => menu.current?.hidePopover()
+
+  return (
+    <header className="sticky top-0 z-10 flex items-center gap-2 border-b border-slate-200 bg-white px-3 py-2 lg:hidden">
+      {detail ? (
+        <button onClick={back} aria-label={`Back to ${entry[1]}`} className="rounded-lg p-2 hover:bg-slate-100"><ArrowLeft size={22} /></button>
+      ) : (
+        <button onClick={onMenu} aria-label="Open menu" className="rounded-lg p-2 hover:bg-slate-100"><Menu size={22} /></button>
+      )}
+      <Link to="/" className="flex min-w-0 flex-1 items-center gap-2">
+        <img src="/dole-logo.png" alt="DOLE VRS home" className="h-8 w-8 shrink-0 object-contain" />
+        <span className="truncate font-semibold text-ink">{title}</span>
+      </Link>
+      {officeChip && (
+        <span title={offices.map((o) => o.name).join(', ') || 'Every office'}
+          className="inline-flex shrink-0 items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600 max-[380px]:hidden">
+          <Building2 size={12} aria-hidden="true" /> {officeChip}
+        </span>
+      )}
+      <Link to="/notifications" aria-label={unread ? `Notifications, ${unread} unread` : 'Notifications'} className="relative rounded-lg p-2 hover:bg-slate-100">
+        <Bell size={22} aria-hidden="true" />
+        {unread > 0 && (
+          <span aria-hidden="true" className="absolute top-0.5 right-0.5 flex h-4.5 min-w-4.5 items-center justify-center rounded-full bg-accent px-1 text-[10px] font-bold text-white">
+            {unread > 99 ? '99+' : unread}
+          </span>
+        )}
+      </Link>
+      <button popoverTarget="account-menu" aria-label="Account menu" className="rounded-full p-0.5 hover:ring-2 hover:ring-brand-light">
+        <Avatar name={name} src={home.data?.driver?.photo_url} className="h-9! w-9! text-xs" />
+      </button>
+      {/* Native popover: Esc and tapping outside close it, no extra code. Pinned under the bar on the right. */}
+      <div id="account-menu" ref={menu} popover="auto"
+        className="fixed inset-auto top-14 right-3 m-0 w-64 rounded-xl border border-slate-200 bg-white p-2 text-ink shadow-lg">
+        <div className="flex items-center gap-3 px-2 py-2">
+          <Avatar name={name} src={home.data?.driver?.photo_url} />
+          <div className="min-w-0 leading-tight">
+            <div className="truncate font-semibold">{name}</div>
+            <div className="truncate text-xs text-slate-500">{me?.role ?? 'No role assigned'}</div>
+            {offices.length > 0 && <div className="truncate text-xs text-slate-500">{offices.map((o) => o.code).join(', ')}</div>}
+          </div>
+        </div>
+        <div className="my-1 border-t border-slate-100" />
+        {driver && (
+          <Link to="/my-profile" onClick={close} className="flex items-center gap-3 rounded-lg px-2 py-2 text-sm font-medium hover:bg-slate-100">
+            <UserRound size={18} aria-hidden="true" /> My profile
+          </Link>
+        )}
+        <Link to="/change-password" onClick={close} className="flex items-center gap-3 rounded-lg px-2 py-2 text-sm font-medium hover:bg-slate-100">
+          <KeyRound size={18} aria-hidden="true" /> Change password
+        </Link>
+        <button onClick={() => { close(); onLogout() }} className="flex w-full items-center gap-3 rounded-lg px-2 py-2 text-left text-sm font-medium hover:bg-slate-100 hover:text-danger">
+          <LogOut size={18} aria-hidden="true" /> Log out
+        </button>
+      </div>
+    </header>
   )
 }

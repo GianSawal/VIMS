@@ -1,4 +1,4 @@
-import { screen } from '@testing-library/react'
+import { screen, within } from '@testing-library/react'
 import { Route } from 'react-router-dom'
 import { describe, expect, it } from 'vitest'
 import { RequireAuth, RequirePerm } from './auth'
@@ -6,7 +6,8 @@ import Layout from './Layout'
 import { meWith, renderApp } from './test/render'
 
 const unread = { '["/notifications/unread-count/"]': 3 }
-const navLabels = () => screen.getAllByRole('link').map((a) => a.textContent.trim())
+const sidebar = () => within(screen.getByRole('complementary')) // the side menu (the phone header has its own links)
+const navLabels = () => sidebar().getAllByRole('link').map((a) => a.textContent.trim())
 
 describe('navigation follows the role (hint only; the API enforces it)', () => {
   it('Viewer sees records but no administration', () => {
@@ -17,7 +18,7 @@ describe('navigation follows the role (hint only; the API enforces it)', () => {
     const labels = navLabels()
     expect(labels).toEqual(expect.arrayContaining(['Dashboard', 'Vehicles', 'Drivers', 'Trips', 'Reports', 'Offices']))
     expect(labels.some((l) => l.startsWith('Users') || l.startsWith('Audit') || l.startsWith('Data Import'))).toBe(false)
-    expect(screen.getByText('3')).toBeInTheDocument() // unread badge on Notifications
+    expect(sidebar().getByText('3')).toBeInTheDocument() // unread badge on Notifications
   })
 
   it('System Administrator (superuser) sees every module', () => {
@@ -29,7 +30,7 @@ describe('navigation follows the role (hint only; the API enforces it)', () => {
   it('a user without a role sees only the dashboard, notifications and password', () => {
     renderApp(null, { me: meWith([], { role: null }), data: unread, routes: <Route path="*" element={<Layout />} /> })
     expect(navLabels().map((l) => l.replace(/\d+$/, ''))).toEqual(['Dashboard', 'Notifications', 'Password'])
-    expect(screen.getByText('No role assigned')).toBeInTheDocument()
+    expect(sidebar().getByText('No role assigned')).toBeInTheDocument()
   })
 
   it('a requester sees only their vehicle requests, not the fleet', () => {
