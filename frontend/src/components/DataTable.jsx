@@ -89,7 +89,7 @@ function MobileList({ rows, query, onRowClick, empty, card }) {
   )
 }
 
-export default function DataTable({ columns, query, page = 1, onPage, toolbar, onRowClick, footer = true, empty = 'No records found.', mobileCard }) {
+export default function DataTable({ columns, query, page = 1, onPage, toolbar, onRowClick, footer = true, empty = 'No records found.', mobileCard, label = 'Records' }) {
   const { data, isLoading, isError, error, isFetching } = query
   const rows = data?.results ?? []
   const count = data?.count ?? 0
@@ -104,7 +104,9 @@ export default function DataTable({ columns, query, page = 1, onPage, toolbar, o
       {/* relative: keeps absolutely placed children (sr-only header labels) inside the scroll box, or they widen the page.
           overflow-y-hidden: the rows' 4px settle-in would otherwise flash a vertical scrollbar and resize the table. */}
       {mobileCard && <MobileList rows={rows} query={query} onRowClick={onRowClick} empty={empty} card={mobileCard} />}
-      <div ref={box} className={`relative overflow-x-auto overflow-y-hidden ${mobileCard ? 'hidden md:block' : ''}`}>
+      {/* Focusable, named region: keyboard users can scroll a table wider than the screen with the arrow keys. */}
+      <div ref={box} tabIndex={0} role="region" aria-label={label}
+        className={`relative overflow-x-auto overflow-y-hidden focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-brand ${mobileCard ? 'hidden md:block' : ''}`}>
         <table className={`w-full text-left text-sm ${isFetching && !isLoading ? 'opacity-60' : ''}`}>
           <thead className="border-b border-slate-200 bg-slate-50 text-[11px] tracking-wider text-slate-500 uppercase">
             <tr>

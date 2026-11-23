@@ -36,7 +36,7 @@ export function Avatar({ name, src, className = '' }) {
   )
 }
 
-/** Clickable count card used as a filter (aria-pressed). `tint` = icon background/text classes. */
+/** Clickable count card used as a filter (aria-pressed). `tint` = icon background/text classes. Zero counts are grey. */
 // Cards stagger in with their CardGrid, counts count up once, and a press gives a slight squeeze.
 export function StatCard({ icon: Icon, tint, label, count, loading, selected, onClick }) {
   return (
@@ -49,7 +49,7 @@ export function StatCard({ icon: Icon, tint, label, count, loading, selected, on
       <span className="min-w-0">
         {loading
           ? <span className="block h-6 w-8 animate-pulse rounded bg-slate-200" />
-          : <span className="block text-xl leading-none font-semibold text-ink tabular-nums"><CountUp value={count ?? 0} /></span>}
+          : <span className={`block text-xl leading-none font-semibold tabular-nums ${count ? 'text-ink' : 'text-slate-400'}`}><CountUp value={count ?? 0} /></span>}
         <span className="mt-1 block truncate text-xs text-slate-500">{label}</span>
       </span>
     </Reveal>

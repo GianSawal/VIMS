@@ -44,6 +44,24 @@ function TripIdentity({ t }) {
   )
 }
 
+/** Origin dot, connecting line, destination pin. The markers sit outside the truncated text: `truncate` clips overflow,
+ *  so markers placed inside a truncating element were cut off and only the line showed. */
+function RouteLine({ t, className = '' }) {
+  return (
+    <ol className={`relative space-y-1 pl-5 text-sm ${className}`} aria-label={`From ${t.origin} to ${t.destination}`}>
+      <span aria-hidden="true" className="absolute top-[9px] bottom-[11px] left-[5px] w-px bg-slate-300" />
+      <li className="relative">
+        <span aria-hidden="true" className="absolute top-1.5 -left-5 h-[11px] w-[11px] rounded-full border-2 border-brand bg-white" />
+        <span className="block truncate text-slate-600" title={t.origin}>{t.origin}</span>
+      </li>
+      <li className="relative">
+        <MapPin size={13} aria-hidden="true" className="absolute top-[3px] -left-[21px] fill-white text-accent" />
+        <span className="block truncate font-medium" title={t.destination}>{t.destination}</span>
+      </li>
+    </ol>
+  )
+}
+
 /** What happened / happens at what time, in words, for the "When" column. */
 function whenText(t) {
   if (t.status === 'SCHEDULED') {
@@ -59,7 +77,8 @@ function whenText(t) {
 /** Trip table columns, shared with the vehicle Trips tab (`withVehicle` = false there). */
 export function tripColumns({ withVehicle = true } = {}) {
   return [
-    { key: 'when', label: 'When', render: (t) => {
+    // When and Status hug their content (w-px + nowrap); vehicle and route share the rest, so no column is left wide and empty.
+    { key: 'when', label: 'When', className: 'w-px', render: (t) => {
       const [main, sub, subCls] = whenText(t)
       return (
         <div className="flex items-center gap-3">
@@ -71,7 +90,7 @@ export function tripColumns({ withVehicle = true } = {}) {
         </div>
       )
     } },
-    { key: 'ticket', label: 'Trip ticket', render: (t) => (
+    { key: 'ticket', label: 'Trip ticket', className: 'w-56', render: (t) => (
       <div className="min-w-0">
         <Link to={`/trips/${t.id}`} onClick={(e) => e.stopPropagation()}
           className="inline-block rounded-md border border-slate-300 bg-white px-2 py-0.5 font-mono text-xs font-semibold text-brand hover:border-brand">{t.ticket_number}</Link>
@@ -93,21 +112,12 @@ export function tripColumns({ withVehicle = true } = {}) {
     ) }] : [{ key: 'driver', label: 'Driver', render: (t) => (
       <span className="flex items-center gap-2"><Avatar name={t.driver_name} src={t.driver_photo_url} className="h-7! w-7! text-[10px]" />{driverLabel(t)}</span>
     ) }]),
-    { key: 'route', label: 'Route', render: (t) => (
-      <ol className="relative max-w-64 space-y-1 pl-4 text-sm" aria-label={`From ${t.origin} to ${t.destination}`}>
-        <span aria-hidden="true" className="absolute top-2 bottom-2 left-[3px] w-px bg-slate-300" />
-        <li className="relative truncate" title={t.origin}>
-          <span aria-hidden="true" className="absolute top-1.5 -left-4 h-2 w-2 rounded-full bg-brand ring-2 ring-white" />{t.origin}
-        </li>
-        <li className="relative truncate font-medium" title={t.destination}>
-          <MapPin size={12} aria-hidden="true" className="absolute top-1 -left-[18px] text-accent" />{t.destination}
-        </li>
-      </ol>
-    ) },
-    { key: 'distance', label: 'Distance', className: 'text-right', render: (t) => t.distance_km != null
+    { key: 'route', label: 'Route', render: (t) => <RouteLine t={t} className="max-w-72" /> },
+    // Distance exists once the trip is back; before that the Status column already says where it is.
+    { key: 'distance', label: 'Distance', className: 'w-px whitespace-nowrap text-right', render: (t) => t.distance_km != null
       ? <span className="inline-flex items-baseline gap-1 rounded-full bg-brand-light px-2.5 py-0.5 text-brand"><span className="font-semibold tabular-nums">{t.distance_km.toLocaleString('en-PH')}</span><span className="text-[11px]">km</span></span>
-      : <span className="text-xs text-slate-400">{t.status === 'DISPATCHED' ? 'On the road' : t.status === 'SCHEDULED' ? 'Not yet' : '—'}</span> },
-    { key: 'status', label: 'Status', render: (t) => <TripStatusBadge status={t.status} /> },
+      : <span className="text-slate-400"><span aria-hidden="true">—</span><span className="sr-only">No distance yet</span></span> },
+    { key: 'status', label: 'Status', className: 'w-px whitespace-nowrap', render: (t) => <TripStatusBadge status={t.status} /> },
   ]
 }
 
@@ -138,15 +148,7 @@ function tripCard(t) {
         </div>
       </div>
       <div className="flex items-end gap-3">
-        <ol className="relative min-w-0 flex-1 space-y-1 pl-4 text-sm" aria-label={`From ${t.origin} to ${t.destination}`}>
-          <span aria-hidden="true" className="absolute top-2 bottom-2 left-[3px] w-px bg-slate-300" />
-          <li className="relative truncate" title={t.origin}>
-            <span aria-hidden="true" className="absolute top-1.5 -left-4 h-2 w-2 rounded-full bg-brand ring-2 ring-white" />{t.origin}
-          </li>
-          <li className="relative truncate font-medium" title={t.destination}>
-            <MapPin size={12} aria-hidden="true" className="absolute top-1 -left-[18px] text-accent" />{t.destination}
-          </li>
-        </ol>
+        <RouteLine t={t} className="min-w-0 flex-1" />
         {t.distance_km != null && (
           <span className="inline-flex shrink-0 items-baseline gap-1 rounded-full bg-brand-light px-2.5 py-0.5 text-brand">
             <span className="font-semibold tabular-nums">{t.distance_km.toLocaleString('en-PH')}</span><span className="text-[11px]">km</span>
@@ -167,6 +169,9 @@ function datePresets() {
     ['This month', iso(new Date(now.getFullYear(), now.getMonth(), 1)), today]]
 }
 
+// Board columns by card count: 1 card spans the row, 2 share it, 3+ use the usual grid.
+const boardCols = (n) => (n === 1 ? '' : n === 2 ? 'md:grid-cols-2' : 'md:grid-cols-2 xl:grid-cols-3')
+
 const LONG_TRIP_HOURS = 12 // flag trips out longer than this (still shown in text, not by color alone)
 
 /** Today's bookings that haven't left yet: dispatch them here by entering the odometer. Also on the dashboard. */
@@ -183,14 +188,14 @@ export function LeavingToday({ canChange, office }) {
         <CalendarClock size={16} className="text-amber-600" aria-hidden="true" />
         Leaving today <span className="font-normal text-slate-500">· {rows.length} scheduled</span>
       </h2>
-      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+      <div className={`grid gap-3 ${boardCols(rows.length)}`}>
         {rows.map((t) => (
           <article key={t.id} className="flex flex-col rounded-xl border border-l-4 border-slate-200 border-l-amber-500 bg-white p-4 shadow-sm">
             <div className="mb-3 flex items-center justify-between gap-2">
               <div className="flex items-center gap-1.5 text-lg font-semibold text-amber-700 tabular-nums">
                 <Clock size={16} aria-hidden="true" />{new Date(t.scheduled_departure).toLocaleTimeString('en-PH', { hour: 'numeric', minute: '2-digit' })}
               </div>
-              <Link to={`/trips/${t.id}`} className="font-mono text-xs font-semibold text-brand hover:underline">{t.ticket_number}</Link>
+              <Link to={`/trips/${t.id}`} className="font-mono text-sm font-semibold text-brand hover:underline">{t.ticket_number}</Link>
             </div>
             <TripIdentity t={t} />
             <p className="mt-2 flex min-w-0 items-center gap-2 text-sm"><DivisionTag division={t.requesting_division} /><span className="truncate" title={t.destination}><span className="text-slate-500">To</span> {t.destination}</span></p>
@@ -229,27 +234,31 @@ export function OpenTrips({ canChange, onViewAll, office }) {
           <button type="button" onClick={onViewAll} className="ml-auto text-sm font-medium text-brand hover:underline">View all {count}</button>
         )}
       </div>
-      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+      {/* Few trips out: full-width cards so the row isn't two-thirds empty. Each card adapts to its own width
+          (container query): wide = one row (vehicle | destination | time and action), narrow = stacked. */}
+      <div className={`grid gap-3 ${boardCols(q.data.results.length)}`}>
         {q.data.results.map((t) => {
           const long = (now - new Date(t.departed_at)) / 36e5 > LONG_TRIP_HOURS
           return (
-            <article key={t.id} className={`flex flex-col rounded-xl border border-l-4 bg-white p-4 shadow-sm ${long ? 'border-amber-300 border-l-amber-500' : 'border-slate-200 border-l-brand'}`}>
+            <article key={t.id} className={`@container rounded-xl border border-l-4 bg-white p-4 shadow-sm ${long ? 'border-amber-300 border-l-amber-500' : 'border-slate-200 border-l-brand'}`}>
               <div className="mb-3 flex items-center justify-between gap-2">
                 <span className="text-xs font-semibold tracking-wider text-brand uppercase">On trip</span>
-                <Link to={`/trips/${t.id}`} className="font-mono text-xs font-semibold text-brand hover:underline">{t.ticket_number}</Link>
+                <Link to={`/trips/${t.id}`} className="font-mono text-sm font-semibold text-brand hover:underline">{t.ticket_number}</Link>
               </div>
-              <TripIdentity t={t} />
-              <p className="mt-2 flex min-w-0 items-center gap-2 text-sm"><DivisionTag division={t.requesting_division} /><span className="truncate" title={t.destination}><span className="text-slate-500">To</span> {t.destination}</span></p>
-              <div className="mt-3 flex items-center gap-2 border-t border-slate-100 pt-3 text-sm">
-                <Clock size={15} className={long ? 'text-amber-600' : 'text-slate-400'} aria-hidden="true" />
-                <span className={long ? 'font-medium text-amber-800' : 'text-slate-600'}>
-                  Out {tripDuration(t.departed_at)}{long && ' · long trip'}
-                </span>
-                {canChange && (
-                  <Button variant="secondary" className="ml-auto min-h-9" onClick={() => setReturning(t)}>
-                    <CircleCheck size={16} /> Record return
-                  </Button>
-                )}
+              <div className="flex flex-col gap-3 @2xl:flex-row @2xl:items-center @2xl:gap-6">
+                <div className="@2xl:w-80 @2xl:shrink-0"><TripIdentity t={t} /></div>
+                <p className="flex min-w-0 items-center gap-2 text-sm @2xl:flex-1"><DivisionTag division={t.requesting_division} /><span className="truncate" title={t.destination}><span className="text-slate-500">To</span> {t.destination}</span></p>
+                <div className="flex items-center gap-2 border-t border-slate-100 pt-3 text-sm @2xl:border-0 @2xl:pt-0">
+                  <Clock size={15} className={long ? 'text-amber-600' : 'text-slate-400'} aria-hidden="true" />
+                  <span className={`whitespace-nowrap ${long ? 'font-medium text-amber-800' : 'text-slate-600'}`}>
+                    Out {tripDuration(t.departed_at)}{long && ' · long trip'}
+                  </span>
+                  {canChange && (
+                    <Button variant="secondary" className="ml-auto min-h-9 @2xl:ml-4" onClick={() => setReturning(t)}>
+                      <CircleCheck size={16} /> Record return
+                    </Button>
+                  )}
+                </div>
               </div>
             </article>
           )
@@ -370,11 +379,12 @@ export default function TripList() {
           <StatCard key={value} {...card(value)} count={summary.data?.by_status[value] ?? 0} loading={summary.isLoading}
             selected={f.status === value} onClick={() => set('status', f.status === value ? '' : value)} />
         ))}
-        <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white px-3 py-3 shadow-sm">
-          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-amber-50 text-amber-700"><Milestone size={18} aria-hidden="true" /></span>
+        {/* A figure, not a filter: flat (no border, shadow or hover) so it doesn't look like the pressable cards beside it. */}
+        <div className="flex items-center gap-3 rounded-xl bg-slate-100/70 px-3 py-3">
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white text-slate-600"><Milestone size={18} aria-hidden="true" /></span>
           <span>
-            <span className="block text-xl leading-none font-semibold tabular-nums">{summary.isLoading ? '…' : km(summary.data?.distance_km ?? 0)}</span>
-            <span className="mt-1 block text-xs text-slate-500">Distance, completed trips</span>
+            <span className={`block text-xl leading-none font-semibold tabular-nums ${summary.data?.distance_km ? 'text-ink' : 'text-slate-400'}`}>{summary.isLoading ? '…' : km(summary.data?.distance_km ?? 0)}</span>
+            <span className="mt-1 block text-xs text-slate-500">Driven on completed trips</span>
           </span>
         </div>
       </CardGrid>
@@ -398,7 +408,7 @@ export default function TripList() {
         ? <TripCalendar month={f.month} onMonth={(m) => set('month', m)} filters={{ search: f.search, office: f.office }} toolbar={toolbar}
           onPickDay={can('operations.add_trip') ? (day) => openNewTrip('schedule', day) : undefined} />
         : <DataTable columns={tripColumns()} query={query} page={page} onPage={(p) => set('page', String(p))} toolbar={toolbar}
-          onRowClick={(t) => navigate(`/trips/${t.id}`)} mobileCard={tripCard}
+          onRowClick={(t) => navigate(`/trips/${t.id}`)} mobileCard={tripCard} label="Trips"
           empty={chips.length ? 'No trips match these filters.' : 'No trips yet.'} />}
 
       <Modal open={tv} onClose={() => setTv(false)} title="TV trip board" wide>

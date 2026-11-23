@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { Fragment, useState } from 'react'
 import { NavLink, useLocation, useNavigate, useOutlet } from 'react-router-dom'
 import { AnimatePresence, motion } from 'motion/react'
 import { KeyRound, LogOut, Menu, X } from 'lucide-react'
@@ -42,7 +42,11 @@ export default function Layout() {
           </button>
         </div>
         <nav className="flex-1 space-y-1 p-3" aria-label="Main">
-          {nav.filter(([, , , perm]) => !perm || (typeof perm === 'function' ? perm(can) : can(perm))).map(([to, label, Icon]) => (
+          {nav.filter(([, , , perm]) => !perm || (typeof perm === 'function' ? perm(can) : can(perm))).map(([to, label, Icon, , group], i, shown) => (
+            <Fragment key={to}>
+            {group && group !== shown[i - 1]?.[4] && (
+              <div className="px-3 pt-4 pb-1 text-[11px] font-semibold tracking-wider text-slate-400 uppercase">{group}</div>
+            )}
             <NavLink
               key={to}
               to={to}
@@ -63,6 +67,7 @@ export default function Layout() {
                 </span>
               )}
             </NavLink>
+            </Fragment>
           ))}
         </nav>
 

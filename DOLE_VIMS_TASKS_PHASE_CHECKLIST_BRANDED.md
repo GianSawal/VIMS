@@ -253,7 +253,7 @@ instead of overwriting it.
 -   [x] Odometer validation (start ≥ vehicle odometer; end ≥ start and ≥ vehicle odometer; completion moves vehicle odometer)
 -   [x] Vehicle-status dispatch validation (only Serviceable/In Use; one open trip per vehicle and per driver)
 -   [x] Trip attachment (shared `AttachmentsMixin`)
--   [x] Trip list
+-   [x] Trip list. UI review (2026-11-23): route markers no longer clipped by `truncate` (shared `RouteLine`), Distance shows "—" until the trip is back, column widths balanced, distance figure styled flat (not a filter), "Out right now"/"Leaving today" boards span the row with 1–2 trips (cards adapt by container query), larger ticket numbers; app-wide: zero counts grey on status cards, `DataTable` scroll box focusable and named (`label`), admin menu items under an "Administration" heading
 -   [x] Trip detail
 -   [x] Vehicle trip-history tab
 -   [x] Trip filters (status cards, office, date range, search)
