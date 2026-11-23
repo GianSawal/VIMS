@@ -3,7 +3,7 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { Car, ClipboardPen, Eye, KeyRound, MapPin, Pencil, Plus, Power, ShieldCheck, Users as UsersIcon } from 'lucide-react'
+import { Car, ClipboardPen, Eye, IdCard, KeyRound, MapPin, Pencil, Plus, Power, ShieldCheck, Users as UsersIcon } from 'lucide-react'
 import { api, applyFieldErrors, errorMessage, useList } from '../../api'
 import { useMe } from '../../auth'
 import DataTable from '../../components/DataTable'
@@ -23,6 +23,7 @@ const ROLE_CARDS = {
   'Field Office User': [MapPin, 'bg-amber-50 text-amber-700', 'Field office'],
   Viewer: [Eye, 'bg-slate-100 text-slate-600', 'Viewers'],
   Requester: [ClipboardPen, 'bg-green-50 text-green-700', 'Requesters'],
+  Driver: [IdCard, 'bg-sky-50 text-sky-700', 'Drivers'],
 }
 const roleCard = (r) => ({ icon: ROLE_CARDS[r][0], tint: ROLE_CARDS[r][1], label: ROLE_CARDS[r][2] })
 
