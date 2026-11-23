@@ -859,6 +859,7 @@ Added 2026-11-23. Drivers sign in to see their own trips and record the return.
 -   [x] Today trip details (2026-11-23): route moved into the details box above a divider; details as label-above-value (Purpose, Passengers full width; Requested by, Odometer out, Expected back) without icons
 -   [x] Today banner fixes (2026-11-23): greeting on a small line with the name as the heading (no "DANIEL / D." break), status line full width, tiles with short labels (Trips, Distance, License) and the period underneath so they line up; "Nothing scheduled right now" instead of "No trips booked for you yet"
 -   [x] Today banner styling (2026-11-23): corner light and the brand triangles (white and gold) behind, gold ring on the photo, status as a frosted pill with a matching icon, frosted tiles with icon squares and the license value tinted by status
+-   [x] Coming up rows show the trip purpose (up to two lines) under the destination (2026-11-23)
 -   [x] Install on phone: `public/manifest.json`, 192/512 icons from the logo, theme color; no service worker (online only). Unread badge on Notifications already existed
 -   [ ] Known limit: tolls/fuel/report check the vehicle against the driver's office (`User.offices`); a driver on another office's vehicle gets "no access to this vehicle"
 -   [ ] Run `seed_reference` on the server after deploying (creates the Driver role)

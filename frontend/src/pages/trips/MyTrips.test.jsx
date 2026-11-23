@@ -23,7 +23,7 @@ const DRIVER = meWith(['operations.drive_trip'], { first_name: 'Pedro' })
 
 describe('Driver pages', () => {
   it('Today: the trip out now and the one leaving today, each with its action; warnings on top', () => {
-    const later = trip(2, 'SCHEDULED', { departed_at: null, scheduled_departure: new Date(Date.now() + 3 * 864e5).toISOString(), schedule_day: 'UPCOMING' })
+    const later = trip(2, 'SCHEDULED', { departed_at: null, scheduled_departure: new Date(Date.now() + 3 * 864e5).toISOString(), schedule_day: 'UPCOMING', purpose: 'Seminar at Royce Hotel' })
     const today = trip(3, 'SCHEDULED', { departed_at: null, scheduled_departure: new Date(Date.now() + 36e5).toISOString(), schedule_day: 'TODAY' })
     renderApp(<MyTrips />, {
       me: DRIVER,
@@ -38,6 +38,7 @@ describe('Driver pages', () => {
     expect(screen.getByRole('button', { name: 'Add fuel' })).toBeInTheDocument()
     expect(screen.getAllByRole('button', { name: 'Start trip' })).toHaveLength(1) // only the one leaving today
     expect(screen.getByRole('heading', { name: 'Coming up' })).toBeInTheDocument()
+    expect(screen.getByText('Seminar at Royce Hotel')).toBeInTheDocument() // purpose on the Coming up row
     expect(screen.getByText(/Your license: expires in 8 days/)).toBeInTheDocument()
     expect(screen.getByText(/ABC 1: LTO Registration expired/)).toBeInTheDocument()
     expect(screen.getByText('Daniel Dione, Jan Wacky Mercado')).toBeInTheDocument() // one per line -> a readable list

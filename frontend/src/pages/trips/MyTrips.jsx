@@ -188,6 +188,7 @@ export default function MyTrips() {
                     <div className="min-w-0 flex-1">
                       <div className="font-medium">{whenText(t)[0]} · {t.plate_number}</div>
                       <div className="flex items-center gap-1.5 truncate text-sm text-slate-500"><DivisionTag division={t.requesting_division} /> To {t.destination}</div>
+                      {t.purpose && <div className="mt-0.5 line-clamp-2 text-sm text-slate-700">{t.purpose}</div>}
                     </div>
                     {ticketLink(t, 'Ticket')}
                   </li>
