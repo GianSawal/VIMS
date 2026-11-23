@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { Building2, Car, CircleCheck, IdCard, Milestone, Pencil, Phone, ShieldAlert, ShieldCheck } from 'lucide-react'
+import { Building2, Car, CircleCheck, IdCard, KeyRound, Milestone, Pencil, Phone, ShieldAlert, ShieldCheck } from 'lucide-react'
 import { api, errorMessage, useList } from '../../api'
 import { useCan } from '../../auth'
 import Attachments from '../../components/Attachments'
@@ -12,6 +12,7 @@ import { Badge, Button, formatDateTime, Modal } from '../../components/ui'
 import { NotFound } from '../Errors'
 import { tripColumns } from '../trips/TripList'
 import { duration, formatDate, formatKm } from '../vehicles/common'
+import { DriverLogin } from './accounts'
 import DriverForm from './DriverForm'
 import { expiryNote, LicenseBadge, todayISO } from './common'
 import DeleteRecord from '../../components/DeleteRecord'
@@ -71,6 +72,7 @@ export default function DriverProfile() {
               <Meta icon={Building2} label="Office" value={d.office_name} />
               <Meta icon={Phone} label="Contact" value={d.contact_number
                 ? <a href={`tel:${d.contact_number}`} className="hover:text-brand hover:underline">{d.contact_number}</a> : 'Not recorded'} />
+              <Meta icon={KeyRound} label="Login" value={<DriverLogin driver={d} />} />
             </dl>
           </div>
         </div>

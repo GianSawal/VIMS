@@ -62,7 +62,7 @@ function OfficeTag({ code }) {
 
 /** Origin dot, connecting line, destination pin. The markers sit outside the truncated text: `truncate` clips overflow,
  *  so markers placed inside a truncating element were cut off and only the line showed. */
-function RouteLine({ t, className = '' }) {
+export function RouteLine({ t, className = '' }) {
   return (
     <ol className={`relative space-y-1 pl-5 text-sm ${className}`} aria-label={`From ${t.origin} to ${t.destination}`}>
       <span aria-hidden="true" className="absolute top-[9px] bottom-[11px] left-[5px] w-px bg-slate-300" />
@@ -79,7 +79,7 @@ function RouteLine({ t, className = '' }) {
 }
 
 /** What happened / happens at what time, in words, for the "When" column. */
-function whenText(t) {
+export function whenText(t) {
   if (t.status === 'SCHEDULED') {
     const extra = t.schedule_day === 'MISSED' ? ['Missed: reschedule', 'text-danger font-medium']
       : t.schedule_day === 'TODAY' ? ['Leaves today', 'text-amber-700 font-medium'] : ['Booked', 'text-slate-500']

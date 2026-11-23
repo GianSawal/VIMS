@@ -10,7 +10,7 @@ from rest_framework import mixins, status, viewsets
 from rest_framework import serializers as drf_serializers
 from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import SAFE_METHODS, AllowAny
 from rest_framework.response import Response
 from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
@@ -34,7 +34,19 @@ from .serializers import (DESCRIPTIVE, ApproveRequestSerializer, CancelSerialize
                           RFIDAccountSerializer, ScheduleSerializer, TollTransactionSerializer, TripSerializer,
                           VehicleRequestInputSerializer, VehicleRequestSerializer)
 
+DRIVE = 'operations.drive_trip'
+
+
+class TripPermissions(ModelPermissions):
+    """Model permissions, except that a driver account (drive_trip) may read: get_queryset limits it to its own trips."""
+    def has_permission(self, request, view):
+        if request.method in SAFE_METHODS and request.user.is_authenticated and request.user.has_perm(DRIVE):
+            return True
+        return super().has_permission(request, view)
+
+
 CAN_CHANGE_TRIP = [require('operations.change_trip'), PasswordChangeNotRequired]
+CAN_RETURN_TRIP = [require_any('operations.change_trip', DRIVE), PasswordChangeNotRequired]  # drivers: own trips (queryset)
 CAN_ADD_TRIP = [require('operations.add_trip'), PasswordChangeNotRequired]
 
 
@@ -74,8 +86,12 @@ class TripViewSet(AttachmentsMixin, OfficeScopedMixin, mixins.ListModelMixin, mi
     search_fields = ['ticket_number', 'vehicle__plate_number', 'driver__full_name', 'origin', 'destination', 'purpose']
     ordering_fields = ['departed_at', 'scheduled_departure', 'returned_at', 'distance_km', 'ticket_number']
 
+    permission_classes = [TripPermissions, PasswordChangeNotRequired]
+
     def get_queryset(self):
-        qs = super().get_queryset()
+        u = self.request.user
+        # A driver account (drive_trip without view_trip) sees only the trips it drives, whichever office's vehicle.
+        qs = super().get_queryset() if u.has_perm('operations.view_trip') else self.queryset.filter(driver__user=u)
         if self.action in ('list', 'retrieve'):
             qs = qs.annotate(toll_count=Count('toll_transactions', distinct=True),
                              toll_charges=Sum('toll_transactions__debit'), toll_credits=Sum('toll_transactions__credit'))
@@ -166,7 +182,7 @@ class TripViewSet(AttachmentsMixin, OfficeScopedMixin, mixins.ListModelMixin, mi
         request_service.trip_dispatched(trip)
         return Response(TripSerializer(trip).data)
 
-    @action(detail=True, methods=['post'], permission_classes=CAN_CHANGE_TRIP)
+    @action(detail=True, methods=['post'], permission_classes=CAN_RETURN_TRIP)
     def complete(self, request, pk=None):
         """Record the return. Optional `toll: {account, items: [...]}` records the trip's reload/tolls (as in
         /toll-transactions/batch/, at the return time) in the same transaction: both are saved or neither."""

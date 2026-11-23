@@ -58,10 +58,11 @@ export const invalidatePrefix = (qc, ...prefixes) =>
 // with it). Dropdowns pass their own page_size.
 export const PAGE_SIZE = 8
 
-export function useList(path, params = {}) {
+export function useList(path, params = {}, options = {}) {
   return useQuery({
     queryKey: [path, params],
     queryFn: () => api.get(path, { params: 'page' in params && !params.page_size ? { page_size: PAGE_SIZE, ...params } : params }).then((r) => r.data),
     placeholderData: keepPreviousData,
+    ...options,
   })
 }

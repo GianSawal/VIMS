@@ -8,6 +8,7 @@ import { Avatar, CardGrid, SearchBox, selectClass, StatCard, Toolbar, useSetPara
 import { Badge, Button, Modal, PageHeader } from '../../components/ui'
 import { useAllOffices } from '../admin/Offices'
 import { formatDate } from '../vehicles/common'
+import { CreateLoginsButton } from './accounts'
 import DriverForm from './DriverForm'
 import { expiryNote, LICENSE_STATUSES, LicenseBadge } from './common'
 import { Select } from '../../components/Select'
@@ -144,9 +145,10 @@ export default function DriverList() {
 
   return (
     <div>
-      <PageHeader title="Authorized Drivers" actions={can('fleet.add_driver') && (
-        <Button onClick={() => setAdding(true)}><Plus size={16} /> Add driver</Button>
-      )}>Driver profiles, licenses and assignments.</PageHeader>
+      <PageHeader title="Authorized Drivers" actions={<>
+        <CreateLoginsButton />
+        {can('fleet.add_driver') && <Button onClick={() => setAdding(true)}><Plus size={16} /> Add driver</Button>}
+      </>}>Driver profiles, licenses and assignments.</PageHeader>
 
       <CardGrid label="Filter by license status">
         <StatCard {...card('ALL')} count={summary.data?.total} loading={summary.isLoading}

@@ -149,6 +149,11 @@ this by inheriting `accounts.permissions.OfficeScopedMixin` and setting `office_
 travel-order attachments), notifications and map search; no fleet, trip, fuel, RFID, report or audit access. They land
 on **Vehicle requests** instead of the dashboard. Create them in Users with the Requester role and their office.
 
+**Driver** (Phase 17N): a login linked to a driver record. Sees only the trips they drive (**My trips**), records the
+return, and can request vehicles like a Requester. Created from **Drivers** (Create driver logins, or Create login on a
+profile) by the System Administrator; the temporary password is shown once and must be changed at first sign-in.
+Deactivating the driver disables the login.
+
 ## Branding
 
 Logo: `IMAGES/DOLE.png` (the only candidate in the folder), copied to `frontend/public/dole-logo.png`.

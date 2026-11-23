@@ -1,5 +1,5 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
-import { RequireAuth, RequirePerm, seesDashboard, useCan } from './auth'
+import { drivesOnly, RequireAuth, RequirePerm, seesDashboard, useCan } from './auth'
 import Layout from './Layout'
 import Login from './pages/Login'
 import ChangePassword from './pages/ChangePassword'
@@ -16,6 +16,7 @@ import DriverList from './pages/drivers/DriverList'
 import DriverProfile from './pages/drivers/DriverProfile'
 import TripList from './pages/trips/TripList'
 import TripDetail from './pages/trips/TripDetail'
+import MyTrips from './pages/trips/MyTrips'
 import TripDisplay from './pages/display/TripDisplay'
 import FuelList from './pages/fuel/FuelList'
 import FuelDetail from './pages/fuel/FuelDetail'
@@ -36,10 +37,10 @@ import Schedule from './pages/requests/Schedule'
 // Each route gets a real page as its phase is built; Pending marks what's not built yet.
 const pending = []
 
-/** Landing page: fleet staff get the dashboard, requesters (no fleet access) their requests. */
+/** Landing page: fleet staff get the dashboard, drivers their trips, requesters (no fleet access) their requests. */
 function Home() {
   const can = useCan()
-  return <Navigate to={seesDashboard(can) ? '/dashboard' : '/requests'} replace />
+  return <Navigate to={seesDashboard(can) ? '/dashboard' : drivesOnly(can) ? '/my-trips' : '/requests'} replace />
 }
 
 export default function App() {
@@ -82,6 +83,9 @@ export default function App() {
           <Route element={<RequirePerm perm="operations.view_trip" />}>
             <Route path="trips" element={<TripList />} />
             <Route path="trips/:id" element={<TripDetail />} />
+          </Route>
+          <Route element={<RequirePerm perm="operations.drive_trip" />}>
+            <Route path="my-trips" element={<MyTrips />} />
           </Route>
           <Route element={<RequirePerm perm="operations.view_vehiclerequest" />}>
             <Route path="requests" element={<RequestList />} />

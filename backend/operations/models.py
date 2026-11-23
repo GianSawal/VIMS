@@ -72,6 +72,7 @@ class Trip(Tracked, RoutePlan):
 
     class Meta:
         ordering = [Coalesce('departed_at', 'scheduled_departure').desc(nulls_last=True), '-id']
+        permissions = [('drive_trip', 'Can see and record the return of own trips (driver account)')]
         constraints = [
             *non_negative('odometer_start'),
             ordered('odometer_start', 'odometer_end'),

@@ -36,6 +36,12 @@ ROLES = {
         ('operations', 'vehiclerequest', 'add change view'),
         ('notifications', 'notification', 'view change'),
     ],
+    # Drivers with a login (fleet/driver_accounts.py): their own trips (record the return) and vehicle requests.
+    'Driver': [
+        ('operations', 'trip', 'drive'),
+        ('operations', 'vehiclerequest', 'add change view'),
+        ('notifications', 'notification', 'view change'),
+    ],
     'Viewer': [
         ('accounts', 'office', 'view'),
         ('fleet', '*', 'view'),

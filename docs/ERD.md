@@ -118,5 +118,6 @@ erDiagram
 | Field Office User | view fleet; add/change trips, fuel, tolls, maintenance records |
 | Viewer | view only (no audit, no users) |
 | Requester | add/change/view own vehicle requests; notifications |
+| Driver | `drive_trip` (own trips: view, record return); own vehicle requests; notifications. Linked by `Driver.user` |
 
 No role gets `delete` except System Administrator; records are archived instead. Office scoping (`User.offices`) is applied in Phase 3.

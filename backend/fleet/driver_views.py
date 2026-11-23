@@ -1,21 +1,28 @@
 from datetime import timedelta
 
+from django.db import transaction
 from django.db.models import Count, Prefetch, Q
 from django.utils import timezone
 from django_filters import rest_framework as filters
-from rest_framework import mixins, viewsets
+from rest_framework import mixins, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.response import Response
 
 from accounts.permissions import OfficeScopedMixin, PasswordChangeNotRequired, require
+from accounts.views import user_snapshot
 from audit.services import diff, log
 from config.removal import RemoveMixin
 
+from . import driver_accounts
 from .attachments_api import AttachmentsMixin
 from .driver_serializers import AssignmentSerializer, DriverSerializer
 from .models import Driver, VehicleAssignment
 from .photos import change_photo
+
+CAN_MAKE_ACCOUNTS = [require('accounts.add_user', 'fleet.view_driver'), PasswordChangeNotRequired]
+
+NO_STORE = {'Cache-Control': 'no-store'}  # responses carrying temporary passwords
 
 AUDITED = ['employee_number', 'full_name', 'office', 'contact_number', 'license_number', 'license_type',
            'license_restrictions', 'license_issue_date', 'license_expiry_date', 'is_active']
@@ -46,7 +53,7 @@ class DriverFilter(filters.FilterSet):
 class DriverViewSet(RemoveMixin, AttachmentsMixin, OfficeScopedMixin, mixins.ListModelMixin, mixins.RetrieveModelMixin,
                     mixins.CreateModelMixin, mixins.UpdateModelMixin, viewsets.GenericViewSet):
     """Driver profiles. No DELETE: deactivate (is_active=false) so trips and assignments keep their history."""
-    queryset = Driver.objects.select_related('office').prefetch_related(
+    queryset = Driver.objects.select_related('office', 'user').prefetch_related(
         Prefetch('assignments', queryset=VehicleAssignment.objects.select_related('vehicle')))
     serializer_class = DriverSerializer
     filterset_class = DriverFilter
@@ -63,6 +70,12 @@ class DriverViewSet(RemoveMixin, AttachmentsMixin, OfficeScopedMixin, mixins.Lis
         changes = diff(before, snapshot(d))
         if changes:
             log(self.request, 'update', d, f'Updated driver {d.full_name}', changes)
+        # The driver's login follows the record: a deactivated driver can no longer sign in.
+        if 'is_active' in changes and d.user and d.user.is_active != d.is_active:
+            d.user.is_active = d.is_active
+            d.user.save(update_fields=['is_active'])
+            log(self.request, 'update', d.user, f'{"Enabled" if d.is_active else "Disabled"} login {d.user.username} with driver {d.full_name}',
+                {'is_active': [not d.is_active, d.is_active]})
 
     @action(detail=True, methods=['post', 'delete'], parser_classes=[MultiPartParser, FormParser],
             permission_classes=[require('fleet.change_driver'), PasswordChangeNotRequired])
@@ -91,3 +104,28 @@ class DriverViewSet(RemoveMixin, AttachmentsMixin, OfficeScopedMixin, mixins.Lis
         qs = self.get_object().assignments.select_related('vehicle', 'office').order_by('-start_date', '-id')
         page = self.paginate_queryset(qs)
         return self.get_paginated_response(AssignmentSerializer(page, many=True).data)
+
+    def _account_created(self, request, d, user, password):
+        log(request, 'create', user, f'Created login {user.username} for driver {d.full_name}',
+            {'after': user_snapshot(user)})  # never the password
+        return {'driver': d.pk, 'full_name': d.full_name, 'office_code': d.office.code,
+                'username': user.username, 'password': password}
+
+    @action(detail=True, methods=['post'], permission_classes=CAN_MAKE_ACCOUNTS)
+    def account(self, request, pk=None):
+        """Create this driver's login (role Driver). The temporary password is in the response only, once."""
+        d = self.get_object()
+        user, password = driver_accounts.create_account(d)
+        return Response(self._account_created(request, d, user, password), status=status.HTTP_201_CREATED, headers=NO_STORE)
+
+    @action(detail=False, methods=['post'], url_path='create-accounts', permission_classes=CAN_MAKE_ACCOUNTS)
+    def create_accounts(self, request):
+        """A login for every active driver (in your offices) that has none yet. Returns each username and
+        temporary password, once."""
+        made = []
+        with transaction.atomic():  # all or none: a failure halfway must not create logins whose passwords nobody saw
+            for d in self.get_queryset().filter(is_active=True, user__isnull=True):
+                user, password = driver_accounts.create_account(d)
+                made.append(self._account_created(request, d, user, password))
+        return Response({'created': made}, status=status.HTTP_201_CREATED if made else status.HTTP_200_OK,
+                        headers=NO_STORE)

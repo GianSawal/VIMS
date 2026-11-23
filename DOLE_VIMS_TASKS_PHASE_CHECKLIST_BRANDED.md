@@ -97,6 +97,7 @@ environments, run React, run Django, and connect to MySQL.
 - [ ] Match buttons, navigation, cards, badges and charts to the logo palette — buttons/nav done; cards/badges/charts as built
 - [ ] Verify accessible contrast and visible focus indicators
 - [ ] Verify responsive appearance across desktop and mobile
+    - Phone header (2026-11-23): the top bar with the menu button stays pinned while scrolling (`sticky top-0 z-10`, under the menu overlay and drawer).
 - [x] Document logo asset path and selected colors (README → Branding)
 - [ ] Confirm branding consistency during UAT
 
@@ -819,6 +820,21 @@ Added 2026-11-17. The requester home was a heading and one empty card.
 -   [x] Two columns on desktop: requests on the left; latest 3 notifications and a "How it works" card on the right. Compact empty state; staggered fade-in
 -   [x] Vitest: empty state, week strip (full day not clickable, picked day prefills the form)
 -   [ ] Manual check as `qa_requester` on a phone
+
+# Phase 17N --- Driver logins
+
+Added 2026-11-23. Drivers sign in to see their own trips and record the return.
+
+-   [x] `Driver.user` (one-to-one, nullable) links a driver record to its login; migrations `fleet 0006`, `operations 0011` (`operations.drive_trip`)
+-   [x] `Driver` role in `seed_reference`: `drive_trip`, own vehicle requests, notifications. No fleet, fuel, RFID, report or audit access
+-   [x] `fleet/driver_accounts.py`: username = employee number, else first initial + surname (`ggomez`, `ggomez2` when taken); random 10-character temporary password, must change at first login; office = the driver's office
+-   [x] `POST /drivers/create-accounts/` (every active driver in your offices without a login, all or nothing) and `POST /drivers/{id}/account/`; need `accounts.add_user` (System Administrator). Passwords only in the response (`Cache-Control: no-store`), never in the audit log
+-   [x] Trips API: a driver account (`drive_trip` without `view_trip`) lists/reads only trips it drives and may `complete/` them; cancel, edit, reschedule and dispatch stay staff-only
+-   [x] Deactivating a driver disables its login; reactivating re-enables it (audited)
+-   [x] UI: "Create driver logins" on the Drivers page (result table with copy-all, shown once), Login line on the driver profile (username or Create login), driver home `/my-trips` (out now with Record return, coming up, all my trips)
+-   [x] Tests: `fleet/test_driver_accounts.py`, `MyTrips.test.jsx`
+-   [ ] Run `seed_reference` on the server after deploying (creates the Driver role)
+-   [ ] Manual check as a driver on a phone
 ------------------------------------------------------------------------
 
 # Phase 18 --- Deployment

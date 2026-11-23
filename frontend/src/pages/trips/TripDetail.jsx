@@ -291,7 +291,7 @@ export function CompleteForm({ trip, onClose }) {
   const can = useCan()
   const qc = useQueryClient()
   const canToll = can('operations.add_tolltransaction')
-  const accounts = useList('/rfid-accounts/', { page_size: 500 })
+  const accounts = useList('/rfid-accounts/', { page_size: 500 }, { enabled: canToll }) // drivers record returns without toll access
   const pickable = (accounts.data?.results ?? []).filter((a) => a.is_active && (a.vehicle == null || a.vehicle === trip.vehicle))
   const own = pickable.find((a) => a.vehicle === trip.vehicle)
   const [tollError, setTollError] = useState('')

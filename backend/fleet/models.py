@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ValidationError
@@ -100,6 +101,9 @@ class Driver(Tracked):
     license_expiry_date = models.DateField(db_index=True)
     photo = models.ImageField(upload_to=safe_upload_to, null=True, blank=True)
     is_active = models.BooleanField(default=True)
+    # The driver's own login (role Driver: their trips only). fleet/driver_accounts.py creates it.
+    user = models.OneToOneField(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL,
+                                related_name='driver')
 
     class Meta:
         ordering = ['full_name']
