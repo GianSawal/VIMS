@@ -810,6 +810,7 @@ Added 2026-11-17.
 -   [x] API `GET /api/vehicle-requests/availability/?date_from=&date_to=` (`view_vehiclerequest`, max 62 days, default next six weeks): the user's offices with their serviceable/in-use vehicle count, and non-cancelled trip time slots (office, start, end, status; since 2026-11-19 also vehicle id, plate and make/model, shown on the calendar; free = total minus distinct booked vehicles)
 -   [x] `pages/requests/Schedule.jsx` at `/schedule`, menu "Vehicle schedule": month calendar in the same style as the staff Trips calendar: each day shows "N of M free" (green / amber / red) and its booked time slots, office picker when the user has several. Pressing a free day (today or later) opens the request form for that day at 8:00 AM (2026-11-19, test in `requests.test.jsx`)
 -   [x] Tests: `test_availability_shows_own_offices_bookings_without_details`, Vitest schedule render, requester nav
+-   [x] Phone view (2026-11-23): below `md` the 7-column calendar (cut off on phones) is replaced by a small month grid with a free/some/full dot per day and the picked day's bookings listed underneath, with a full-width Request button (`PhoneMonth` in `Schedule.jsx`); desktop unchanged
 -   [ ] Manual check as `qa_requester` on a phone
 
 # Phase 17M --- Requester home refresh

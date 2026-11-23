@@ -106,6 +106,15 @@ export default function Schedule() {
   }
   const today = iso(now)
   const shift = (n) => setFirst(new Date(first.getFullYear(), first.getMonth() + n, 1))
+  // Phone view: the day whose bookings are listed under the small month grid.
+  const [picked, setPicked] = useState(today)
+  const inShown = (key) => key.slice(0, 7) === iso(first).slice(0, 7)
+  const selected = inShown(picked) ? picked : (inShown(today) ? today : iso(first))
+  const dayInfo = (key) => {
+    const slots = byDay[key] ?? []
+    const free = Math.max(total - new Set(slots.map((s) => s.vehicle)).size, 0)
+    return { slots, free, past: key < today }
+  }
 
   return (
     <div>
@@ -141,7 +150,9 @@ export default function Schedule() {
               </div>
             </div>
           </div>
-          <div className="overflow-x-auto">
+          <PhoneMonth days={days} first={first} today={today} selected={selected} onSelect={setPicked} dayInfo={dayInfo}
+            total={total} loading={q.isLoading} fetching={q.isFetching} canAdd={canAdd} onRequest={(key) => setNeededAt(departureOn(key))} />
+          <div className="hidden overflow-x-auto md:block">
             <div className={`grid min-w-[52rem] grid-cols-7 ${q.isFetching ? 'opacity-60' : ''}`}>
               {WEEKDAYS.map((d, i) => (
                 <div key={d} className={`border-b border-slate-200 px-3 py-2 text-[11px] font-semibold tracking-wider uppercase ${i === 0 || i === 6 ? 'bg-slate-50 text-slate-400' : 'text-slate-500'}`}>{d}</div>
@@ -196,6 +207,74 @@ export default function Schedule() {
       <Modal open={!!neededAt} onClose={() => setNeededAt(null)} title="Request a vehicle" wide>
         {neededAt && <RequestForm neededAt={neededAt} onClose={() => setNeededAt(null)} onSaved={(r) => navigate(`/requests/${r.id}`)} />}
       </Modal>
+    </div>
+  )
+}
+
+const dayLong = new Intl.DateTimeFormat('en-PH', { weekday: 'long', month: 'long', day: 'numeric' })
+
+/** Below md: a small month grid (each day colored by how many vehicles are free) and the picked day's bookings
+ *  under it, like a phone calendar app. Desktop keeps the full calendar. */
+function PhoneMonth({ days, first, today, selected, onSelect, dayInfo, total, loading, fetching, canAdd, onRequest }) {
+  const sel = dayInfo(selected)
+  const pickable = canAdd && !sel.past && sel.free > 0
+  return (
+    <div className={`md:hidden ${fetching ? 'opacity-60' : ''}`}>
+      <div className="grid grid-cols-7 px-2 pt-2 text-center text-[11px] font-semibold tracking-wider text-slate-400 uppercase" aria-hidden="true">
+        {WEEKDAYS.map((d) => <span key={d}>{d.slice(0, 1)}</span>)}
+      </div>
+      <ol className="grid grid-cols-7 gap-y-1 px-2 pb-2" aria-label="Days">
+        {days.map((d) => {
+          const key = iso(d)
+          if (d.getMonth() !== first.getMonth()) return <li key={key} aria-hidden="true" />
+          const { slots, free, past } = dayInfo(key)
+          const dot = loading || past || !total ? '' : !slots.length ? 'bg-st-good' : free ? 'bg-amber-500' : 'bg-danger'
+          const isSel = key === selected
+          const label = `${dayLong.format(d)}${past || !total ? '' : `: ${free} of ${total} vehicles free`}`
+          return (
+            <li key={key} className="flex justify-center">
+              <button type="button" onClick={() => onSelect(key)} aria-label={label} aria-pressed={isSel}
+                className={`flex h-12 w-11 flex-col items-center justify-center gap-1 rounded-xl text-sm tabular-nums transition
+                  ${isSel ? 'bg-brand font-semibold text-white shadow-sm' : key === today ? 'bg-brand-light font-semibold text-brand' : past ? 'text-slate-400' : 'text-ink hover:bg-slate-100'}`}>
+                {d.getDate()}
+                <span className={`h-1.5 w-1.5 rounded-full ${dot} ${isSel && dot ? 'ring-2 ring-white' : ''}`} />
+              </button>
+            </li>
+          )
+        })}
+      </ol>
+      <div className="flex items-center justify-center gap-3 border-b border-slate-100 pb-3 text-[11px] text-slate-500" aria-hidden="true">
+        <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-st-good" />Free</span>
+        <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-amber-500" />Some booked</span>
+        <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-danger" />All booked</span>
+      </div>
+
+      <section aria-live="polite" aria-label="Bookings on the selected day" className="p-4">
+        <div className="mb-3 flex flex-wrap items-center gap-2">
+          <h3 className="mr-auto font-semibold text-ink">{dayLong.format(new Date(`${selected}T00:00:00`))}</h3>
+          {!sel.past && total > 0 && (
+            <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${!sel.slots.length ? 'bg-green-50 text-green-700' : sel.free ? 'bg-amber-100 text-amber-800' : 'bg-red-50 text-danger'}`}>
+              {sel.free ? `${sel.free} of ${total} free` : 'All booked'}
+            </span>
+          )}
+        </div>
+        {sel.slots.length ? (
+          <ul className="space-y-2">
+            {sel.slots.map((s, i) => (
+              <li key={i} className="flex items-center gap-3 rounded-lg border border-l-4 border-slate-200 border-l-amber-500 bg-white px-3 py-2 shadow-sm">
+                <div className="min-w-0 flex-1">
+                  <div className="font-semibold tracking-wide text-ink">{s.plate_number}</div>
+                  <div className="truncate text-xs text-slate-500">{s.vehicle_label}</div>
+                </div>
+                <span className="inline-flex shrink-0 items-center gap-1 text-sm font-semibold text-amber-700 tabular-nums"><Clock size={13} aria-hidden="true" />{span(s, selected)}</span>
+              </li>
+            ))}
+          </ul>
+        ) : <p className="text-sm text-slate-500">{sel.past ? 'No trips were booked this day.' : 'No trips booked. Every vehicle is free.'}</p>}
+        {pickable && (
+          <Button className="mt-4 w-full" onClick={() => onRequest(selected)}><Plus size={16} aria-hidden="true" /> Request a vehicle for this day</Button>
+        )}
+      </section>
     </div>
   )
 }

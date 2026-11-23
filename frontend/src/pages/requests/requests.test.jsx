@@ -124,10 +124,20 @@ describe('vehicle schedule', () => {
                            { office: 9, start: at(8), end: null, status: 'SCHEDULED', vehicle: 7, plate_number: 'FAR 1', vehicle_label: 'X' }] }  // other office: ignored
     renderApp(<Schedule />, { me: meWith(REQUESTER),
       data: { [JSON.stringify(['/vehicle-requests/availability/', { date_from: iso(start), date_to: iso(end) }])]: data } })
-    expect(screen.getByText('1 of 2 free')).toBeInTheDocument()  // one vehicle twice is still one booked
-    expect(screen.getAllByText('SAB 1234')).toHaveLength(2)
-    expect(screen.getAllByText('Toyota Innova')).toHaveLength(2)
+    // Both views are in the DOM (jsdom applies no CSS): the desktop grid and the phone month + today's list.
+    expect(screen.getAllByText('1 of 2 free')).toHaveLength(2)  // one vehicle twice is still one booked
+    expect(screen.getAllByText('SAB 1234')).toHaveLength(4)
+    expect(screen.getAllByText('Toyota Innova')).toHaveLength(4)
     expect(screen.queryByText('FAR 1')).toBeNull()
+
+    // phone: today's dot button says how many are free; picking another day lists that day instead
+    const dayLong = (d) => d.toLocaleDateString('en-PH', { weekday: 'long', month: 'long', day: 'numeric' })
+    expect(screen.getByRole('button', { name: `${dayLong(now)}: 1 of 2 vehicles free` })).toHaveAttribute('aria-pressed', 'true')
+    const other = new Date(now.getFullYear(), now.getMonth(), now.getDate() === 1 ? 2 : 1)
+    fireEvent.click(screen.getByRole('button', { name: new RegExp(`^${dayLong(other)}(:|$)`) }))
+    expect(screen.getAllByText('SAB 1234')).toHaveLength(2) // only the desktop grid still shows them
+    fireEvent.click(screen.getByRole('button', { name: `${dayLong(now)}: 1 of 2 vehicles free` }))
+    expect(screen.getByRole('button', { name: /Request a vehicle for this day/ })).toBeInTheDocument()
 
     // a free day opens the request form for that day; past days cannot be picked
     const label = (d) => `Request a vehicle on ${d.toLocaleDateString('en-PH', { dateStyle: 'long' })}`
