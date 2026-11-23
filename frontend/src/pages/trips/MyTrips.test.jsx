@@ -28,7 +28,7 @@ describe('Driver pages', () => {
     renderApp(<MyTrips />, {
       me: DRIVER,
       data: {
-        '["/trips/",{"status":"DISPATCHED","page_size":20}]': page([trip(1, 'DISPATCHED')]),
+        '["/trips/",{"status":"DISPATCHED","page_size":20}]': page([trip(1, 'DISPATCHED', { passengers: 'Daniel Dione\nJan Wacky Mercado' })]),
         '["/trips/",{"status":"SCHEDULED","ordering":"scheduled_departure","page_size":20}]': page([today, later]),
         '["/driver/home/"]': home,
       },
@@ -40,6 +40,7 @@ describe('Driver pages', () => {
     expect(screen.getByRole('heading', { name: 'Coming up' })).toBeInTheDocument()
     expect(screen.getByText(/Your license: expires in 8 days/)).toBeInTheDocument()
     expect(screen.getByText(/ABC 1: LTO Registration expired/)).toBeInTheDocument()
+    expect(screen.getByText('Daniel Dione, Jan Wacky Mercado')).toBeInTheDocument() // one per line -> a readable list
   })
 
   it('Today with nothing to do says when the next trip is', () => {

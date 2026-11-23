@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { motion } from 'motion/react'
-import { CalendarClock, ChevronRight, CircleCheck, Fuel, Gauge, History, IdCard, Milestone, Navigation, Play, Printer, UserRound, Users } from 'lucide-react'
+import { Building2, CalendarClock, ChevronRight, CircleCheck, Fuel, Gauge, History, IdCard, Milestone, Navigation, Play, Printer, Target, UserRound, Users } from 'lucide-react'
 import { useList } from '../../api'
 import { useMe } from '../../auth'
 import DateChip from '../../components/DateChip'
@@ -37,7 +37,10 @@ function Fact({ icon: Icon, label, children }) {
 }
 
 /** The trip that needs the driver now, with everything they need on the road and its one action. */
-function FocusCard({ t, label, tone, children }) {
+// Passengers are typed one per line (or with commas); show them as a readable list.
+const passengerList = (p) => (p || '').split(/[\n,;]+/).map((x) => x.trim()).filter(Boolean).join(', ')
+
+function FocusCard({ t, label, tone, when, children }) {
   const late = t.status === 'DISPATCHED' && t.scheduled_return && new Date(t.scheduled_return) < new Date()
   return (
     <article className={`space-y-4 rounded-2xl border-2 bg-white p-4 shadow-sm ${tone}`}>
@@ -48,15 +51,16 @@ function FocusCard({ t, label, tone, children }) {
       <div className="flex items-center gap-3">
         <VehiclePhoto vehicle={photo(t)} className="w-24 shrink-0 border border-slate-200" />
         <div className="min-w-0">
-          <div className="text-lg font-bold tracking-wide">{t.plate_number}</div>
+          <div className="text-lg leading-tight font-bold tracking-wide">{t.plate_number}</div>
           <div className="truncate text-sm text-slate-500">{t.vehicle_label}</div>
+          {when && <div className="mt-1.5 text-sm text-slate-700">{when}</div>}
         </div>
       </div>
       <RouteLine t={t} />
-      <div className="grid gap-1.5 rounded-xl bg-slate-50 p-3 sm:grid-cols-2">
-        <Fact icon={UserRound} label="Purpose">{t.purpose}</Fact>
-        <Fact icon={Users} label="Passengers">{t.passengers}</Fact>
-        <Fact icon={IdCard} label="For">{[t.requesting_office_name, t.requesting_division].filter(Boolean).join(' · ')}</Fact>
+      <div className="grid gap-2.5 rounded-xl bg-slate-50 p-3 sm:grid-cols-2">
+        <Fact icon={Target} label="Purpose">{t.purpose}</Fact>
+        <Fact icon={Users} label="Passengers">{passengerList(t.passengers)}</Fact>
+        <Fact icon={Building2} label="For">{[t.requesting_office_name, t.requesting_division].filter(Boolean).join(' · ')}</Fact>
         <Fact icon={Gauge} label="Odometer out">{t.odometer_start != null && km(t.odometer_start)}</Fact>
         <Fact icon={CalendarClock} label="Expected back">{t.scheduled_return && shortDateTime(t.scheduled_return)}</Fact>
       </div>
@@ -127,9 +131,9 @@ export default function MyTrips() {
       <div className="grid gap-5 lg:grid-cols-3">
         <motion.div {...rise(1)} className="space-y-5 lg:col-span-2">
           {outNow.map((t) => (
-            <FocusCard key={t.id} t={t} label="On the road" tone="border-brand/40">
-              <p className="flex items-center gap-1.5 text-sm text-slate-600"><Navigation size={14} aria-hidden="true" className="text-brand" />
-                Left {shortDateTime(t.departed_at)} · out {tripDuration(t.departed_at)}</p>
+            <FocusCard key={t.id} t={t} label="On the road" tone="border-brand/40"
+              when={<span className="flex items-start gap-1.5"><Navigation size={14} aria-hidden="true" className="mt-0.5 shrink-0 text-brand" />
+                <span>Left {shortDateTime(t.departed_at)}<br /><strong className="font-semibold text-brand">Out {tripDuration(t.departed_at)}</strong></span></span>}>
               <div className="flex flex-wrap items-center gap-2">
                 <Button onClick={() => setReturning(t)}>Record return</Button>
                 <Button variant="secondary" onClick={() => setFueling(t)}><Fuel size={16} aria-hidden="true" /> Add fuel</Button>
@@ -138,8 +142,9 @@ export default function MyTrips() {
             </FocusCard>
           ))}
           {leavingToday.map((t) => (
-            <FocusCard key={t.id} t={t} label="Leaves today" tone="border-amber-300">
-              <p className="text-sm text-slate-600">{whenText(t)[0]}. The office usually starts it; start it yourself if they have not.</p>
+            <FocusCard key={t.id} t={t} label="Leaves today" tone="border-amber-300"
+              when={<strong className="font-semibold text-amber-800">{whenText(t)[0]}</strong>}>
+              <p className="text-sm text-slate-600">The office usually starts it; start it yourself if they have not.</p>
               <div className="flex flex-wrap items-center gap-2">
                 <Button onClick={() => setStarting(t)}><Play size={16} aria-hidden="true" /> Start trip</Button>
                 <span className="ml-auto">{ticketLink(t)}</span>
