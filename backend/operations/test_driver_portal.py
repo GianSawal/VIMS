@@ -143,3 +143,14 @@ def test_report_problem_opens_maintenance_and_tells_the_office(fo1, pedro, car):
     car.refresh_from_db()
     assert car.status == 'SERVICEABLE'  # reporting does not take the vehicle off the road
     assert Notification.objects.filter(recipient=admin, type='VEHICLE_ISSUE').exists()
+
+
+def test_drivers_have_no_vehicle_requests(fo1, pedro, car):
+    from operations.test_requests import requester, submit
+    c = driver_client(pedro)
+    _, ana = requester('ana', fo1)
+    req = submit(ana, fo1).json()
+    assert c.get('/api/vehicle-requests/').status_code == 403
+    assert submit(c, fo1).status_code == 403  # drivers drive the trips others request
+    assert c.post(f"/api/vehicle-requests/{req['id']}/approve/", {'vehicle': car.pk}, format='json').status_code == 403
+    assert c.post(f"/api/vehicle-requests/{req['id']}/decline/", {'reason': 'no'}, format='json').status_code == 403

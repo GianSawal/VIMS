@@ -826,7 +826,7 @@ Added 2026-11-17. The requester home was a heading and one empty card.
 Added 2026-11-23. Drivers sign in to see their own trips and record the return.
 
 -   [x] `Driver.user` (one-to-one, nullable) links a driver record to its login; migrations `fleet 0006`, `operations 0011` (`operations.drive_trip`)
--   [x] `Driver` role in `seed_reference`: `drive_trip`, own vehicle requests, notifications. No fleet, fuel, RFID, report or audit access
+-   [x] `Driver` role in `seed_reference`: `drive_trip` and notifications only. No vehicle requests (they drive what others request), fleet, fuel, RFID, report or audit access
 -   [x] `fleet/driver_accounts.py`: username = employee number, else first initial + surname (`ggomez`, `ggomez2` when taken); random 10-character temporary password, must change at first login; office = the driver's office
 -   [x] `POST /drivers/create-accounts/` (every active driver in your offices without a login, all or nothing) and `POST /drivers/{id}/account/`; need `accounts.add_user` (System Administrator). Passwords only in the response (`Cache-Control: no-store`), never in the audit log
 -   [x] Trips API: a driver account (`drive_trip` without `view_trip`) lists/reads only trips it drives and may `complete/` them; cancel, edit, reschedule and dispatch stay staff-only
@@ -847,6 +847,7 @@ Added 2026-11-23. Drivers sign in to see their own trips and record the return.
 -   [x] Report a problem `POST /api/driver/report-problem/` (description + photo): Scheduled maintenance record (category Other, vehicle stays available) and a VEHICLE_ISSUE notification to the office's maintenance staff
 -   [x] Printable trip ticket `/trips/:id/ticket` (also a Print ticket button on the staff trip page)
 -   [x] Tests: `operations/test_driver_portal.py`, `MyTrips.test.jsx`, `CompleteForm.test.jsx`
+-   [x] Drivers have no vehicle requests at all (2026-11-23): the role lost add/change/view `vehiclerequest`, so Vehicle requests, Vehicle schedule and the requester home are gone for them; the API answers 403. `test_drivers_have_no_vehicle_requests`
 -   [ ] Known limit: tolls/fuel/report check the vehicle against the driver's office (`User.offices`); a driver on another office's vehicle gets "no access to this vehicle"
 -   [ ] Run `seed_reference` on the server after deploying (creates the Driver role)
 -   [ ] Manual check as a driver on a phone

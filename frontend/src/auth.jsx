@@ -24,7 +24,7 @@ export function useCan() {
 // Requesters (vehicle requests but no fleet access) land on their requests; everyone else on the dashboard.
 // Driver accounts: their own trips only (the API limits /trips/ to them), no fleet-wide trip list.
 export const drivesOnly = (can) => can('operations.drive_trip') && !can('operations.view_trip')
-export const seesDashboard = (can) => can('fleet.view_vehicle') || !can('operations.view_vehiclerequest')
+export const seesDashboard = (can) => !drivesOnly(can) && (can('fleet.view_vehicle') || !can('operations.view_vehiclerequest'))
 
 export function useLogout() {
   const qc = useQueryClient()
