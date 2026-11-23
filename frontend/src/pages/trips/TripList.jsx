@@ -169,8 +169,8 @@ function datePresets() {
     ['This month', iso(new Date(now.getFullYear(), now.getMonth(), 1)), today]]
 }
 
-// Board columns by card count: 1 card spans the row, 2 share it, 3+ use the usual grid.
-const boardCols = (n) => (n === 1 ? '' : n === 2 ? 'md:grid-cols-2' : 'md:grid-cols-2 xl:grid-cols-3')
+// Board columns by card count: 1 card gets a capped width (full width spread it thin), 2 share the row, 3+ the usual grid.
+const boardCols = (n) => (n === 1 ? 'max-w-3xl' : n === 2 ? 'md:grid-cols-2' : 'md:grid-cols-2 xl:grid-cols-3')
 
 const LONG_TRIP_HOURS = 12 // flag trips out longer than this (still shown in text, not by color alone)
 
@@ -245,8 +245,8 @@ export function OpenTrips({ canChange, onViewAll, office }) {
                 <span className="text-xs font-semibold tracking-wider text-brand uppercase">On trip</span>
                 <Link to={`/trips/${t.id}`} className="font-mono text-sm font-semibold text-brand hover:underline">{t.ticket_number}</Link>
               </div>
-              <div className="flex flex-col gap-3 @2xl:flex-row @2xl:items-center @2xl:gap-6">
-                <div className="@2xl:w-80 @2xl:shrink-0"><TripIdentity t={t} /></div>
+              <div className="flex flex-col gap-3 @2xl:flex-row @2xl:items-center @2xl:gap-4">
+                <div className="@2xl:w-64 @2xl:shrink-0"><TripIdentity t={t} /></div>
                 <p className="flex min-w-0 items-center gap-2 text-sm @2xl:flex-1"><DivisionTag division={t.requesting_division} /><span className="truncate" title={t.destination}><span className="text-slate-500">To</span> {t.destination}</span></p>
                 <div className="flex items-center gap-2 border-t border-slate-100 pt-3 text-sm @2xl:border-0 @2xl:pt-0">
                   <Clock size={15} className={long ? 'text-amber-600' : 'text-slate-400'} aria-hidden="true" />
@@ -254,7 +254,7 @@ export function OpenTrips({ canChange, onViewAll, office }) {
                     Out {tripDuration(t.departed_at)}{long && ' · long trip'}
                   </span>
                   {canChange && (
-                    <Button variant="secondary" className="ml-auto min-h-9 @2xl:ml-4" onClick={() => setReturning(t)}>
+                    <Button variant="secondary" className="ml-auto min-h-9 @2xl:ml-2" onClick={() => setReturning(t)}>
                       <CircleCheck size={16} /> Record return
                     </Button>
                   )}
