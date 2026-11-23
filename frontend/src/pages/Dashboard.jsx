@@ -95,7 +95,11 @@ export default function Dashboard() {
       {query.isError ? (
         <p className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-danger">The dashboard could not be loaded. Please refresh the page.</p>
       ) : query.isLoading ? (
-        <div className="space-y-4"><Skeleton className="h-36" /><Skeleton className="h-56" /><Skeleton className="h-72" /></div>
+        // A native indeterminate <progress> tells assistive tech the page is loading; the skeleton is decoration.
+        <div className="space-y-4">
+          <progress className="sr-only" aria-label="Loading dashboard" />
+          <Skeleton className="h-36" /><Skeleton className="h-56" /><Skeleton className="h-72" />
+        </div>
       ) : (
         // Fades in over the skeleton, and dims while an office/month change is loading (useList keeps the old data on screen).
         <motion.div className="space-y-6" aria-busy={query.isPlaceholderData}
@@ -185,7 +189,7 @@ function Today({ d, office }) {
 }
 
 function Skeleton({ className }) {
-  return <div className={`animate-pulse rounded-xl bg-slate-100 ${className}`} />
+  return <div aria-hidden="true" className={`rounded-xl bg-slate-100 motion-safe:animate-pulse ${className}`} />
 }
 
 function Section({ title, children }) {
@@ -572,16 +576,14 @@ function dayLabel(iso) {
 }
 
 function Activity({ items }) {
-  const groups = []
-  for (const a of items) {
-    const label = dayLabel(a.at)
-    if (groups.at(-1)?.label !== label) groups.push({ label, items: [] })
-    groups.at(-1).items.push(a)
-  }
+  // Items arrive newest first, so key insertion order keeps the days in order.
+  const groups = Object.entries(Object.groupBy(items, (a) => dayLabel(a.at))).map(([label, items]) => ({ label, items }))
   return (
     <Section title="Recent activity">
-      {/* Each day is a grid of compact entries (1 / 2 / 3 columns), read left to right, so short rows don't stretch the card. */}
-      <Reveal className="rounded-xl border border-slate-200 bg-white px-4 py-2 shadow-sm">
+      {/* Each day is a grid of compact entries (1 / 2 / 3 columns), read left to right, so short rows don't stretch the card.
+          Always below the fold: content-visibility skips its layout/paint until it nears the viewport; the intrinsic size
+          placeholder (remembered once rendered) stops the scrollbar jumping. */}
+      <Reveal className="rounded-xl border border-slate-200 bg-white px-4 py-2 shadow-sm [content-visibility:auto] [contain-intrinsic-size:auto_none_auto_480px]">
         {groups.length ? groups.map((g) => (
           <div key={g.label} className="py-2">
             <h3 className="mb-1.5 text-xs font-medium text-slate-500">{g.label}</h3>
