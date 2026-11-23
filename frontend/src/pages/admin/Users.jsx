@@ -13,8 +13,8 @@ import { useToast } from '../../components/toast'
 import { useAllOffices } from './Offices'
 import { Select } from '../../components/Select'
 
-export const ROLES = ['System Administrator', 'Fleet Administrator', 'Field Office User', 'Viewer', 'Requester']
-const roleTone = { 'System Administrator': 'red', 'Fleet Administrator': 'blue', 'Field Office User': 'gold', Viewer: 'gray', Requester: 'green' }
+export const ROLES = ['System Administrator', 'Fleet Administrator', 'Field Office User', 'Viewer', 'Requester', 'Driver']
+const roleTone = { 'System Administrator': 'red', 'Fleet Administrator': 'blue', 'Field Office User': 'gold', Viewer: 'gray', Requester: 'green', Driver: 'blue' }
 
 const ROLE_CARDS = {
   ALL: [UsersIcon, 'bg-slate-100 text-slate-700', 'All users'],
@@ -199,8 +199,8 @@ function UserForm({ user, onClose }) {
     <form noValidate className="grid gap-4 sm:grid-cols-2"
       onSubmit={handleSubmit((v) => save.mutate({ ...v, offices: v.offices.map(Number) }))}>
       {error && <div role="alert" className="rounded-md bg-red-50 px-3 py-2 text-sm text-danger sm:col-span-2">{error}</div>}
-      <Field label="Username" htmlFor="username" error={errors.username?.message}>
-        <input id="username" className={inputClass} {...register('username')} disabled={!isNew} />
+      <Field label="Username" htmlFor="username" error={errors.username?.message} hint={isNew ? undefined : 'They sign in with this; tell them when it changes.'}>
+        <input id="username" autoComplete="off" className={inputClass} {...register('username')} />
       </Field>
       <Field label="Email" htmlFor="email" error={errors.email?.message}>
         <input id="email" type="email" className={inputClass} {...register('email')} />

@@ -94,3 +94,21 @@ def test_deactivating_the_driver_disables_the_login(fo1):
     admin.patch(f'/api/drivers/{pedro.pk}/', {'is_active': True}, format='json')
     pedro.user.refresh_from_db()
     assert pedro.user.is_active
+
+
+def test_admin_can_rename_a_driver_login(fo1):
+    pedro = make_driver(fo1, 'Pedro Penduko', 'L-1')
+    admin = as_role('System Administrator')
+    made = admin.post(f'/api/drivers/{pedro.pk}/account/').json()
+    User.objects.create_user('taken')
+    account = admin.get(f'/api/drivers/{pedro.pk}/').json()['account_id']
+
+    r = admin.patch(f'/api/users/{account}/', {'username': 'TAKEN'}, format='json')
+    assert r.status_code == 400 and 'already taken' in str(r.json())
+    r = admin.patch(f'/api/users/{account}/', {'username': 'pedro.p'}, format='json')
+    assert r.status_code == 200
+    assert admin.get(f'/api/drivers/{pedro.pk}/').json()['account_username'] == 'pedro.p'
+    log = AuditLog.objects.filter(action='update', entity_type='accounts.User').latest('id')
+    assert log.changes['username'] == ['ppenduko', 'pedro.p']
+    login('pedro.p', made['password'])  # same password, new name
+    assert as_role('Fleet Administrator').patch(f'/api/users/{account}/', {'username': 'x'}, format='json').status_code == 403

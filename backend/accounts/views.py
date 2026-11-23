@@ -108,7 +108,7 @@ class OfficeViewSet(OfficeScopedMixin, mixins.ListModelMixin, mixins.RetrieveMod
 
 
 def user_snapshot(user):
-    return {'is_active': user.is_active, 'role': user.groups.first() and user.groups.first().name,
+    return {'username': user.username, 'is_active': user.is_active, 'role': user.groups.first() and user.groups.first().name,
             'offices': sorted(user.offices.values_list('code', flat=True)),
             'email': user.email, 'first_name': user.first_name, 'last_name': user.last_name}
 

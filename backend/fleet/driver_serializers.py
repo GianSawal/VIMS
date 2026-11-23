@@ -18,6 +18,7 @@ class DriverSerializer(serializers.ModelSerializer):
     license_status = serializers.SerializerMethodField()
     current_vehicles = serializers.SerializerMethodField()
     photo_url = serializers.SerializerMethodField()
+    account_id = serializers.IntegerField(source='user.id', read_only=True, default=None)
     account_username = serializers.CharField(source='user.username', read_only=True, default=None)
     account_active = serializers.BooleanField(source='user.is_active', read_only=True, default=None)
 
@@ -26,7 +27,7 @@ class DriverSerializer(serializers.ModelSerializer):
         fields = ['id', 'employee_number', 'full_name', 'office', 'office_name', 'office_code', 'contact_number',
                   'license_number', 'license_type', 'license_type_display', 'license_restrictions',
                   'license_issue_date', 'license_expiry_date', 'license_status', 'is_active', 'current_vehicles', 'photo_url',
-                  'account_username', 'account_active', 'created_at', 'updated_at']
+                  'account_id', 'account_username', 'account_active', 'created_at', 'updated_at']
         read_only_fields = ['created_at', 'updated_at']
         # Uniqueness is checked in validate() after normalizing.
         extra_kwargs = {f: {'validators': []} for f in ('employee_number', 'license_number')}

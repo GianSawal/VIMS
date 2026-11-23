@@ -1,9 +1,10 @@
 import { useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { Copy, KeyRound } from 'lucide-react'
-import { api, errorMessage, invalidatePrefix } from '../../api'
+import { Copy, KeyRound, Pencil } from 'lucide-react'
+import { api, applyFieldErrors, errorMessage, invalidatePrefix } from '../../api'
 import { useCan } from '../../auth'
-import { Button, ConfirmDialog, Modal } from '../../components/ui'
+import { Button, ConfirmDialog, Field, inputClass, Modal } from '../../components/ui'
+import { useToast } from '../../components/toast'
 
 /** Driver logins (role Driver: own trips, record the return). The API returns each temporary password once. */
 function useCreateLogins(path, onDone) {
@@ -41,8 +42,21 @@ export function DriverLogin({ driver }) {
   const can = useCan()
   const [made, setMade] = useState(null)
   const create = useCreateLogins(`/drivers/${driver.id}/account/`, setMade)
+  const [renaming, setRenaming] = useState(false)
   if (driver.account_username) {
-    return <span className="font-mono">{driver.account_username}{driver.account_active === false && <span className="font-sans text-slate-500"> (disabled)</span>}</span>
+    return (
+      <span className="flex items-center gap-1.5">
+        <span className="font-mono">{driver.account_username}</span>
+        {driver.account_active === false && <span className="text-slate-500">(disabled)</span>}
+        {can('accounts.change_user') && (
+          <button type="button" onClick={() => setRenaming(true)} className="rounded p-0.5 text-slate-500 hover:bg-white hover:text-brand"
+            aria-label="Change username" title="Change username"><Pencil size={14} /></button>
+        )}
+        <Modal open={renaming} onClose={() => setRenaming(false)} title={`Username for ${driver.full_name}`}>
+          {renaming && <RenameForm driver={driver} onClose={() => setRenaming(false)} />}
+        </Modal>
+      </span>
+    )
   }
   if (!can('accounts.add_user') || !driver.is_active) return 'None'
   return (
@@ -53,6 +67,40 @@ export function DriverLogin({ driver }) {
       {create.isError && <span role="alert" className="ml-2 text-danger">{errorMessage(create.error)}</span>}
       <Credentials rows={made} onClose={() => setMade(null)} />
     </>
+  )
+}
+
+function RenameForm({ driver, onClose }) {
+  const qc = useQueryClient()
+  const toast = useToast()
+  const [username, setUsername] = useState(driver.account_username)
+  const [error, setError] = useState('')
+  const save = useMutation({
+    mutationFn: () => api.patch(`/users/${driver.account_id}/`, { username: username.trim() }),
+    onSuccess: ({ data }) => {
+      invalidatePrefix(qc, '/drivers/', '/users/')
+      toast(`Username changed to ${data.username}. Tell ${driver.full_name}; their password stays the same.`)
+      onClose()
+    },
+    onError: (err) => {
+      const rest = applyFieldErrors(err, (_, e) => setError(e.message), ['username'])
+      if (rest) setError(rest)
+    },
+  })
+  return (
+    <form noValidate className="space-y-4" onSubmit={(e) => { e.preventDefault(); if (username.trim()) save.mutate() }}>
+      <Field label="Username" htmlFor="driver-username" error={error}
+        hint="Letters, digits and @ . + - _ only. The driver signs in with this; the password does not change.">
+        <input id="driver-username" autoFocus autoComplete="off" className={`${inputClass} font-mono`} maxLength={150}
+          value={username} onChange={(e) => { setUsername(e.target.value); setError('') }} />
+      </Field>
+      <div className="flex justify-end gap-2">
+        <Button variant="secondary" onClick={onClose}>Cancel</Button>
+        <Button type="submit" disabled={save.isPending || !username.trim() || username.trim() === driver.account_username}>
+          {save.isPending ? 'Saving…' : 'Save'}
+        </Button>
+      </div>
+    </form>
   )
 }
 

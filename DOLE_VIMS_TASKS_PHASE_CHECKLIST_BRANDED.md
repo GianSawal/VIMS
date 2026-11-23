@@ -832,6 +832,7 @@ Added 2026-11-23. Drivers sign in to see their own trips and record the return.
 -   [x] Trips API: a driver account (`drive_trip` without `view_trip`) lists/reads only trips it drives and may `complete/` them; cancel, edit, reschedule and dispatch stay staff-only
 -   [x] Deactivating a driver disables its login; reactivating re-enables it (audited)
 -   [x] UI: "Create driver logins" on the Drivers page (result table with copy-all, shown once), Login line on the driver profile (username or Create login), driver home `/my-trips` (out now with Record return, coming up, all my trips)
+-   [x] Rename a driver's login: pencil on the profile's Login line, or the Username field in Users (now editable for every user; `PATCH /users/{id}/`, `accounts.change_user`). Usernames are unique ignoring case (MySQL collation) and renames are audited. Users page lists the Driver role
 -   [x] Tests: `fleet/test_driver_accounts.py`, `MyTrips.test.jsx`
 -   [ ] Run `seed_reference` on the server after deploying (creates the Driver role)
 -   [ ] Manual check as a driver on a phone

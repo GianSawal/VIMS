@@ -71,6 +71,13 @@ class UserSerializer(serializers.ModelSerializer):
     def get_role_name(self, user):
         return role_of(user)
 
+    def validate_username(self, value):
+        # MySQL's collation treats GGomez and ggomez as the same: say so here instead of a database error.
+        value = value.strip()
+        if User.objects.exclude(pk=self.instance.pk if self.instance else None).filter(username__iexact=value).exists():
+            raise serializers.ValidationError('This username is already taken.')
+        return value
+
     def validate(self, attrs):
         if self.instance is None:
             if not attrs.get('password'):
