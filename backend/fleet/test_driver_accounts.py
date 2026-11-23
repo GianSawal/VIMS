@@ -112,3 +112,29 @@ def test_admin_can_rename_a_driver_login(fo1):
     assert log.changes['username'] == ['ppenduko', 'pedro.p']
     login('pedro.p', made['password'])  # same password, new name
     assert as_role('Fleet Administrator').patch(f'/api/users/{account}/', {'username': 'x'}, format='json').status_code == 403
+
+
+def test_add_user_with_driver_role_links_the_driver_record(fo1):
+    pedro, juan = make_driver(fo1, 'Pedro Penduko', 'L-1'), make_driver(fo1, 'Juan Cruz', 'L-2')
+    admin = as_role('System Administrator')
+    new = {'username': 'pedro', 'password': 'Initial-pass-2026', 'role': 'Driver', 'offices': []}
+
+    r = admin.post('/api/users/', new, format='json')
+    assert r.status_code == 400 and 'Select the driver' in str(r.json()['driver'])
+    r = admin.post('/api/users/', {**new, 'driver': pedro.pk}, format='json')
+    assert r.status_code == 201, r.json()
+    assert r.json()['driver_name'] == 'Pedro Penduko' and r.json()['offices'] == [fo1.pk]  # office from the driver
+    pedro.refresh_from_db()
+    assert pedro.user.username == 'pedro' and pedro.user.must_change_password
+    assert AuditLog.objects.filter(action='create', entity_type='accounts.User').latest('id').changes['after']['driver'] == 'Pedro Penduko'
+
+    r = admin.post('/api/users/', {**new, 'username': 'other', 'driver': pedro.pk}, format='json')
+    assert r.status_code == 400 and 'already has a login' in str(r.json())
+    r = admin.post('/api/users/', {**new, 'username': 'viewer', 'role': 'Viewer', 'driver': juan.pk}, format='json')
+    assert r.status_code == 400 and 'Only Driver accounts' in str(r.json())
+
+    # Re-pointing the login to another driver record unlinks the first.
+    uid = pedro.user.pk
+    assert admin.patch(f'/api/users/{uid}/', {'driver': juan.pk}, format='json').json()['driver_name'] == 'Juan Cruz'
+    pedro.refresh_from_db(); juan.refresh_from_db()
+    assert pedro.user is None and juan.user_id == uid

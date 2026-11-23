@@ -70,6 +70,7 @@ export default function Users() {
           <div className="min-w-0">
             <div className="font-semibold">{name || u.username}</div>
             <div className="truncate text-xs text-slate-500">@{u.username}{u.email && ` · ${u.email}`}</div>
+            {u.driver_name && <div className="truncate text-xs text-slate-500">Driver record: {u.driver_name}</div>}
           </div>
         </div>
       )
@@ -165,12 +166,15 @@ const baseSchema = {
   email: z.union([z.literal(''), z.email('Invalid email')]),
   role: z.string().min(1, 'Select a role'),
   offices: z.array(z.string()),
+  driver: z.string(),
 }
 // A requester asks for vehicles for their office, so they need one (the API checks it too).
 const needsOffice = (v) => v.role !== 'Requester' || v.offices.length > 0
 const officeRule = { path: ['offices'], message: 'Select the office this requester belongs to' }
-const createSchema = z.object({ ...baseSchema, password: z.string().min(8, 'At least 8 characters') }).refine(needsOffice, officeRule)
-const editSchema = z.object(baseSchema).refine(needsOffice, officeRule)
+// A driver login belongs to a driver record: its trips are what the driver sees (the API checks it too).
+const driverRule = [(v) => v.role !== 'Driver' || !!v.driver, { path: ['driver'], message: 'Select the driver this login belongs to' }]
+const createSchema = z.object({ ...baseSchema, password: z.string().min(8, 'At least 8 characters') }).refine(needsOffice, officeRule).refine(...driverRule)
+const editSchema = z.object(baseSchema).refine(needsOffice, officeRule).refine(...driverRule)
 
 function UserForm({ user, onClose }) {
   const isNew = !user.id
@@ -183,9 +187,13 @@ function UserForm({ user, onClose }) {
     defaultValues: {
       username: user.username ?? '', first_name: user.first_name ?? '', last_name: user.last_name ?? '',
       email: user.email ?? '', role: user.role_name ?? '', offices: (user.offices ?? []).map(String), password: '',
+      driver: user.driver_id ? String(user.driver_id) : '',
     },
   })
   const role = watch('role')
+  const drivers = useList('/drivers/', { is_active: 'true', page_size: 500 }, { enabled: role === 'Driver' })
+  // Drivers without a login, plus the one this login already belongs to.
+  const pickable = (drivers.data?.results ?? []).filter((d) => !d.account_id || d.account_id === user.id)
   const save = useMutation({
     mutationFn: (body) => isNew ? api.post('/users/', body) : api.patch(`/users/${user.id}/`, body),
     onSuccess: () => {
@@ -193,12 +201,12 @@ function UserForm({ user, onClose }) {
       toast(isNew ? 'User created. They must change the password at first login.' : 'User updated.')
       onClose()
     },
-    onError: (err) => setFormError(applyFieldErrors(err, setError, Object.keys(createSchema.shape))),
+    onError: (err) => setFormError(applyFieldErrors(err, setError, [...Object.keys(baseSchema), 'password'])),
   })
 
   return (
     <form noValidate className="grid gap-4 sm:grid-cols-2"
-      onSubmit={handleSubmit((v) => save.mutate({ ...v, offices: v.offices.map(Number) }))}>
+      onSubmit={handleSubmit((v) => save.mutate({ ...v, offices: v.offices.map(Number), driver: v.role === 'Driver' && v.driver ? Number(v.driver) : null }))}>
       {error && <div role="alert" className="rounded-md bg-red-50 px-3 py-2 text-sm text-danger sm:col-span-2">{error}</div>}
       <Field label="Username" htmlFor="username" error={errors.username?.message} hint={isNew ? undefined : 'They sign in with this; tell them when it changes.'}>
         <input id="username" autoComplete="off" className={inputClass} {...register('username')} />
@@ -218,6 +226,15 @@ function UserForm({ user, onClose }) {
           {ROLES.map((r) => <option key={r}>{r}</option>)}
         </Select>
       </Field>
+      {role === 'Driver' && (
+        <Field label="Driver *" htmlFor="driver" error={errors.driver?.message}
+          hint="The driver record this login belongs to: they see its trips. Leave Offices empty to use the driver's office.">
+          <Select id="driver" className={inputClass} {...register('driver')}>
+            <option value="">{drivers.isLoading ? 'Loading drivers…' : 'Select a driver…'}</option>
+            {pickable.map((d) => <option key={d.id} value={d.id}>{d.full_name} · {d.office_code}{d.employee_number ? ` · ${d.employee_number}` : ''}</option>)}
+          </Select>
+        </Field>
+      )}
       {isNew && (
         <Field label="Initial password" htmlFor="password" error={errors.password?.message} hint="User must change it at first login.">
           <input id="password" type="password" autoComplete="new-password" className={inputClass} {...register('password')} />

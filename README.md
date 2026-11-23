@@ -152,7 +152,8 @@ on **Vehicle requests** instead of the dashboard. Create them in Users with the 
 **Driver** (Phase 17N): a login linked to a driver record. Sees only the trips they drive (**My trips**), records the
 return, and can request vehicles like a Requester. Created from **Drivers** (Create driver logins, or Create login on a
 profile) by the System Administrator; the temporary password is shown once and must be changed at first sign-in.
-Deactivating the driver disables the login.
+Deactivating the driver disables the login. A driver login can also be made in **Users** → Add user (role Driver,
+pick the driver record, type the initial password).
 
 ## Branding
 

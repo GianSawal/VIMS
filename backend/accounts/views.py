@@ -108,7 +108,8 @@ class OfficeViewSet(OfficeScopedMixin, mixins.ListModelMixin, mixins.RetrieveMod
 
 
 def user_snapshot(user):
-    return {'username': user.username, 'is_active': user.is_active, 'role': user.groups.first() and user.groups.first().name,
+    driver = getattr(user, 'driver', None)  # reverse one-to-one: AttributeError subclass when unlinked
+    return {'username': user.username, 'driver': driver and driver.full_name, 'is_active': user.is_active, 'role': user.groups.first() and user.groups.first().name,
             'offices': sorted(user.offices.values_list('code', flat=True)),
             'email': user.email, 'first_name': user.first_name, 'last_name': user.last_name}
 
@@ -116,7 +117,7 @@ def user_snapshot(user):
 class UserViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, mixins.CreateModelMixin,
                   mixins.UpdateModelMixin, viewsets.GenericViewSet):
     """User administration. No delete: deactivate (is_active=false) to keep history intact."""
-    queryset = User.objects.prefetch_related('groups', 'offices').order_by('username')
+    queryset = User.objects.select_related('driver').prefetch_related('groups', 'offices').order_by('username')
     serializer_class = UserSerializer
     permission_classes = [ModelPermissions, PasswordChangeNotRequired]
     search_fields = ['username', 'first_name', 'last_name', 'email']
