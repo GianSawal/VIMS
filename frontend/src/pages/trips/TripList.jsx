@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
-import { CalendarClock, CalendarDays, CalendarPlus, CircleCheck, CircleSlash, Clock, List, MapPin, Milestone, Monitor, Navigation, Plus, Route as RouteIcon } from 'lucide-react'
+import { Building2, CalendarClock, CalendarDays, CalendarPlus, CircleCheck, CircleSlash, Clock, List, MapPin, Milestone, Monitor, Navigation, Plus, Route as RouteIcon } from 'lucide-react'
 import { useList } from '../../api'
 import { useCan, useMe } from '../../auth'
 import DataTable from '../../components/DataTable'
@@ -44,6 +44,22 @@ function TripIdentity({ t }) {
   )
 }
 
+/** True when the user sees trips from more than one office, so each trip needs its office shown. */
+function useMultiOffice() {
+  const { data: me } = useMe()
+  return !!me && (me.view_all_offices || me.offices.length > 1)
+}
+
+/** The vehicle's office (e.g. RO3, BUL), shown only to users who see several offices. */
+function OfficeTag({ code }) {
+  if (!code) return null
+  return (
+    <span className="inline-flex shrink-0 items-center gap-1 rounded-md bg-slate-100 px-1.5 py-0.5 text-[11px] font-semibold tracking-wide text-slate-700 ring-1 ring-slate-200 ring-inset">
+      <Building2 size={11} aria-hidden="true" /><span className="sr-only">Office </span>{code}
+    </span>
+  )
+}
+
 /** Origin dot, connecting line, destination pin. The markers sit outside the truncated text: `truncate` clips overflow,
  *  so markers placed inside a truncating element were cut off and only the line showed. */
 function RouteLine({ t, className = '' }) {
@@ -74,8 +90,8 @@ function whenText(t) {
   return [t.departed_at ? `Left ${clock.format(new Date(t.departed_at))}` : `Was ${clock.format(new Date(t.scheduled_departure))}`, 'Cancelled', 'text-slate-500']
 }
 
-/** Trip table columns, shared with the vehicle Trips tab (`withVehicle` = false there). */
-export function tripColumns({ withVehicle = true } = {}) {
+/** Trip table columns, shared with the vehicle Trips tab (`withVehicle` = false there). `withOffice`: tag each row's office. */
+export function tripColumns({ withVehicle = true, withOffice = false } = {}) {
   return [
     // When and Status hug their content (w-px + nowrap); vehicle and route share the rest, so no column is left wide and empty.
     { key: 'when', label: 'When', className: 'w-px', render: (t) => {
@@ -104,7 +120,7 @@ export function tripColumns({ withVehicle = true } = {}) {
       <div className="flex items-center gap-3">
         <VehiclePhoto vehicle={{ photo_url: t.vehicle_photo_url, plate_number: t.plate_number, make: '', model: t.vehicle_label }} className="w-16 shrink-0 border border-slate-200" />
         <div className="min-w-0">
-          <div className="font-semibold tracking-wide">{t.plate_number}</div>
+          <div className="flex items-center gap-2 font-semibold tracking-wide">{t.plate_number}{withOffice && <OfficeTag code={t.office_code} />}</div>
           <div className="truncate text-xs text-slate-500">{t.vehicle_label}</div>
           <div className="mt-1 flex items-center gap-1.5 truncate text-xs text-slate-600"><Avatar name={t.driver_name} src={t.driver_photo_url} className="h-5! w-5! text-[9px]" />{driverLabel(t)}</div>
         </div>
@@ -122,7 +138,7 @@ export function tripColumns({ withVehicle = true } = {}) {
 }
 
 /** Phone card for a trip (DataTable mobileCard): the same fields as tripColumns, stacked. */
-function tripCard(t) {
+function tripCard(t, withOffice) {
   const [main, sub, subCls] = whenText(t)
   return (
     <div className="space-y-3">
@@ -143,7 +159,7 @@ function tripCard(t) {
       <div className="flex items-center gap-3">
         <VehiclePhoto vehicle={{ photo_url: t.vehicle_photo_url, plate_number: t.plate_number, make: '', model: t.vehicle_label }} className="w-16 shrink-0 border border-slate-200" />
         <div className="min-w-0 flex-1 text-sm">
-          <div className="truncate"><span className="font-semibold tracking-wide">{t.plate_number}</span> <span className="text-xs text-slate-500">{t.vehicle_label}</span></div>
+          <div className="flex min-w-0 items-center gap-2"><span className="font-semibold tracking-wide">{t.plate_number}</span>{withOffice && <OfficeTag code={t.office_code} />}<span className="truncate text-xs text-slate-500">{t.vehicle_label}</span></div>
           <div className="mt-1 flex items-center gap-1.5 text-xs text-slate-600"><Avatar name={t.driver_name} src={t.driver_photo_url} className="h-5! w-5! text-[9px]" /><span className="truncate">{driverLabel(t)}</span></div>
         </div>
       </div>
@@ -179,6 +195,7 @@ export function LeavingToday({ canChange, office }) {
   const [today] = useState(() => new Date().toLocaleDateString('en-CA'))
   const q = useList('/trips/', { status: 'SCHEDULED', date_from: today, date_to: today, ordering: 'scheduled_departure', page_size: 12, office: office || undefined })
   const [leaving, setLeaving] = useState(null)
+  const multiOffice = useMultiOffice()
   const rows = q.data?.results ?? []
   if (!rows.length) return null
 
@@ -192,8 +209,11 @@ export function LeavingToday({ canChange, office }) {
         {rows.map((t) => (
           <article key={t.id} className="flex flex-col rounded-xl border border-l-4 border-slate-200 border-l-amber-500 bg-white p-4 shadow-sm">
             <div className="mb-3 flex items-center justify-between gap-2">
-              <div className="flex items-center gap-1.5 text-lg font-semibold text-amber-700 tabular-nums">
-                <Clock size={16} aria-hidden="true" />{new Date(t.scheduled_departure).toLocaleTimeString('en-PH', { hour: 'numeric', minute: '2-digit' })}
+              <div className="flex items-center gap-2">
+                <span className="flex items-center gap-1.5 text-lg font-semibold text-amber-700 tabular-nums">
+                  <Clock size={16} aria-hidden="true" />{new Date(t.scheduled_departure).toLocaleTimeString('en-PH', { hour: 'numeric', minute: '2-digit' })}
+                </span>
+                {multiOffice && <OfficeTag code={t.office_code} />}
               </div>
               <Link to={`/trips/${t.id}`} className="font-mono text-sm font-semibold text-brand hover:underline">{t.ticket_number}</Link>
             </div>
@@ -219,6 +239,7 @@ export function OpenTrips({ canChange, onViewAll, office }) {
   const q = useList('/trips/', { status: 'DISPATCHED', page_size: 6, ordering: 'departed_at', office: office || undefined })
   const [returning, setReturning] = useState(null)
   const [now] = useState(() => Date.now()) // render-stable clock; the list refetches on focus anyway
+  const multiOffice = useMultiOffice()
   const count = q.data?.count ?? 0
   if (!count) return null
 
@@ -242,7 +263,10 @@ export function OpenTrips({ canChange, onViewAll, office }) {
           return (
             <article key={t.id} className={`@container rounded-xl border border-l-4 bg-white p-4 shadow-sm ${long ? 'border-amber-300 border-l-amber-500' : 'border-slate-200 border-l-brand'}`}>
               <div className="mb-3 flex items-center justify-between gap-2">
-                <span className="text-xs font-semibold tracking-wider text-brand uppercase">On trip</span>
+                <span className="flex items-center gap-2">
+                  <span className="text-xs font-semibold tracking-wider text-brand uppercase">On trip</span>
+                  {multiOffice && <OfficeTag code={t.office_code} />}
+                </span>
                 <Link to={`/trips/${t.id}`} className="font-mono text-sm font-semibold text-brand hover:underline">{t.ticket_number}</Link>
               </div>
               {/* Wide: vehicle block at its natural width (no truncated driver name); beside it a column whose top
@@ -411,8 +435,8 @@ export default function TripList() {
       {calendar
         ? <TripCalendar month={f.month} onMonth={(m) => set('month', m)} filters={{ search: f.search, office: f.office }} toolbar={toolbar}
           onPickDay={can('operations.add_trip') ? (day) => openNewTrip('schedule', day) : undefined} />
-        : <DataTable columns={tripColumns()} query={query} page={page} onPage={(p) => set('page', String(p))} toolbar={toolbar}
-          onRowClick={(t) => navigate(`/trips/${t.id}`)} mobileCard={tripCard} label="Trips"
+        : <DataTable columns={tripColumns({ withOffice: showOffice })} query={query} page={page} onPage={(p) => set('page', String(p))} toolbar={toolbar}
+          onRowClick={(t) => navigate(`/trips/${t.id}`)} mobileCard={(t) => tripCard(t, showOffice)} label="Trips"
           empty={chips.length ? 'No trips match these filters.' : 'No trips yet.'} />}
 
       <Modal open={tv} onClose={() => setTv(false)} title="TV trip board" wide>

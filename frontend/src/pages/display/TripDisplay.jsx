@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { AnimatePresence, motion } from 'motion/react'
-import { CalendarDays, Car, CircleCheck, Clock, ClipboardList, MapPin, MonitorOff, Navigation, TriangleAlert, UserRound, WifiOff } from 'lucide-react'
+import { Building2, CalendarDays, Car, CircleCheck, Clock, ClipboardList, MapPin, MonitorOff, Navigation, TriangleAlert, UserRound, WifiOff } from 'lucide-react'
 import { api } from '../../api'
 import { initials } from '../../components/filters'
 
@@ -169,6 +169,8 @@ export default function TripDisplay() {
   const [page, pages] = usePager(active.length, perPage)
   const shown = active.slice(page * perPage, (page + 1) * perPage)
   const offline = q.isError && !!q.data
+  // A screen not tied to one office shows every office's trips, so each trip carries its office tag.
+  const allOffices = !!q.data && !q.data.office
 
   if (!token || q.error?.response?.status === 403) {
     return (
@@ -240,13 +242,13 @@ export default function TripDisplay() {
               {[...Array(3)].map((_, i) => <div key={i} className={`h-[200px] rounded-2xl motion-safe:animate-pulse ${panel}`} />)}
             </div>
           ) : active.length === 0 ? (
-            <Empty next={upcoming[0]} now={now} />
+            <Empty next={upcoming[0]} now={now} showOffice={allOffices} />
           ) : (
             <AnimatePresence mode="wait" initial={false}>
               <motion.div key={page} className={`grid items-start gap-5 ${cols === 2 ? 'grid-cols-2' : 'grid-cols-1'}`}
                 initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
                 transition={{ duration: 0.45, ease: [0.23, 1, 0.32, 1] }}>
-                {shown.map((r) => <TripCard key={r.ticket_number} r={r} now={now} wide={cols === 1} fresh={fresh(r.ticket_number)} />)}
+                {shown.map((r) => <TripCard key={r.ticket_number} r={r} now={now} wide={cols === 1} fresh={fresh(r.ticket_number)} showOffice={allOffices} />)}
               </motion.div>
             </AnimatePresence>
           )}
@@ -265,13 +267,13 @@ export default function TripDisplay() {
               <div className="flex flex-1 items-center justify-center text-[20px] font-medium text-slate-500">No upcoming bookings</div>
             ) : (
               <div className="min-h-0 overflow-hidden pb-2">
-                {agenda.map((g) => <AgendaDay key={g.key} g={g} now={now} fresh={fresh} />)}
+                {agenda.map((g) => <AgendaDay key={g.key} g={g} now={now} fresh={fresh} showOffice={allOffices} />)}
                 {upcoming.length > agendaCount && <div className="border-t border-slate-100 px-6 pt-3 text-[16px] font-medium text-slate-500">+{upcoming.length - agendaCount} more this week</div>}
               </div>
             )}
           </section>
 
-          {completed.length > 0 && <CompletedToday trips={completed} now={now} fresh={fresh} />}
+          {completed.length > 0 && <CompletedToday trips={completed} now={now} fresh={fresh} showOffice={allOffices} />}
         </aside>
       </main>
 
@@ -306,13 +308,23 @@ function FreshTag({ r, className = 'px-3 py-1 text-[15px]' }) {
   )
 }
 
+/** The vehicle's office (RO3, BUL...), on all-office screens only: a solid dark chip so it never reads as the division. */
+function Office({ r, show, className = 'px-2.5 py-0.5 text-[15px]' }) {
+  if (!show || !r.office_code) return null
+  return (
+    <span className={`inline-flex shrink-0 items-center gap-1.5 rounded-md bg-slate-800 font-bold tracking-wide text-white ${className}`}>
+      <Building2 size="1em" aria-hidden="true" /><span className="sr-only">Office </span>{r.office_code}
+    </span>
+  )
+}
+
 /** Requesting division chip (IMSD, TSSD-1...); nothing for offices without divisions. */
 function Division({ r, className = 'px-2.5 py-0.5 text-[15px]' }) {
   if (!r.requesting_division) return null
   return <span className={`inline-flex shrink-0 items-center rounded-md bg-brand-light font-bold tracking-wide text-brand ring-1 ring-brand/20 ${className}`}>{r.requesting_division}</span>
 }
 
-function TripCard({ r, now, wide, fresh }) {
+function TripCard({ r, now, wide, fresh, showOffice }) {
   const [label, pill, dot] = statusOf(r)
   const out = r.status === 'DISPATCHED'
   const late = !!r.flag
@@ -334,6 +346,7 @@ function TripCard({ r, now, wide, fresh }) {
       <div className="flex min-w-0 flex-1 flex-col gap-1.5 py-1 pr-1">
         <div className="flex min-w-0 items-center gap-3">
           <Plate size="md">{r.plate_number}</Plate>
+          <Office r={r} show={showOffice} className="px-3 py-1 text-[17px]" />
           <span className="min-w-0 truncate text-[16px] text-slate-500">{r.vehicle_label}</span>
           {fresh && <FreshTag r={r} className="ml-auto px-3 py-1 text-[15px]" />}
           <span className={`${fresh ? '' : 'ml-auto'} inline-flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1 text-[15px] font-semibold ring-1 ${pill}`}>
@@ -398,7 +411,7 @@ function PanelHead({ id, icon: Icon, iconColor, title, count }) {
 // List rows that arrive between refreshes slide in (not on first paint: AnimatePresence initial={false}).
 const rowMotion = { layout: 'position', initial: { opacity: 0, x: 24 }, animate: { opacity: 1, x: 0 }, exit: { opacity: 0 }, transition: { duration: 0.5, ease: EASE } }
 
-function CompletedToday({ trips, now, fresh }) {
+function CompletedToday({ trips, now, fresh, showOffice }) {
   return (
     <section className={`shrink-0 overflow-hidden rounded-2xl ${panel}`} aria-labelledby="done-title">
       <PanelHead id="done-title" icon={CircleCheck} iconColor="text-emerald-600" title="Returned Today" count={trips.length} />
@@ -409,6 +422,7 @@ function CompletedToday({ trips, now, fresh }) {
               className="flex items-center gap-4 border-t border-slate-100 px-6 py-2.5 first:border-t-0">
               <Thumb r={r} className="h-[48px] w-[68px]" />
               <Plate>{r.plate_number}</Plate>
+              <Office r={r} show={showOffice} className="px-2 py-0.5 text-[14px]" />
               <Division r={r} className="px-2 py-0.5 text-[14px]" />
               <span className="min-w-0 flex-1 truncate text-[17px] text-slate-700" title={r.destination}>{r.destination}</span>
               {fresh(r.ticket_number) && <FreshTag r={r} className="px-2.5 py-0.5 text-[14px]" />}
@@ -491,7 +505,7 @@ function Stat({ icon: Icon, label, value, color, alert }) {
 }
 
 /** A day's worth of upcoming trips: a slim day header (date shown once), then rows of time · plate · destination. */
-function AgendaDay({ g, now, fresh }) {
+function AgendaDay({ g, now, fresh, showOffice }) {
   const tomorrow = sameDay(g.date, new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1))
   return (
     <div>
@@ -510,6 +524,7 @@ function AgendaDay({ g, now, fresh }) {
               <div className="flex items-center gap-3">
                 <span className="text-[19px] font-bold text-slate-900 tabular-nums">{t(r.scheduled_departure)}</span>
                 <Plate>{r.plate_number}</Plate>
+                <Office r={r} show={showOffice} />
                 <Division r={r} />
                 {fresh(r.ticket_number) && <FreshTag r={r} className="ml-auto px-2.5 py-0.5 text-[14px]" />}
               </div>
@@ -526,7 +541,7 @@ function AgendaDay({ g, now, fresh }) {
   )
 }
 
-function Empty({ next, now }) {
+function Empty({ next, now, showOffice }) {
   return (
     <div className={`flex flex-1 flex-col items-center justify-center rounded-2xl px-12 text-center ${panel}`}>
       <span className="flex h-20 w-20 items-center justify-center rounded-full bg-emerald-50 text-emerald-600 ring-1 ring-emerald-200">
@@ -539,6 +554,7 @@ function Empty({ next, now }) {
           <div className="mt-4 text-[28px] font-bold text-slate-900 tabular-nums">{wk.format(new Date(next.scheduled_departure))}, {when(next.scheduled_departure, now)}</div>
           <div className="mt-3 flex items-center justify-center gap-4">
             <Plate size="md">{next.plate_number}</Plate>
+            <Office r={next} show={showOffice} className="px-3 py-1 text-[20px]" />
             <Division r={next} className="px-3 py-1 text-[20px]" />
             <span className="max-w-[420px] truncate text-[24px] font-medium text-slate-700" title={next.destination}>{next.destination}</span>
           </div>

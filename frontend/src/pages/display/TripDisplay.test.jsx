@@ -24,4 +24,15 @@ describe('TV board', () => {
     expect(screen.getByText('New booking')).toBeInTheDocument() // T3 appeared
     expect(screen.getAllByText(/Just left|New booking|Just returned/)).toHaveLength(2) // T2 unchanged
   })
+
+  it("shows each trip's office only on a screen that shows every office", () => {
+    const trips = [trip('T1', 'SCHEDULED', { office_code: 'RO3' }), trip('T2', 'SCHEDULED', { office_code: 'BUL' })]
+    const all = renderApp(<TripDisplay />, { path: '/display?token=all', data: { '["display","all"]': { ...board(trips), office: null } } })
+    expect(screen.getByText('RO3')).toBeInTheDocument()
+    expect(screen.getByText('BUL')).toBeInTheDocument()
+    all.unmount()
+
+    renderApp(<TripDisplay />, { path: '/display?token=one', data: { '["display","one"]': board(trips) } }) // tied to one office
+    expect(screen.queryByText('RO3')).not.toBeInTheDocument()
+  })
 })
