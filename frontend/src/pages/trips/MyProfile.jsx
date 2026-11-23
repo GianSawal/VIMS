@@ -99,7 +99,7 @@ export default function MyProfile() {
 
       <h2 className="mt-6 mb-2 font-semibold text-ink">My vehicle{vehicles.length === 1 ? '' : 's'}</h2>
       {vehicles.length
-        ? <div className="space-y-3">{vehicles.map((v) => <VehicleCard key={v.id} v={v} />)}</div>
+        ? <div className="grid gap-3 sm:grid-cols-2">{vehicles.map((v) => <VehicleCard key={v.id} v={v} />)}</div>
         : <p className="rounded-xl border border-slate-200 bg-white p-4 text-sm text-slate-600">No vehicle is assigned to you right now.</p>}
 
       <Modal open={correcting} onClose={() => setCorrecting(false)} title="Request a correction">

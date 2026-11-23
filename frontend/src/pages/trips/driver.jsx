@@ -211,28 +211,46 @@ export function Warnings({ items }) {
   )
 }
 
-/** One of the driver's vehicles: odometer, status, papers/maintenance, and Report a problem. */
+const STATUS_TONE = { 'In Use': 'bg-brand-light text-brand', Serviceable: 'bg-green-50 text-green-800', 'Under Maintenance': 'bg-amber-50 text-amber-800', Unserviceable: 'bg-red-50 text-danger' }
+
+/** One of the driver's vehicles: odometer, status, papers/maintenance, and Report a problem. Stacked, so it reads
+ *  the same on a phone and in the narrow side column. */
 export function VehicleCard({ v }) {
   const [reporting, setReporting] = useState(false)
   const warnings = driverWarnings({ driver: { license_status: 'VALID' }, vehicles: [v] })
   return (
-    <section aria-label={`Vehicle ${v.plate_number}`} className="flex flex-wrap items-center gap-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-      <VehiclePhoto vehicle={{ photo_url: v.photo_url, plate_number: v.plate_number, make: '', model: v.label }} className="w-24 shrink-0 border border-slate-200" />
-      <div className="min-w-0 flex-1">
-        <div className="font-semibold tracking-wide">{v.plate_number} <span className="font-normal text-slate-500">{v.label}</span></div>
-        <div className="mt-0.5 flex flex-wrap gap-x-4 text-sm text-slate-600">
-          <span className="inline-flex items-center gap-1"><Gauge size={14} aria-hidden="true" /> {km(v.current_odometer)}</span>
-          <span>{v.status}</span>
+    <section aria-label={`Vehicle ${v.plate_number}`} className="space-y-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+      <div className="flex items-center gap-3">
+        <VehiclePhoto vehicle={{ photo_url: v.photo_url, plate_number: v.plate_number, make: '', model: v.label }} className="w-24 shrink-0 border border-slate-200" />
+        <div className="min-w-0">
+          <div className="text-lg leading-tight font-bold tracking-wide">{v.plate_number}</div>
+          <div className="truncate text-sm text-slate-500">{v.label}</div>
         </div>
-        {warnings.length ? (
-          <ul className="mt-2 space-y-0.5 text-sm">
-            {warnings.map(([text, bad]) => (
-              <li key={text} className={`flex items-center gap-1.5 ${bad ? 'text-danger' : 'text-amber-800'}`}><AlertTriangle size={14} aria-hidden="true" /> {text.replace(`${v.plate_number}: `, '')}</li>
-            ))}
-          </ul>
-        ) : <p className="mt-2 flex items-center gap-1.5 text-sm text-green-700"><CalendarCheck size={14} aria-hidden="true" /> Papers and maintenance up to date</p>}
       </div>
-      <Button variant="secondary" onClick={() => setReporting(true)}><Wrench size={16} aria-hidden="true" /> Report a problem</Button>
+      <dl className="grid grid-cols-2 gap-2">
+        <div className="rounded-lg bg-slate-50 px-3 py-2">
+          <dt className="flex items-center gap-1 text-xs text-slate-500"><Gauge size={12} aria-hidden="true" /> Odometer</dt>
+          <dd className="font-semibold tabular-nums">{km(v.current_odometer)}</dd>
+        </div>
+        <div className="rounded-lg bg-slate-50 px-3 py-2">
+          <dt className="text-xs text-slate-500">Status</dt>
+          <dd><span className={`inline-block rounded-full px-2 py-0.5 text-xs font-semibold ${STATUS_TONE[v.status] ?? 'bg-slate-100 text-slate-700'}`}>{v.status}</span></dd>
+        </div>
+      </dl>
+      {warnings.length ? (
+        <ul className="space-y-1 rounded-lg bg-amber-50 px-3 py-2 text-sm">
+          {warnings.map(([text, bad]) => (
+            <li key={text} className={`flex items-start gap-1.5 ${bad ? 'text-danger' : 'text-amber-900'}`}>
+              <AlertTriangle size={14} className="mt-0.5 shrink-0" aria-hidden="true" /> {text.replace(`${v.plate_number}: `, '')}
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="flex items-center gap-1.5 rounded-lg bg-green-50 px-3 py-2 text-sm text-green-800">
+          <CalendarCheck size={15} className="shrink-0" aria-hidden="true" /> Papers and maintenance up to date
+        </p>
+      )}
+      <Button variant="secondary" className="w-full" onClick={() => setReporting(true)}><Wrench size={16} aria-hidden="true" /> Report a problem</Button>
       <Modal open={reporting} onClose={() => setReporting(false)} title={`Problem with ${v.plate_number}`}>
         {reporting && <ReportProblemForm vehicle={v} onClose={() => setReporting(false)} />}
       </Modal>
