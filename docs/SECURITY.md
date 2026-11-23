@@ -80,7 +80,7 @@ Fixed by the compose file / settings:
 | `/api/display/trips/`, `/api/maps/*` | 120/min |
 
 The counters live in the cache. Production uses the database cache (`CACHE_URL=dbcache://vrs_cache`, table created
-on start) so all gunicorn workers share one count. The Django admin login (`/admin/`) is not rate-limited by these
+on start) so all gunicorn workers share one count. The Django admin login (`/django-admin/`) is not rate-limited by these
 rules; only System Administrators should have staff accounts.
 
 ## Secrets

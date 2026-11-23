@@ -92,7 +92,7 @@ def public_checks(base):
               'Plain HTTP redirects to HTTPS', f'HTTP {code}')
     code, _, _ = s.get('/api/docs/')
     check(code in (401, 403), 'API docs need a login', f'HTTP {code}')
-    code, _, _ = s.get('/admin/login/')
+    code, _, _ = s.get('/django-admin/login/')
     check(code == 200, 'Django admin login page loads', f'HTTP {code}')
 
 

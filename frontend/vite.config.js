@@ -7,7 +7,7 @@ export default defineConfig(({ mode }) => {
   const target = loadEnv(mode, process.cwd()).VITE_API_TARGET || 'http://127.0.0.1:8000'
   return {
     plugins: [react(), tailwindcss()],
-    server: { proxy: { '/api': target, '/media': target } },
+    server: { proxy: { '/api': target, '/media': target, '/django-admin': target } },
     test: { environment: 'jsdom', setupFiles: ['./src/test/setup.js'], css: false },
   }
 })

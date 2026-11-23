@@ -834,6 +834,7 @@ Added 2026-11-23. Drivers sign in to see their own trips and record the return.
 -   [x] UI: "Create driver logins" on the Drivers page (result table with copy-all, shown once), Login line on the driver profile (username or Create login), driver home `/my-trips` (out now with Record return, coming up, all my trips)
 -   [x] Rename a driver's login: pencil on the profile's Login line, or the Username field in Users (now editable for every user; `PATCH /users/{id}/`, `accounts.change_user`). Usernames are unique ignoring case (MySQL collation) and renames are audited. Users page lists the Driver role
 -   [x] Tests: `fleet/test_driver_accounts.py`, `MyTrips.test.jsx`
+-   [x] Fix (2026-11-23): reloading `/admin/users` (and Offices, Data Import, Delete test data) showed Django's Not Found, because nginx sent all of `/admin/` to Django. Django's admin moved to `/django-admin/` (urls, nginx, Vite proxy, smoke test, docs)
 -   [ ] Run `seed_reference` on the server after deploying (creates the Driver role)
 -   [ ] Manual check as a driver on a phone
 ------------------------------------------------------------------------

@@ -38,7 +38,7 @@ router.register('notifications', NotificationViewSet, basename='notification')
 router.register('audit-logs', AuditLogViewSet)
 
 urlpatterns = [
-    path('admin/', admin.site.urls),
+    path('django-admin/', admin.site.urls),  # not /admin/: the React app owns /admin/users, /admin/offices, ...
     path('api/health/', health, name='health'),  # public: container healthcheck and uptime monitor
     path('api/auth/', include('accounts.urls')),
     path('api/dashboard/', DashboardView.as_view(), name='dashboard'),

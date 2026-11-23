@@ -176,7 +176,7 @@ Tokens are in `frontend/src/index.css` (`@theme`), used as Tailwind classes such
 
 Full runbook (server, MySQL, DNS/HTTPS, scheduled jobs, backups, monitoring, go-live checks): [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
 
-`docker-compose.yaml` runs two containers: `backend` (Django + gunicorn; runs `migrate`, `seed_reference` and `collectstatic` on every start) and `web` (nginx: the built React app, `/api` and `/admin` proxied to Django, `/static` and `/media` from shared volumes). One origin, so session and CSRF cookies work as in dev.
+`docker-compose.yaml` runs two containers: `backend` (Django + gunicorn; runs `migrate`, `seed_reference` and `collectstatic` on every start) and `web` (nginx: the built React app, `/api` and `/django-admin` proxied to Django, `/static` and `/media` from shared volumes). One origin, so session and CSRF cookies work as in dev.
 
 1. Coolify: New resource → your GitHub repo → build pack **Docker Compose**, file `docker-compose.yaml`.
 2. Set the domain on the **web** service (port 80). Coolify's proxy adds HTTPS.
@@ -208,7 +208,7 @@ python manage.py import_workbook filled.xlsx --user admin --commit     # import 
 
 ## Trip schedule TV display
 
-1. Django admin → **Operations › Display screens** → *Add*: give it a name (e.g. "Lobby TV, Regional Office") and,
+1. Django admin (`/django-admin/`) → **Operations › Display screens** → *Add*: give it a name (e.g. "Lobby TV, Regional Office") and,
    optionally, an office to show only that office's vehicles.
 2. Save, then copy the **Display link** shown (`/display?token=…`) and open it full-screen on the TV's browser,
    e.g. `https://<server>/display?token=…`. No staff login is needed.
