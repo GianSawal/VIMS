@@ -138,3 +138,21 @@ def test_add_user_with_driver_role_links_the_driver_record(fo1):
     assert admin.patch(f'/api/users/{uid}/', {'driver': juan.pk}, format='json').json()['driver_name'] == 'Juan Cruz'
     pedro.refresh_from_db(); juan.refresh_from_db()
     assert pedro.user is None and juan.user_id == uid
+
+
+def test_edit_user_can_set_a_new_temporary_password(fo1):
+    pedro = make_driver(fo1, 'Pedro Penduko', 'L-1')
+    admin = as_role('System Administrator')
+    admin.post(f'/api/drivers/{pedro.pk}/account/')
+    pedro.refresh_from_db()
+    u = pedro.user
+    User.objects.filter(pk=u.pk).update(must_change_password=False)
+
+    assert admin.patch(f'/api/users/{u.pk}/', {'first_name': 'Pedro', 'password': ''}, format='json').status_code == 200
+    r = admin.patch(f'/api/users/{u.pk}/', {'password': 'short'}, format='json')
+    assert r.status_code == 400 and 'password' in r.json()
+    assert admin.patch(f'/api/users/{u.pk}/', {'password': 'Driver-temp-2026'}, format='json').status_code == 200
+    u.refresh_from_db()
+    assert u.check_password('Driver-temp-2026') and u.must_change_password
+    log = AuditLog.objects.filter(action='password_reset').latest('id')
+    assert 'Driver-temp-2026' not in str(log.changes) + log.description

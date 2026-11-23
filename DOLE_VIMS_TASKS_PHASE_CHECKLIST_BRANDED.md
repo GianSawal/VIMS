@@ -837,6 +837,7 @@ Added 2026-11-23. Drivers sign in to see their own trips and record the return.
 -   [x] Fix (2026-11-23): reloading `/admin/users` (and Offices, Data Import, Delete test data) showed Django's Not Found, because nginx sent all of `/admin/` to Django. Django's admin moved to `/django-admin/` (urls, nginx, Vite proxy, smoke test, docs)
 -   [x] Fix (2026-11-23): the Users page went blank after the Driver role was added to `ROLES` without a role card (`ROLE_CARDS`). Card added; `Users.test.jsx` renders the page with every role
 -   [x] Users → Add user with role Driver asks for the driver record (drivers without a login, plus the current one) and takes the typed initial password; `UserSerializer.driver` (write) / `driver_id`, `driver_name` (read). Required for the Driver role; refused for other roles or a driver that already has a login; Offices left empty = the driver's office. Editing can re-point the login (the old record is unlinked). Users list shows "Driver record: …"; the link is in the audit snapshot
+-   [x] Edit user has a "New temporary password" field (blank keeps the current password; set = validated, must change at next login, audited as `password_reset` without the password). The key button still resets too
 -   [ ] Run `seed_reference` on the server after deploying (creates the Driver role)
 -   [ ] Manual check as a driver on a phone
 ------------------------------------------------------------------------

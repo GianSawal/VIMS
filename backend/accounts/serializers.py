@@ -62,8 +62,9 @@ class UserSerializer(serializers.ModelSerializer):
     role = serializers.SlugRelatedField(slug_field='name', queryset=Group.objects.all(), write_only=True)
     role_name = serializers.SerializerMethodField()
     office_details = OfficeBriefSerializer(source='offices', many=True, read_only=True)
-    password = serializers.CharField(write_only=True, required=False, style={'input_type': 'password'},
-                                     help_text='Initial password (create only). User must change it at first login.')
+    password = serializers.CharField(write_only=True, required=False, allow_blank=True, style={'input_type': 'password'},
+                                     help_text='Initial password on create; on edit, a new temporary password (blank keeps the current one). '
+                                               'The user must change it at next login.')
     # Driver accounts: the driver record this login belongs to (its trips are what the driver sees).
     driver = serializers.PrimaryKeyRelatedField(queryset=Driver.objects.select_related('user', 'office'), required=False,
                                                 allow_null=True, write_only=True)
@@ -88,15 +89,15 @@ class UserSerializer(serializers.ModelSerializer):
         return value
 
     def validate(self, attrs):
-        if self.instance is None:
-            if not attrs.get('password'):
-                raise serializers.ValidationError({'password': 'An initial password is required.'})
+        if self.instance is None and not attrs.get('password'):
+            raise serializers.ValidationError({'password': 'An initial password is required.'})
+        if not attrs.get('password'):
+            attrs.pop('password', None)  # editing: blank keeps the current password
+        else:  # initial password, or a new temporary one set while editing (same as reset-password)
             try:
-                validate_password(attrs['password'], User(username=attrs.get('username')))
+                validate_password(attrs['password'], self.instance or User(username=attrs.get('username')))
             except DjangoValidationError as e:
                 raise serializers.ValidationError({'password': e.messages})
-        else:
-            attrs.pop('password', None)  # changed only via reset-password
         # A requester asks for vehicles for their own office, so they need one.
         role = attrs['role'].name if 'role' in attrs else self.instance and role_of(self.instance)
         offices = attrs['offices'] if 'offices' in attrs else self.instance and list(self.instance.offices.all())
@@ -141,6 +142,10 @@ class UserSerializer(serializers.ModelSerializer):
     def update(self, user, data):
         driver = data.pop('driver', None)
         role, offices = data.pop('role', None), data.pop('offices', None)
+        password = data.pop('password', None)
+        if password:
+            user.set_password(password)
+            user.must_change_password = True
         for k, v in data.items():
             setattr(user, k, v)
         user.save()

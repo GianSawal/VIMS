@@ -174,7 +174,8 @@ const officeRule = { path: ['offices'], message: 'Select the office this request
 // A driver login belongs to a driver record: its trips are what the driver sees (the API checks it too).
 const driverRule = [(v) => v.role !== 'Driver' || !!v.driver, { path: ['driver'], message: 'Select the driver this login belongs to' }]
 const createSchema = z.object({ ...baseSchema, password: z.string().min(8, 'At least 8 characters') }).refine(needsOffice, officeRule).refine(...driverRule)
-const editSchema = z.object(baseSchema).refine(needsOffice, officeRule).refine(...driverRule)
+// Editing: blank keeps the current password; anything typed becomes a new temporary one.
+const editSchema = z.object({ ...baseSchema, password: z.union([z.literal(''), z.string().min(8, 'At least 8 characters')]) }).refine(needsOffice, officeRule).refine(...driverRule)
 
 function UserForm({ user, onClose }) {
   const isNew = !user.id
@@ -196,9 +197,10 @@ function UserForm({ user, onClose }) {
   const pickable = (drivers.data?.results ?? []).filter((d) => !d.account_id || d.account_id === user.id)
   const save = useMutation({
     mutationFn: (body) => isNew ? api.post('/users/', body) : api.patch(`/users/${user.id}/`, body),
-    onSuccess: () => {
+    onSuccess: (_, body) => {
       qc.invalidateQueries({ queryKey: ['/users/'] })
-      toast(isNew ? 'User created. They must change the password at first login.' : 'User updated.')
+      toast(isNew ? 'User created. They must change the password at first login.'
+        : body.password ? 'User updated. They must change the new password at next login.' : 'User updated.')
       onClose()
     },
     onError: (err) => setFormError(applyFieldErrors(err, setError, [...Object.keys(baseSchema), 'password'])),
@@ -235,11 +237,10 @@ function UserForm({ user, onClose }) {
           </Select>
         </Field>
       )}
-      {isNew && (
-        <Field label="Initial password" htmlFor="password" error={errors.password?.message} hint="User must change it at first login.">
-          <input id="password" type="password" autoComplete="new-password" className={inputClass} {...register('password')} />
-        </Field>
-      )}
+      <Field label={isNew ? 'Initial password' : 'New temporary password'} htmlFor="password" error={errors.password?.message}
+        hint={isNew ? 'User must change it at first login.' : 'Leave blank to keep the current password. If set, they must change it at next login.'}>
+        <input id="password" type="password" autoComplete="new-password" className={inputClass} {...register('password')} />
+      </Field>
       <fieldset className="sm:col-span-2">
         <legend className="mb-1 text-sm font-medium">Offices</legend>
         <p className="mb-2 text-xs text-slate-500">

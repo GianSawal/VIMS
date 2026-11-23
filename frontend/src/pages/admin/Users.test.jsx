@@ -15,6 +15,8 @@ describe('Users page', () => {
     expect(screen.getByText('Drivers')).toBeInTheDocument()
     expect(ROLES).toContain('Driver')
     expect(screen.getByText('Driver record: Gilbert G. Gomez')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Edit ggomez' }))
+    expect(screen.getByLabelText('New temporary password')).toHaveValue('') // blank keeps the current password
   })
 
   it('asks which driver a new Driver login belongs to', async () => {

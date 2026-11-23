@@ -134,7 +134,11 @@ class UserViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, mixins.Creat
             raise serializers.ValidationError({'is_active': 'You cannot deactivate your own account.'})
         before = user_snapshot(user)
         user = serializer.save()
-        log(self.request, 'update', user, f'Updated user {user.username}', diff(before, user_snapshot(user)))
+        changes = diff(before, user_snapshot(user))
+        if changes:
+            log(self.request, 'update', user, f'Updated user {user.username}', changes)
+        if serializer.validated_data.get('password'):  # logged as a reset, never the password itself
+            log(self.request, 'password_reset', user, f'Password reset for {user.username}')
 
     @action(detail=True, methods=['post'], url_path='reset-password')
     def reset_password(self, request, pk=None):
