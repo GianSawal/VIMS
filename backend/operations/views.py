@@ -21,7 +21,7 @@ from accounts.permissions import (ModelPermissions, OfficeScopedMixin, PasswordC
 from audit.services import diff, log
 from config.removal import RemoveMixin
 from fleet.attachments_api import AttachmentsMixin
-from fleet.models import Vehicle
+from fleet.models import Driver, Vehicle
 
 from . import fuel as fuel_service
 from . import maps
@@ -111,6 +111,22 @@ class TripViewSet(AttachmentsMixin, OfficeScopedMixin, mixins.ListModelMixin, mi
             distance=Sum('distance_km', filter=Q(status=Trip.Status.COMPLETED)))
         return Response({'total': agg['total'], 'distance_km': agg['distance'] or 0, 'by_status': {
             'SCHEDULED': agg['scheduled'], 'DISPATCHED': agg['dispatched'], 'COMPLETED': agg['completed'], 'CANCELLED': agg['cancelled']}})
+
+    @action(detail=False, methods=['get'], url_path='next-ticket', permission_classes=CAN_ADD_TRIP)
+    def next_ticket(self, request):
+        """?driver=<id>&at=<departure, ISO; default now>: the ticket number a new trip would get, e.g. GGG-1126-01,
+        to show in the form. Saving with the field left as this number still takes the next free one at that moment."""
+        p = request.query_params
+        try:
+            at = datetime.fromisoformat(p['at']) if p.get('at') else timezone.now()
+        except ValueError:
+            raise drf_serializers.ValidationError({'at': ['Give the departure as YYYY-MM-DDTHH:MM.']})
+        if timezone.is_naive(at):
+            at = timezone.make_aware(at)
+        driver = scope_to_offices(Driver.objects.all(), request.user, 'office').filter(pk=p.get('driver') if (p.get('driver') or '').isdigit() else None).first()
+        if not driver:
+            raise drf_serializers.ValidationError({'driver': ['Unknown driver.']})
+        return Response({'ticket_number': trip_service.next_ticket(driver, at)})
 
     # ---- scheduling -----------------------------------------------------------------------
 

@@ -95,6 +95,13 @@ def test_auto_ticket_counts_up_per_driver_initials_and_month(vehicle, fo1):
         tickets.append(t['ticket_number'])
         assert complete(c, t['id'], 10050 + i * 100, hours=4 - i * 2).status_code == 200
     assert tickets == [f'GGG-{mm}-01', f'GGG-{mm}-02']
+    # the form's suggestion is the next free number; unknown/out-of-office drivers and bad dates are refused
+    at = timezone.localtime(NOW).strftime('%Y-%m-%dT%H:%M')
+    assert c.get('/api/trips/next-ticket/', {'driver': gilbert.pk, 'at': at}).json() == {'ticket_number': f'GGG-{mm}-03'}
+    assert c.get('/api/trips/next-ticket/', {'driver': 999, 'at': at}).status_code == 400
+    assert c.get('/api/trips/next-ticket/', {'driver': gilbert.pk, 'at': 'soon'}).status_code == 400
+    fo2 = Office.objects.create(code='FO2X', name='Other', office_type='FIELD')
+    assert as_role('Field Office User', [fo2]).get('/api/trips/next-ticket/', {'driver': gilbert.pk, 'at': at}).status_code == 400
     # another driver with the same initials continues the same counter, so codes stay unique
     other = make_driver(fo1, 'Grace G. Garcia', 'L-G2')
     assert dispatch(c, make_vehicle(fo1, 'TRP 9'), other).json()['ticket_number'] == f'GGG-{mm}-03'

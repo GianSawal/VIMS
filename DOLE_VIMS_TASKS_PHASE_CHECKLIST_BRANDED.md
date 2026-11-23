@@ -239,7 +239,7 @@ instead of overwriting it.
 # Phase 6 --- Trip Management
 
 -   [x] Trip CRUD API (dispatch / complete / cancel; PATCH descriptive fields only; no DELETE)
--   [x] Trip-ticket/reference number (manual or auto). Auto = driver initials-departure MMYY-next number, e.g. `GGG-1126-01`, `GGG-1126-02` (counter per initials + month, restarts every month; suffixes/titles like JR, ATTY skipped); `TT-YYYY-00001` for a booking with no driver, renumbered when a driver is set or the driver/month changes; typed tickets never renumbered; the form previews the code (2026-11-23, `test_trips.py`, `test_schedule.py`)
+-   [x] Trip-ticket/reference number (manual or auto). Auto = driver initials-departure MMYY-next number, e.g. `GGG-1126-01`, `GGG-1126-02` (counter per initials + month, restarts every month; suffixes/titles like JR, ATTY skipped); `TT-YYYY-00001` for a booking with no driver, renumbered when a driver is set or the driver/month changes; typed tickets never renumbered; the form fills in the next number from `GET /api/trips/next-ticket/?driver=&at=` until the user types their own, and a left-as-suggested value is sent blank so the server takes the next free one at save (2026-11-23, `test_trips.py`, `test_schedule.py`)
 -   [x] Vehicle selection
 -   [x] Driver selection
 -   [x] Passenger/requesting office

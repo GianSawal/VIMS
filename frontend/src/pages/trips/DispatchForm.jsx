@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, applyFieldErrors, invalidatePrefix, useList } from '../../api'
 import { useMe } from '../../auth'
 import { Button, Field, inputClass } from '../../components/ui'
@@ -46,11 +46,6 @@ const schemas = {
 
 // Tomorrow 8:00 AM, a sensible default for a booking.
 const tomorrowAt8 = () => { const d = new Date(); d.setDate(d.getDate() + 1); d.setHours(8, 0, 0, 0); return toLocalInput(d) }
-
-// Same rule as the server's ticket_initials(): first letter of each name part, without suffixes/titles.
-const NOT_INITIALS = new Set(['JR', 'SR', 'II', 'III', 'IV', 'V', 'ATTY', 'ENGR', 'DR', 'MR', 'MRS', 'MS'])
-const ticketInitials = (name) =>
-  ((name ?? '').match(/[A-Za-zÑñ]+/g) ?? []).filter((w) => !NOT_INITIALS.has(w.toUpperCase())).map((w) => w[0]).join('').toUpperCase() || 'X'
 
 const isoDay = (d) => d.toLocaleDateString('en-CA')
 const validDate = (d) => d instanceof Date && !isNaN(d)
@@ -145,8 +140,12 @@ export default function DispatchForm({ vehicle, date, mode = 'dispatch', onClose
     onError: (err) => setFormError(applyFieldErrors(err, setError, FIELDS)),
   })
 
+  const ownTicket = useRef(false)
   const submit = (v) => save.mutate({
     ...v,
+    // Left as the suggested number: send blank so the server takes the next free one at save time (someone may
+    // have used the suggestion meanwhile). The toast shows the number actually given.
+    ticket_number: v.ticket_number === autoTicket ? '' : v.ticket_number,
     estimated_distance_km: estimate ? String(estimate.distance_km) : null,
     estimated_duration_min: estimate ? estimate.duration_min : null,
     origin_lat: estimate ? estimate.origin[0].toFixed(6) : null,
@@ -173,9 +172,19 @@ export default function DispatchForm({ vehicle, date, mode = 'dispatch', onClose
 
   const chosenDriver = drivers.data?.results.find((d) => String(d.id) === watch('driver'))
   const when = (name) => (watch(name) ? new Date(watch(name)) : null)
-  // Preview of the automatic ticket (the server assigns the number): driver initials + departure month.
+  // The ticket field is filled with the next automatic number for the chosen driver and month (e.g. GGG-1126-01)
+  // until the user types their own (a paper ticket number); clearing it brings the automatic one back.
   const departure = watch(scheduling ? 'scheduled_departure' : 'departed_at')
-  const ticketPreview = chosenDriver && departure ? `${ticketInitials(chosenDriver.full_name)}-${departure.slice(5, 7)}${departure.slice(2, 4)}-` : '' // MMYY
+  const driverId = watch('driver')
+  const nextTicket = useQuery({
+    queryKey: ['/trips/next-ticket/', driverId, departure],
+    queryFn: () => api.get('/trips/next-ticket/', { params: { driver: driverId, at: departure } }).then((r) => r.data.ticket_number),
+    enabled: !!driverId && departure?.length >= 10,
+  })
+  const autoTicket = driverId ? (nextTicket.data ?? '') : ''
+  useEffect(() => {
+    if (!ownTicket.current) setValue('ticket_number', autoTicket)
+  }, [autoTicket, setValue])
   const avail = useAvailability(scheduling
     ? { start: when('scheduled_departure'), end: when('scheduled_return') }
     : { point: when('departed_at') })
@@ -301,10 +310,11 @@ export default function DispatchForm({ vehicle, date, mode = 'dispatch', onClose
             {DIVISIONS.map((d) => <option key={d} value={d}>{d}</option>)}
           </Select>
         </Field>
-        {text('ticket_number', 'Trip ticket no.', {
-          placeholder: ticketPreview ? `${ticketPreview}·· (numbered on save)` : 'Auto-numbered if blank', className: `${inputClass} uppercase`,
-          hint: 'Leave blank to number it from the driver: initials, month and year, next number (e.g. GGG-1126-01). Or type the paper ticket number.',
-        })}
+        <Field label="Trip ticket no." htmlFor="ticket_number" error={errors.ticket_number?.message}
+          hint="Filled in from the driver: initials, month and year, next number (e.g. GGG-1126-01). Type over it to use the paper ticket number.">
+          <input id="ticket_number" className={`${inputClass} uppercase`} placeholder={scheduling ? 'Numbered when a driver is chosen' : 'Choose a driver'}
+            {...register('ticket_number', { onChange: (e) => { ownTicket.current = e.target.value.trim() !== '' } })} />
+        </Field>
         <Field label="Passengers" htmlFor="passengers" error={errors.passengers?.message}>
           <textarea id="passengers" rows={2} className={inputClass} placeholder="One name per line" {...register('passengers')} />
         </Field>

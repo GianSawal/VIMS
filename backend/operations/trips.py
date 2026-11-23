@@ -88,14 +88,24 @@ def _auto_number(trip, when):
     if not trip.driver_id:
         number = f'TT-{timezone.localtime(when):%Y}-{trip.pk:05d}'
     else:
-        prefix = f'{ticket_initials(trip.driver.full_name)}-{timezone.localtime(when):%m%y}-'
+        prefix = _prefix(trip.driver, when)
         if trip.ticket_number.startswith(prefix) and _is_auto_ticket(trip.ticket_number, trip.driver):
             return  # already numbered for this driver and month
-        used = Trip.objects.filter(ticket_number__startswith=prefix).exclude(pk=trip.pk).values_list('ticket_number', flat=True)
-        last = max((int(t[len(prefix):]) for t in used if t[len(prefix):].isdigit()), default=0)
-        number = f'{prefix}{last + 1:02d}'
+        number = next_ticket(trip.driver, when, exclude=trip.pk)
     trip.ticket_number = number
     trip.save(update_fields=['ticket_number'])
+
+
+def _prefix(driver, when):
+    return f'{ticket_initials(driver.full_name)}-{timezone.localtime(when):%m%y}-'
+
+
+def next_ticket(driver, when, exclude=None):
+    """The next free INITIALS-MMYY-NN for this driver and departure time (also shown in the trip form)."""
+    prefix = _prefix(driver, when)
+    used = Trip.objects.filter(ticket_number__startswith=prefix).exclude(pk=exclude).values_list('ticket_number', flat=True)
+    last = max((int(t[len(prefix):]) for t in used if t[len(prefix):].isdigit()), default=0)
+    return f'{prefix}{last + 1:02d}'
 
 
 def _renumber(trip, old_driver, when):

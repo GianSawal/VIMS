@@ -21,7 +21,7 @@ from reports.catalog import REPORTS
 
 pytestmark = pytest.mark.django_db
 # Reports that need a vehicle or driver are measured with the first one.
-NEEDS = {'vehicle-history': 'vehicle', 'driver-assignment': 'driver'}
+NEEDS = {'vehicle-history': 'vehicle', 'driver-assignment': 'driver', 'next-ticket': 'driver'}
 
 
 def get_endpoints():
