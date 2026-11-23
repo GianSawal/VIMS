@@ -35,6 +35,10 @@ class NotificationSerializer(serializers.ModelSerializer):
             return f'/drivers/{o.pk}'
         if model == 'vehiclerequest':
             return f'/requests/{o.pk}'
+        if model == 'trip':  # TRIP alerts go to driver accounts, whose page for their trips is My trips
+            return '/my-trips' if obj.type == 'TRIP' else f'/trips/{o.pk}'
+        if model == 'maintenancerecord':
+            return f'/maintenance/{o.pk}'
         return None
 
 

@@ -159,6 +159,9 @@ record tolls with the return, report a vehicle problem (opens a maintenance item
 ticket, and are notified when the office books, changes, starts or cancels their trips. Their home shows their
 license, their vehicles' warnings and this month's trips. Endpoints: `/api/driver/home/`, `/api/driver/report-problem/`,
 `/api/trips/{id}/rfid-accounts/`, `/api/trips/{id}/fuel/`.
+Driver menu: **Today** (what to do now), **Trip history** (by month), **My profile** (read-only record, with
+**Request a correction** to the office, `/api/driver/request-correction/`) and Notifications. The app can be added to a
+phone's home screen (`public/manifest.json`); it still needs a connection.
 
 ## Branding
 

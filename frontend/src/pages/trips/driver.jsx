@@ -1,8 +1,8 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { AlertTriangle, CalendarCheck, CheckCircle2, Gauge, IdCard, Milestone, Wrench, XCircle } from 'lucide-react'
+import { AlertTriangle, CalendarCheck, CheckCircle2, Gauge, Wrench, XCircle } from 'lucide-react'
 import { api, applyFieldErrors, invalidatePrefix } from '../../api'
-import { Badge, Button, Field, inputClass, Modal } from '../../components/ui'
+import { Button, Field, inputClass, Modal } from '../../components/ui'
 import { useToast } from '../../components/toast'
 import { formatDate, VehiclePhoto } from '../vehicles/common'
 import { km } from './common'
@@ -181,65 +181,88 @@ function ReportProblemForm({ vehicle, onClose }) {
   )
 }
 
-const licenseTone = { VALID: 'green', EXPIRING: 'gold', EXPIRED: 'red' }
-const licenseText = (d) => (d.license_status === 'EXPIRED' ? `Expired ${-d.license_days_left} days ago`
+export const licenseTone = { VALID: 'green', EXPIRING: 'gold', EXPIRED: 'red' }
+export const licenseText = (d) => (d.license_status === 'EXPIRED' ? `Expired ${-d.license_days_left} days ago`
   : d.license_status === 'EXPIRING' ? `Expires in ${d.license_days_left} days` : 'Valid')
 
-/** Top of My trips: license, this month, and each of the driver's vehicles with its warnings. */
-export function DriverHome() {
-  const home = useQuery({ queryKey: ['/driver/home/'], queryFn: () => api.get('/driver/home/').then((r) => r.data) })
-  const [reporting, setReporting] = useState(null)
-  const d = home.data?.driver
-  if (!d) return null
-  const m = home.data.month
+/** GET /api/driver/home/: profile, license, vehicles with warnings, month and year figures. */
+export const useDriverHome = () => useQuery({ queryKey: ['/driver/home/'], queryFn: () => api.get('/driver/home/').then((r) => r.data) })
+
+/** Things that need attention: license, papers, maintenance. [text, severe] */
+export function driverWarnings(home) {
+  if (!home?.driver) return []
+  const d = home.driver
+  const out = d.license_status === 'VALID' ? [] : [[`Your license: ${licenseText(d).toLowerCase()}`, d.license_status === 'EXPIRED']]
+  for (const v of home.vehicles) {
+    out.push(...v.documents.map((x) => [`${v.plate_number}: ${x.type} ${x.expired ? 'expired' : 'expires'} ${formatDate(x.expiry_date)}`, x.expired]))
+    out.push(...v.maintenance.map((x) => [`${v.plate_number}: ${x.category} maintenance ${x.status === 'OVERDUE' ? 'overdue' : 'due soon'}`, x.status === 'OVERDUE']))
+  }
+  return out
+}
+
+export function Warnings({ items }) {
+  if (!items.length) return null
   return (
-    <div className="mb-6 space-y-3">
-      <div className="grid gap-3 sm:grid-cols-2">
-        <section aria-label="My license" className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-brand-light text-brand"><IdCard size={20} aria-hidden="true" /></span>
-          <div className="min-w-0 flex-1">
-            <div className="text-xs text-slate-500">License {d.license_number} · {d.license_type}</div>
-            <div className="font-semibold">Until {formatDate(d.license_expiry_date)}</div>
-          </div>
-          <Badge tone={licenseTone[d.license_status]} dot>{licenseText(d)}</Badge>
-        </section>
-        <section aria-label="This month" className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-amber-50 text-amber-700"><Milestone size={20} aria-hidden="true" /></span>
-          <div>
-            <div className="text-xs text-slate-500">This month</div>
-            <div className="font-semibold">{m.trips} trip{m.trips === 1 ? '' : 's'} completed · {km(m.distance_km)}</div>
-          </div>
-        </section>
+    <ul aria-label="Needs attention" className="mb-4 space-y-1 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm">
+      {items.map(([text, bad]) => (
+        <li key={text} className={`flex items-start gap-1.5 ${bad ? 'text-danger' : 'text-amber-900'}`}><AlertTriangle size={15} className="mt-0.5 shrink-0" aria-hidden="true" /> {text}</li>
+      ))}
+    </ul>
+  )
+}
+
+/** One of the driver's vehicles: odometer, status, papers/maintenance, and Report a problem. */
+export function VehicleCard({ v }) {
+  const [reporting, setReporting] = useState(false)
+  const warnings = driverWarnings({ driver: { license_status: 'VALID' }, vehicles: [v] })
+  return (
+    <section aria-label={`Vehicle ${v.plate_number}`} className="flex flex-wrap items-center gap-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+      <VehiclePhoto vehicle={{ photo_url: v.photo_url, plate_number: v.plate_number, make: '', model: v.label }} className="w-24 shrink-0 border border-slate-200" />
+      <div className="min-w-0 flex-1">
+        <div className="font-semibold tracking-wide">{v.plate_number} <span className="font-normal text-slate-500">{v.label}</span></div>
+        <div className="mt-0.5 flex flex-wrap gap-x-4 text-sm text-slate-600">
+          <span className="inline-flex items-center gap-1"><Gauge size={14} aria-hidden="true" /> {km(v.current_odometer)}</span>
+          <span>{v.status}</span>
+        </div>
+        {warnings.length ? (
+          <ul className="mt-2 space-y-0.5 text-sm">
+            {warnings.map(([text, bad]) => (
+              <li key={text} className={`flex items-center gap-1.5 ${bad ? 'text-danger' : 'text-amber-800'}`}><AlertTriangle size={14} aria-hidden="true" /> {text.replace(`${v.plate_number}: `, '')}</li>
+            ))}
+          </ul>
+        ) : <p className="mt-2 flex items-center gap-1.5 text-sm text-green-700"><CalendarCheck size={14} aria-hidden="true" /> Papers and maintenance up to date</p>}
       </div>
-      {home.data.vehicles.map((v) => {
-        const warnings = [
-          ...v.documents.map((x) => [`${x.type} ${x.expired ? 'expired' : 'expires'} ${formatDate(x.expiry_date)}`, x.expired]),
-          ...v.maintenance.map((x) => [`${x.category} maintenance ${x.status === 'OVERDUE' ? 'overdue' : 'due soon'}`, x.status === 'OVERDUE']),
-        ]
-        return (
-          <section key={v.id} aria-label={`My vehicle ${v.plate_number}`} className="flex flex-wrap items-center gap-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-            <VehiclePhoto vehicle={{ photo_url: v.photo_url, plate_number: v.plate_number, make: '', model: v.label }} className="w-24 shrink-0 border border-slate-200" />
-            <div className="min-w-0 flex-1">
-              <div className="font-semibold tracking-wide">{v.plate_number} <span className="font-normal text-slate-500">{v.label}</span></div>
-              <div className="mt-0.5 flex flex-wrap gap-x-4 text-sm text-slate-600">
-                <span className="inline-flex items-center gap-1"><Gauge size={14} aria-hidden="true" /> {km(v.current_odometer)}</span>
-                <span>{v.status}</span>
-              </div>
-              {warnings.length ? (
-                <ul className="mt-2 space-y-0.5 text-sm">
-                  {warnings.map(([text, bad]) => (
-                    <li key={text} className={`flex items-center gap-1.5 ${bad ? 'text-danger' : 'text-amber-800'}`}><AlertTriangle size={14} aria-hidden="true" /> {text}</li>
-                  ))}
-                </ul>
-              ) : <p className="mt-2 flex items-center gap-1.5 text-sm text-green-700"><CalendarCheck size={14} aria-hidden="true" /> Papers and maintenance up to date</p>}
-            </div>
-            <Button variant="secondary" onClick={() => setReporting(v)}><Wrench size={16} aria-hidden="true" /> Report a problem</Button>
-          </section>
-        )
-      })}
-      <Modal open={!!reporting} onClose={() => setReporting(null)} title={reporting ? `Problem with ${reporting.plate_number}` : ''}>
-        {reporting && <ReportProblemForm vehicle={reporting} onClose={() => setReporting(null)} />}
+      <Button variant="secondary" onClick={() => setReporting(true)}><Wrench size={16} aria-hidden="true" /> Report a problem</Button>
+      <Modal open={reporting} onClose={() => setReporting(false)} title={`Problem with ${v.plate_number}`}>
+        {reporting && <ReportProblemForm vehicle={v} onClose={() => setReporting(false)} />}
       </Modal>
-    </div>
+    </section>
+  )
+}
+
+/** Ask the office to fix the driver's record (drivers cannot edit it themselves). */
+export function CorrectionForm({ onClose }) {
+  const [text, setText] = useState('')
+  const [error, setError] = useState('')
+  const send = useDriverPost('/driver/request-correction/', 'Sent. The office will update your record.', onClose)
+  const submit = (e) => {
+    e.preventDefault()
+    if (!text.trim()) return setError('Say what needs correcting')
+    send.mutate({ message: text }, { onError: (err) => {
+      const rest = applyFieldErrors(err, (_, v) => setError(v.message), ['message'])
+      if (rest) setError(rest)
+    } })
+  }
+  return (
+    <form noValidate className="space-y-4" onSubmit={submit}>
+      <Field label="What should be corrected? *" htmlFor="correction" error={error}
+        hint="e.g. new mobile number, renewed license (new expiry date), wrong spelling of your name.">
+        <textarea id="correction" rows={3} autoFocus maxLength={1000} className={inputClass} value={text} onChange={(e) => { setText(e.target.value); setError('') }} />
+      </Field>
+      <div className="flex justify-end gap-2">
+        <Button variant="secondary" onClick={onClose}>Cancel</Button>
+        <Button type="submit" disabled={send.isPending}>{send.isPending ? 'Sending…' : 'Send to the office'}</Button>
+      </div>
+    </form>
   )
 }

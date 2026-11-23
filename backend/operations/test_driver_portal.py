@@ -154,3 +154,17 @@ def test_drivers_have_no_vehicle_requests(fo1, pedro, car):
     assert submit(c, fo1).status_code == 403  # drivers drive the trips others request
     assert c.post(f"/api/vehicle-requests/{req['id']}/approve/", {'vehicle': car.pk}, format='json').status_code == 403
     assert c.post(f"/api/vehicle-requests/{req['id']}/decline/", {'reason': 'no'}, format='json').status_code == 403
+
+
+def test_profile_fields_and_correction_request(fo1, pedro, car):
+    c = driver_client(pedro)
+    as_role('Fleet Administrator', [fo1])
+    staff = User.objects.get(username='Fleet_Administrator')
+    home = c.get('/api/driver/home/').json()
+    assert home['driver']['username'] == pedro.user.username and home['driver']['office_name'] == 'Field Office 1'
+    assert home['year'] == {'start': timezone.localdate().replace(month=1, day=1).isoformat(), 'trips': 0, 'distance_km': 0}
+    assert c.post('/api/driver/request-correction/', {'message': '  '}, format='json').status_code == 400
+    assert c.post('/api/driver/request-correction/', {'message': 'New number 0917 000 0000'}, format='json').status_code == 204
+    n = Notification.objects.get(recipient=staff, type='DRIVER_UPDATE')
+    assert n.message == 'New number 0917 000 0000'
+    assert as_role('Fleet Administrator').get('/api/notifications/').json()['results'][0]['link'] == f'/drivers/{pedro.pk}'

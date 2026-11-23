@@ -1,6 +1,6 @@
 import {
   Bell, Building2, Car, ClipboardList, ClipboardPen, CreditCard, FileSpreadsheet, FileText, Fuel, IdCard, LayoutDashboard,
-  CalendarDays, Route as RouteIcon, ScrollText, Trash2, Users, Wrench,
+  CalendarDays, History, Route as RouteIcon, ScrollText, Sun, Trash2, UserRound, Users, Wrench,
 } from 'lucide-react'
 import { drivesOnly, seesDashboard } from './auth'
 
@@ -8,7 +8,9 @@ import { drivesOnly, seesDashboard } from './auth'
 // Entries with a group are listed under that heading (after the everyday modules).
 export const nav = [
   ['/dashboard', 'Dashboard', LayoutDashboard, (can) => seesDashboard(can)],  // looked up at call time: ui.jsx -> nav.js -> auth.jsx can load in a cycle
-  ['/my-trips', 'My trips', RouteIcon, (can) => drivesOnly(can)],
+  ['/my-trips', 'Today', Sun, (can) => drivesOnly(can)],
+  ['/my-trips/history', 'Trip history', History, (can) => drivesOnly(can)],
+  ['/my-profile', 'My profile', UserRound, (can) => drivesOnly(can)],
   ['/requests', 'Vehicle requests', ClipboardPen, 'operations.view_vehiclerequest'],
   ['/schedule', 'Vehicle schedule', CalendarDays, 'operations.view_vehiclerequest'],
   ['/vehicles', 'Vehicles', Car, 'fleet.view_vehicle'],

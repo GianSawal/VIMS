@@ -16,6 +16,7 @@ class Notification(models.Model):
         VEHICLE_REQUEST = 'VEHICLE_REQUEST', 'Vehicle request'
         TRIP = 'TRIP', 'Trip'
         VEHICLE_ISSUE = 'VEHICLE_ISSUE', 'Vehicle problem reported'
+        DRIVER_UPDATE = 'DRIVER_UPDATE', 'Driver profile correction'
 
     recipient = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='notifications')
     type = models.CharField(max_length=30, choices=Type.choices)

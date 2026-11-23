@@ -50,6 +50,7 @@ export default function Layout() {
             <NavLink
               key={to}
               to={to}
+              end={to === '/my-trips'} // Today is not also "active" on Trip history (/my-trips/history)
               onClick={() => setOpen(false)}
               className={({ isActive }) =>
                 `flex items-center gap-3 rounded-lg border-l-4 px-3 py-2.5 text-[15px] font-medium ${

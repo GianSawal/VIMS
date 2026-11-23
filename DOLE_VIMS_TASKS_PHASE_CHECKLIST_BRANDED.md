@@ -848,6 +848,10 @@ Added 2026-11-23. Drivers sign in to see their own trips and record the return.
 -   [x] Printable trip ticket `/trips/:id/ticket` (also a Print ticket button on the staff trip page)
 -   [x] Tests: `operations/test_driver_portal.py`, `MyTrips.test.jsx`, `CompleteForm.test.jsx`
 -   [x] Drivers have no vehicle requests at all (2026-11-23): the role lost add/change/view `vehiclerequest`, so Vehicle requests, Vehicle schedule and the requester home are gone for them; the API answers 403. `test_drivers_have_no_vehicle_requests`
+-   [x] Driver pages split (2026-11-23): **Today** `/my-trips` (greeting, attention strip for license/papers/maintenance, big card per trip out now or leaving today with its one action, "No trip today" with the next one, coming up), **Trip history** `/my-trips/history` (month picker in the URL, completed count and km), **My profile** `/my-profile` (record, license, this month/year, username + Change password, vehicles with Report a problem)
+-   [x] Request a correction `POST /api/driver/request-correction/`: drivers cannot edit their record; notifies the office's `fleet.change_driver` staff (type DRIVER_UPDATE, links to the driver) and is audited. `/api/driver/home/` adds employee no., contact, office name, username, restrictions, issue date and year totals
+-   [x] Notification links for trip alerts (drivers → Today) and reported problems (→ the maintenance record)
+-   [x] Install on phone: `public/manifest.json`, 192/512 icons from the logo, theme color; no service worker (online only). Unread badge on Notifications already existed
 -   [ ] Known limit: tolls/fuel/report check the vehicle against the driver's office (`User.offices`); a driver on another office's vehicle gets "no access to this vehicle"
 -   [ ] Run `seed_reference` on the server after deploying (creates the Driver role)
 -   [ ] Manual check as a driver on a phone

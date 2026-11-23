@@ -1,119 +1,119 @@
 import { useState } from 'react'
-import { Link, useSearchParams } from 'react-router-dom'
-import { CalendarClock, Fuel, Navigation, Play, Printer } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { CalendarClock, Fuel, History, Navigation, Play, Printer } from 'lucide-react'
 import { useList } from '../../api'
-import DataTable from '../../components/DataTable'
+import { useMe } from '../../auth'
 import DateChip from '../../components/DateChip'
-import { useSetParam } from '../../components/filters'
-import { Button, Modal, PageHeader } from '../../components/ui'
+import { Button, Modal } from '../../components/ui'
 import { VehiclePhoto } from '../vehicles/common'
 import { CompleteForm } from './TripDetail'
-import { DriverHome, FuelTripForm, StartTripForm } from './driver'
+import { driverWarnings, FuelTripForm, StartTripForm, useDriverHome, Warnings } from './driver'
 import { RouteLine, whenText } from './TripList'
-import { km, shortDateTime, tripDuration, TripStatusBadge } from './common'
+import { shortDateTime, tripDuration } from './common'
 
-const ticketLink = (t, label = 'Print ticket') => (
+export const ticketLink = (t, label = 'Print ticket') => (
   <Link to={`/trips/${t.id}/ticket`} className="inline-flex items-center gap-1.5 text-sm font-medium text-brand hover:underline">
     <Printer size={14} aria-hidden="true" /> {label}
   </Link>
 )
 
 const photo = (t) => ({ photo_url: t.vehicle_photo_url, plate_number: t.plate_number, make: '', model: t.vehicle_label })
+const greeting = () => { const h = new Date().getHours(); return h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening' }
+const today = new Intl.DateTimeFormat('en-PH', { weekday: 'long', month: 'long', day: 'numeric' })
 
-/** Driver accounts' home: the trips this driver drives (the API returns no one else's), and the return form. */
+/** The trip that needs the driver now, big, with its one action. */
+function FocusCard({ t, label, tone, children }) {
+  return (
+    <article className={`space-y-3 rounded-2xl border-2 bg-white p-4 shadow-sm ${tone}`}>
+      <div className="text-xs font-semibold tracking-wider text-slate-500 uppercase">{label}</div>
+      <div className="flex items-center gap-3">
+        <VehiclePhoto vehicle={photo(t)} className="w-24 shrink-0 border border-slate-200" />
+        <div className="min-w-0">
+          <div className="text-lg font-bold tracking-wide">{t.plate_number}</div>
+          <div className="truncate text-sm text-slate-500">{t.vehicle_label}</div>
+          <div className="mt-1 font-mono text-xs text-slate-600">{t.ticket_number}</div>
+        </div>
+      </div>
+      <RouteLine t={t} />
+      {children}
+    </article>
+  )
+}
+
+/** Driver accounts' landing page: what to do now (start, fuel, return), then what is coming. History has its own page. */
 export default function MyTrips() {
-  const [params, setParams] = useSearchParams()
-  const setParam = useSetParam(setParams)
-  const page = Number(params.get('page') ?? 1)
+  const { data: me } = useMe()
+  const home = useDriverHome()
   const out = useList('/trips/', { status: 'DISPATCHED', page_size: 20 })
   const upcoming = useList('/trips/', { status: 'SCHEDULED', ordering: 'scheduled_departure', page_size: 20 })
-  const history = useList('/trips/', { page })
   const [returning, setReturning] = useState(null)
   const [starting, setStarting] = useState(null)
   const [fueling, setFueling] = useState(null)
   const outNow = out.data?.results ?? []
   const booked = upcoming.data?.results ?? []
+  const leavingToday = booked.filter((t) => t.schedule_day === 'TODAY')
+  const later = booked.filter((t) => t.schedule_day !== 'TODAY')
+  const loading = out.isLoading || upcoming.isLoading
 
   return (
     <>
-      <PageHeader title="My trips">Your trips as the driver. Start them on the day if the office has not, and record the return when you are back.</PageHeader>
-      <DriverHome />
+      <header className="mb-4">
+        <p className="text-sm text-slate-500">{today.format(new Date())}</p>
+        <h1 className="text-2xl font-bold text-ink">{greeting()}, {me?.first_name || me?.username}</h1>
+      </header>
+      <Warnings items={driverWarnings(home.data)} />
 
-      {outNow.length > 0 && (
-        <section aria-labelledby="out-now" className="mb-6">
-          <h2 id="out-now" className="mb-2 flex items-center gap-2 font-semibold text-ink"><Navigation size={16} aria-hidden="true" className="text-brand" /> Out now</h2>
-          <div className="grid gap-3 md:grid-cols-2">
-            {outNow.map((t) => (
-              <article key={t.id} className="space-y-3 rounded-xl border border-brand/30 bg-white p-4 shadow-sm">
-                <div className="flex items-center gap-3">
-                  <VehiclePhoto vehicle={photo(t)} className="w-20 shrink-0 border border-slate-200" />
-                  <div className="min-w-0">
-                    <div className="font-semibold tracking-wide">{t.plate_number}</div>
-                    <div className="truncate text-xs text-slate-500">{t.vehicle_label}</div>
-                    <div className="mt-1 font-mono text-xs text-slate-600">{t.ticket_number}</div>
-                  </div>
-                </div>
-                <RouteLine t={t} />
-                <p className="text-sm text-slate-600">Left {shortDateTime(t.departed_at)} · out {tripDuration(t.departed_at)}</p>
-                <div className="flex flex-wrap items-center gap-2">
-                  <Button onClick={() => setReturning(t)}>Record return</Button>
-                  <Button variant="secondary" onClick={() => setFueling(t)}><Fuel size={16} aria-hidden="true" /> Add fuel</Button>
-                  <span className="ml-auto">{ticketLink(t)}</span>
-                </div>
-              </article>
-            ))}
+      <div className="mb-6 grid gap-3 md:grid-cols-2">
+        {outNow.map((t) => (
+          <FocusCard key={t.id} t={t} label="On the road" tone="border-brand/40">
+            <p className="flex items-center gap-1.5 text-sm text-slate-600"><Navigation size={14} aria-hidden="true" className="text-brand" />
+              Left {shortDateTime(t.departed_at)} · out {tripDuration(t.departed_at)}</p>
+            <div className="flex flex-wrap items-center gap-2">
+              <Button onClick={() => setReturning(t)}>Record return</Button>
+              <Button variant="secondary" onClick={() => setFueling(t)}><Fuel size={16} aria-hidden="true" /> Add fuel</Button>
+              <span className="ml-auto">{ticketLink(t)}</span>
+            </div>
+          </FocusCard>
+        ))}
+        {leavingToday.map((t) => (
+          <FocusCard key={t.id} t={t} label="Leaves today" tone="border-amber-300">
+            <p className="text-sm text-slate-600">{whenText(t)[0]}. The office usually starts it; start it yourself if they have not.</p>
+            <div className="flex flex-wrap items-center gap-2">
+              <Button onClick={() => setStarting(t)}><Play size={16} aria-hidden="true" /> Start trip</Button>
+              <span className="ml-auto">{ticketLink(t)}</span>
+            </div>
+          </FocusCard>
+        ))}
+        {!loading && !outNow.length && !leavingToday.length && (
+          <div className="rounded-2xl border border-slate-200 bg-white p-5 text-slate-600 shadow-sm md:col-span-2">
+            <p className="font-semibold text-ink">No trip today.</p>
+            <p className="text-sm">{later[0] ? `Next: ${whenText(later[0])[0]} on ${shortDateTime(later[0].scheduled_departure)} to ${later[0].destination}.`
+              : 'You will be notified when the office books a trip for you.'}</p>
           </div>
-        </section>
-      )}
+        )}
+      </div>
 
-      {booked.length > 0 && (
+      {later.length > 0 && (
         <section aria-labelledby="booked" className="mb-6">
           <h2 id="booked" className="mb-2 flex items-center gap-2 font-semibold text-ink"><CalendarClock size={16} aria-hidden="true" className="text-gold" /> Coming up</h2>
           <ul className="divide-y divide-slate-100 rounded-xl border border-slate-200 bg-white shadow-sm">
-            {booked.map((t) => (
+            {later.map((t) => (
               <li key={t.id} className="flex flex-wrap items-center gap-3 p-4">
                 <DateChip value={t.scheduled_departure} />
                 <div className="min-w-0 flex-1">
-                  <div className="font-medium">{whenText(t)[0]} · {t.plate_number || 'Vehicle to be assigned'}</div>
+                  <div className="font-medium">{whenText(t)[0]} · {t.plate_number}</div>
                   <div className="truncate text-sm text-slate-500">To {t.destination}</div>
                 </div>
-                <span className="font-mono text-xs text-slate-500">{t.ticket_number}</span>
-                {t.schedule_day === 'TODAY'
-                  ? <Button onClick={() => setStarting(t)}><Play size={16} aria-hidden="true" /> Start trip</Button>
-                  : ticketLink(t, 'Ticket')}
+                {ticketLink(t, 'Ticket')}
               </li>
             ))}
           </ul>
         </section>
       )}
 
-      <h2 className="mb-2 font-semibold text-ink">All my trips</h2>
-      <DataTable label="My trips" query={history} page={page} onPage={(p) => setParam('page', p)}
-        empty="No trips yet. Trips you are assigned to drive will show here."
-        columns={[
-          { key: 'when', label: 'When', className: 'w-px', render: (t) => (
-            <div className="flex items-center gap-3 whitespace-nowrap">
-              <DateChip value={t.departed_at ?? t.scheduled_departure} muted={t.status === 'CANCELLED'} />
-              <div><div className="font-medium">{whenText(t)[0]}</div><div className="text-xs text-slate-500">{t.ticket_number}</div></div>
-            </div>
-          ) },
-          { key: 'vehicle', label: 'Vehicle', render: (t) => <><div className="font-semibold tracking-wide">{t.plate_number}</div><div className="text-xs text-slate-500">{t.vehicle_label}</div></> },
-          { key: 'route', label: 'Route', render: (t) => <RouteLine t={t} className="max-w-72" /> },
-          { key: 'distance', label: 'Distance', className: 'w-px whitespace-nowrap text-right', render: (t) => (t.distance_km != null ? km(t.distance_km) : '—') },
-          { key: 'status', label: 'Status', className: 'w-px whitespace-nowrap', render: (t) => <TripStatusBadge status={t.status} /> },
-          { key: 'ticket', label: <span className="sr-only">Ticket</span>, className: 'w-px whitespace-nowrap', render: (t) => ticketLink(t, 'Print') },
-        ]}
-        mobileCard={(t) => (
-          <div className="space-y-2">
-            <div className="flex items-start gap-3">
-              <DateChip value={t.departed_at ?? t.scheduled_departure} muted={t.status === 'CANCELLED'} />
-              <div className="min-w-0 flex-1"><div className="font-medium">{t.plate_number} · {whenText(t)[0]}</div><div className="font-mono text-xs text-slate-500">{t.ticket_number}</div></div>
-              <TripStatusBadge status={t.status} />
-            </div>
-            <RouteLine t={t} />
-            <div className="flex items-center justify-between text-sm text-slate-600">{t.distance_km != null ? km(t.distance_km) : <span />}{ticketLink(t, 'Ticket')}</div>
-          </div>
-        )} />
+      <Link to="/my-trips/history" className="inline-flex items-center gap-1.5 text-sm font-medium text-brand hover:underline">
+        <History size={16} aria-hidden="true" /> All my past trips
+      </Link>
 
       <Modal open={!!starting} onClose={() => setStarting(null)} title={starting ? `Start trip · ${starting.ticket_number}` : ''}>
         {starting && <StartTripForm trip={starting} onClose={() => setStarting(null)} />}

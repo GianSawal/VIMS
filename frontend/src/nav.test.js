@@ -8,7 +8,7 @@ const visible = (perms) => {
 
 describe('menu', () => {
   it('gives a driver account only their trips and notifications (no dashboard, no vehicle requests)', () => {
-    expect(visible(['operations.drive_trip', 'notifications.view_notification'])).toEqual(['My trips', 'Notifications'])
+    expect(visible(['operations.drive_trip', 'notifications.view_notification'])).toEqual(['Today', 'Trip history', 'My profile', 'Notifications'])
   })
   it('keeps the requester menu', () => {
     expect(visible(['operations.view_vehiclerequest', 'operations.add_vehiclerequest'])).toEqual(['Vehicle requests', 'Vehicle schedule', 'Notifications'])

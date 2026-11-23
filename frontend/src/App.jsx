@@ -18,6 +18,8 @@ import TripList from './pages/trips/TripList'
 import TripDetail from './pages/trips/TripDetail'
 import MyTrips from './pages/trips/MyTrips'
 import TripTicket from './pages/trips/TripTicket'
+import MyTripHistory from './pages/trips/MyTripHistory'
+import MyProfile from './pages/trips/MyProfile'
 import TripDisplay from './pages/display/TripDisplay'
 import FuelList from './pages/fuel/FuelList'
 import FuelDetail from './pages/fuel/FuelDetail'
@@ -88,6 +90,8 @@ export default function App() {
           </Route>
           <Route element={<RequirePerm perm="operations.drive_trip" />}>
             <Route path="my-trips" element={<MyTrips />} />
+            <Route path="my-trips/history" element={<MyTripHistory />} />
+            <Route path="my-profile" element={<MyProfile />} />
           </Route>
           <Route element={<RequirePerm perm="operations.view_vehiclerequest" />}>
             <Route path="requests" element={<RequestList />} />
