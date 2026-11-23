@@ -14,7 +14,7 @@ function show(perms = PERMS) {
   vi.restoreAllMocks()
   vi.spyOn(api, 'post').mockResolvedValue({ data: { ...trip, status: 'COMPLETED' } })
   renderApp(<CompleteForm trip={trip} onClose={() => {}} />, {
-    me: meWith(perms), data: { '["/rfid-accounts/",{"page_size":500}]': { count: 1, results: [account] } },
+    me: meWith(perms), data: { '["/trips/",9,"rfid-accounts"]': [account] },
   })
   fireEvent.change(screen.getByLabelText(/Ending odometer/), { target: { value: '1080' } })
 }

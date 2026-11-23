@@ -1,6 +1,8 @@
+import os
 from datetime import date, datetime, time, timedelta
 from decimal import Decimal
 
+from django.contrib.contenttypes.models import ContentType
 from django.db import transaction as db_transaction
 from django.db.models import Count, Q, Sum
 from django.db.models.functions import Coalesce, TruncMonth
@@ -10,6 +12,7 @@ from rest_framework import mixins, status, viewsets
 from rest_framework import serializers as drf_serializers
 from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied
+from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.permissions import SAFE_METHODS, AllowAny
 from rest_framework.response import Response
 from rest_framework.throttling import ScopedRateThrottle
@@ -21,7 +24,8 @@ from accounts.permissions import (ModelPermissions, OfficeScopedMixin, PasswordC
 from audit.services import diff, log
 from config.removal import RemoveMixin
 from fleet.attachments_api import AttachmentsMixin
-from fleet.models import Driver, Vehicle
+from fleet.driver_serializers import check_upload
+from fleet.models import Attachment, Driver, Vehicle
 
 from . import fuel as fuel_service
 from . import maps
@@ -46,7 +50,9 @@ class TripPermissions(ModelPermissions):
 
 
 CAN_CHANGE_TRIP = [require('operations.change_trip'), PasswordChangeNotRequired]
-CAN_RETURN_TRIP = [require_any('operations.change_trip', DRIVE), PasswordChangeNotRequired]  # drivers: own trips (queryset)
+# Staff, or a driver account on its own trips (get_queryset limits drivers to those): start, return, fuel.
+CAN_DRIVE_TRIP = [require_any('operations.change_trip', DRIVE), PasswordChangeNotRequired]
+CAN_FUEL_TRIP = [require_any('operations.add_fuelrecord', DRIVE), PasswordChangeNotRequired]
 CAN_ADD_TRIP = [require('operations.add_trip'), PasswordChangeNotRequired]
 
 
@@ -169,20 +175,24 @@ class TripViewSet(AttachmentsMixin, OfficeScopedMixin, mixins.ListModelMixin, mi
         log(request, 'trip_reschedule', trip, f'Rescheduled trip {trip.ticket_number}', diff(before, after))
         return Response(TripSerializer(trip).data)
 
-    @action(detail=True, methods=['post'], url_path='dispatch', permission_classes=CAN_CHANGE_TRIP)
+    @action(detail=True, methods=['post'], url_path='dispatch', permission_classes=CAN_DRIVE_TRIP)
     def dispatch_scheduled(self, request, pk=None):
-        """The vehicle leaves on a scheduled trip: only on the scheduled day, with the odometer read now."""
+        """The vehicle leaves on a scheduled trip: only on the scheduled day, with the odometer read now.
+        A driver account may start its own trip (usually the office does); it cannot hand the trip to someone else."""
         trip = self.get_object()
         s = DispatchScheduledSerializer(data=request.data)
         s.is_valid(raise_exception=True)
-        trip = trip_service.dispatch_scheduled(trip, user=request.user, **s.validated_data)
+        data = dict(s.validated_data)
+        if not request.user.has_perm('operations.change_trip'):
+            data.pop('driver', None)
+        trip = trip_service.dispatch_scheduled(trip, user=request.user, **data)
         log(request, 'trip_dispatch', trip,
             f'Dispatched scheduled trip {trip.ticket_number}: {trip.vehicle.plate_number} with {trip.driver.full_name}',
             {'odometer_start': [None, trip.odometer_start]})
         request_service.trip_dispatched(trip)
         return Response(TripSerializer(trip).data)
 
-    @action(detail=True, methods=['post'], permission_classes=CAN_RETURN_TRIP)
+    @action(detail=True, methods=['post'], permission_classes=CAN_DRIVE_TRIP)
     def complete(self, request, pk=None):
         """Record the return. Optional `toll: {account, items: [...]}` records the trip's reload/tolls (as in
         /toll-transactions/batch/, at the return time) in the same transaction: both are saved or neither."""
@@ -191,7 +201,7 @@ class TripViewSet(AttachmentsMixin, OfficeScopedMixin, mixins.ListModelMixin, mi
         s.is_valid(raise_exception=True)
         toll = request.data.get('toll') or None
         if toll is not None:
-            if not request.user.has_perm('operations.add_tolltransaction'):
+            if not (request.user.has_perm('operations.add_tolltransaction') or request.user.has_perm(DRIVE)):
                 raise PermissionDenied('You do not have permission to record toll transactions.')
             if not isinstance(toll, dict):
                 raise drf_serializers.ValidationError({'toll': ['Expected {account, items}.']})
@@ -209,12 +219,56 @@ class TripViewSet(AttachmentsMixin, OfficeScopedMixin, mixins.ListModelMixin, mi
                 {'current_odometer': [str(previous), str(trip.odometer_end)]})
         return Response(TripSerializer(trip).data)
 
+    @action(detail=True, methods=['get'], url_path='rfid-accounts', permission_classes=CAN_DRIVE_TRIP)
+    def rfid_accounts(self, request, pk=None):
+        """Active RFID accounts usable for this trip's tolls (the vehicle's own, or unassigned), with balances.
+        Account numbers are masked unless the user may change RFID accounts."""
+        trip = self.get_object()
+        qs = (RFIDAccount.objects.filter(is_active=True).filter(Q(vehicle=trip.vehicle_id) | Q(vehicle__isnull=True))
+              .select_related('vehicle', 'vehicle__office')
+              .annotate(transaction_count=Count('transactions', distinct=True),
+                        credit_sum=Sum('transactions__credit'), debit_sum=Sum('transactions__debit'))
+              .order_by('provider', 'account_number'))
+        return Response(RFIDAccountSerializer(qs, many=True, context={'request': request}).data)
+
+    @action(detail=True, methods=['post'], parser_classes=[MultiPartParser, FormParser, JSONParser], permission_classes=CAN_FUEL_TRIP)
+    def fuel(self, request, pk=None):
+        """Record a fill-up during this trip (vehicle and driver come from the trip), with an optional `receipt`
+        photo or PDF. Staff need add_fuelrecord; a driver account may do it on its own dispatched or completed trips."""
+        trip = self.get_object()
+        if trip.status not in (Trip.Status.DISPATCHED, Trip.Status.COMPLETED):
+            raise drf_serializers.ValidationError('Fuel is recorded on trips that have left.')
+        receipt = request.FILES.get('receipt')
+        if receipt:
+            try:
+                check_upload(receipt)
+            except drf_serializers.ValidationError as e:
+                raise drf_serializers.ValidationError({'receipt': e.detail})
+        data = {k: v for k, v in request.data.items() if k != 'receipt'}
+        data.update(vehicle=trip.vehicle_id, driver=trip.driver_id, fuel_type=data.get('fuel_type') or trip.vehicle.fuel_type,
+                    remarks=f"Trip {trip.ticket_number}. {data.get('remarks') or ''}".strip())
+        s = FuelRecordSerializer(data=data, context={'request': request})
+        s.is_valid(raise_exception=True)
+        with db_transaction.atomic():
+            record, before, after = fuel_service.save_record(user=request.user, data=dict(s.validated_data))
+            if receipt:
+                Attachment.objects.create(content_type=ContentType.objects.get_for_model(record), object_id=record.pk,
+                                          file=receipt, original_name=os.path.basename(receipt.name)[:255], size=receipt.size,
+                                          description='Receipt', uploaded_by=request.user)
+        log(request, 'create', record, f'Recorded fuel for {trip.vehicle.plate_number} on trip {trip.ticket_number}: {record.liters} L',
+            {'after': {'liters': str(record.liters), 'total_amount': str(record.total_amount), 'odometer': record.odometer}})
+        if after != before:
+            log(request, 'odometer_update', trip.vehicle, f'Odometer updated by fuel record on trip {trip.ticket_number}',
+                {'current_odometer': [str(before), str(after)]})
+        return Response({'id': record.pk, 'liters': str(record.liters), 'total_amount': str(record.total_amount)},
+                        status=status.HTTP_201_CREATED)
+
     @action(detail=True, methods=['post'], permission_classes=CAN_CHANGE_TRIP)
     def cancel(self, request, pk=None):
         trip = self.get_object()
         s = CancelSerializer(data=request.data)
         s.is_valid(raise_exception=True)
-        trip = trip_service.cancel(trip, reason=s.validated_data['reason'])
+        trip = trip_service.cancel(trip, reason=s.validated_data['reason'], user=request.user)
         log(request, 'trip_cancel', trip, f'Cancelled trip {trip.ticket_number}: {s.validated_data["reason"]}')
         return Response(TripSerializer(trip).data)
 

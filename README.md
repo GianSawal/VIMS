@@ -154,6 +154,11 @@ return, and can request vehicles like a Requester. Created from **Drivers** (the
 profile) by the System Administrator: **Create account** takes a username and initial password (blank = generated and
 shown once), **Create all accounts** does every active driver at once. The password must be changed at first sign-in.
 Deactivating the driver disables the login. Users → Add user does not offer the Driver role.
+Drivers can also start their own scheduled trip on its day (with a pre-trip check), add fuel with a receipt photo,
+record tolls with the return, report a vehicle problem (opens a maintenance item and tells the office), print the trip
+ticket, and are notified when the office books, changes, starts or cancels their trips. Their home shows their
+license, their vehicles' warnings and this month's trips. Endpoints: `/api/driver/home/`, `/api/driver/report-problem/`,
+`/api/trips/{id}/rfid-accounts/`, `/api/trips/{id}/fuel/`.
 
 ## Branding
 

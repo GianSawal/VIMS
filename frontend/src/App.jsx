@@ -17,6 +17,7 @@ import DriverProfile from './pages/drivers/DriverProfile'
 import TripList from './pages/trips/TripList'
 import TripDetail from './pages/trips/TripDetail'
 import MyTrips from './pages/trips/MyTrips'
+import TripTicket from './pages/trips/TripTicket'
 import TripDisplay from './pages/display/TripDisplay'
 import FuelList from './pages/fuel/FuelList'
 import FuelDetail from './pages/fuel/FuelDetail'
@@ -50,6 +51,7 @@ export default function App() {
       <Route path="/display" element={<TripDisplay />} /> {/* TV board: token link, no staff login */}
       <Route element={<RequireAuth />}>
         <Route path="/reports/:slug/print" element={<ReportPrint />} /> {/* bare page for the browser's print dialog */}
+        <Route path="/trips/:id/ticket" element={<TripTicket />} /> {/* printable trip ticket; the API checks access */}
         <Route element={<Layout />}>
           <Route index element={<Home />} />
           <Route path="change-password" element={<ChangePassword />} />

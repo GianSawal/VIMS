@@ -838,6 +838,16 @@ Added 2026-11-23. Drivers sign in to see their own trips and record the return.
 -   [x] Fix (2026-11-23): the Users page went blank after the Driver role was added to `ROLES` without a role card (`ROLE_CARDS`). Card added; `Users.test.jsx` renders the page with every role
 -   [x] Driver accounts are made only from the Drivers page (they belong to an encoded driver): an Account column in the list and an Account line on the profile, with **Create account** (typed username and initial password, both optional: blank = generated, shown once) and **Create all accounts**. Users → Add user no longer offers the Driver role (the API refuses it for a login without a driver record); a linked driver login still edits normally there and shows "Driver record: …". (Replaces the short-lived driver picker in Add user)
 -   [x] Edit user has a "New temporary password" field (blank keeps the current password; set = validated, must change at next login, audited as `password_reset` without the password). The key button still resets too
+-   [x] Start trip (2026-11-23): a driver may dispatch their own scheduled trip on its day (`POST /trips/{id}/dispatch/` now takes `drive_trip`; the driver field is ignored for drivers). The office still usually does it
+-   [x] Pre-trip checklist (`Trip.checklist`, items in `trips.CHECKLIST_ITEMS` + notes) on Start trip and on the staff Dispatch form; shown on the trip page
+-   [x] Driver notifications (type TRIP) when someone else books, reassigns, reschedules, starts or cancels their trip (`trips.tell_driver`, also covers approved vehicle requests)
+-   [x] Tolls on return for drivers: `GET /trips/{id}/rfid-accounts/` (vehicle's + unassigned, masked) now feeds the return form for everyone
+-   [x] Fuel during a trip: `POST /trips/{id}/fuel/` (multipart, optional `receipt`), vehicle/driver from the trip; staff need `add_fuelrecord`
+-   [x] Driver home `GET /api/driver/home/`: license (status, days left), my vehicles (assignments + vehicle out now) with document and maintenance warnings, this month's trips and km
+-   [x] Report a problem `POST /api/driver/report-problem/` (description + photo): Scheduled maintenance record (category Other, vehicle stays available) and a VEHICLE_ISSUE notification to the office's maintenance staff
+-   [x] Printable trip ticket `/trips/:id/ticket` (also a Print ticket button on the staff trip page)
+-   [x] Tests: `operations/test_driver_portal.py`, `MyTrips.test.jsx`, `CompleteForm.test.jsx`
+-   [ ] Known limit: tolls/fuel/report check the vehicle against the driver's office (`User.offices`); a driver on another office's vehicle gets "no access to this vehicle"
 -   [ ] Run `seed_reference` on the server after deploying (creates the Driver role)
 -   [ ] Manual check as a driver on a phone
 ------------------------------------------------------------------------

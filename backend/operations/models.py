@@ -69,6 +69,8 @@ class Trip(Tracked, RoutePlan):
     )
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.DISPATCHED, db_index=True)
     remarks = models.TextField(blank=True)
+    # Pre-trip check answered when the trip starts: {item: true/false for CHECKLIST_ITEMS in trips.py, 'notes': str}.
+    checklist = models.JSONField(default=dict, blank=True)
 
     class Meta:
         ordering = [Coalesce('departed_at', 'scheduled_departure').desc(nulls_last=True), '-id']

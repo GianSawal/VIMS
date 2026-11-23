@@ -50,7 +50,7 @@ class TripSerializer(serializers.ModelSerializer):
                   'driver_name', 'requesting_office', 'requesting_office_name', 'requesting_division', 'passengers', 'origin', 'destination',
                   'purpose', 'scheduled_departure', 'scheduled_return', 'schedule_day', 'departed_at', 'returned_at',
                   'odometer_start', 'odometer_end', 'distance_km', 'estimated_distance_km', 'estimated_duration_min',
-                  'origin_lat', 'origin_lng', 'destination_lat', 'destination_lng', 'route_geometry', 'status', 'status_display', 'toll', 'remarks',
+                  'origin_lat', 'origin_lng', 'destination_lat', 'destination_lng', 'route_geometry', 'status', 'status_display', 'toll', 'remarks', 'checklist',
                   'created_at', 'updated_at']
         read_only_fields = [f for f in fields if f not in DESCRIPTIVE]
 
@@ -162,6 +162,7 @@ class DispatchScheduledSerializer(serializers.Serializer):
     departed_at = serializers.DateTimeField(required=False, help_text='Defaults to now.')
     driver = serializers.PrimaryKeyRelatedField(queryset=Driver.objects.all(), required=False, allow_null=True,
                                                 help_text="Required if the trip was booked without one; otherwise replaces it.")
+    checklist = serializers.JSONField(required=False, help_text='Pre-trip check: {tires, brakes, lights, oil, coolant, fuel, documents: bool, notes}.')
 
 
 class DisplayScreenSerializer(serializers.ModelSerializer):

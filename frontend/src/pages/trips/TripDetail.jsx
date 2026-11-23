@@ -4,7 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { Link, useParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowDown, ExternalLink, CalendarClock, CalendarX, Check, CircleCheck, Clock, CreditCard, Gauge, MapPin, Navigation, Pencil, Plus, Repeat, Users, X, XCircle } from 'lucide-react'
+import { ArrowDown, ExternalLink, CalendarClock, CalendarX, Check, CircleCheck, Clock, CreditCard, Gauge, MapPin, Navigation, Pencil, Plus, Printer, Repeat, Users, X, XCircle } from 'lucide-react'
 import { api, applyFieldErrors, errorMessage, invalidatePrefix, useList } from '../../api'
 import { useCan } from '../../auth'
 import Attachments from '../../components/Attachments'
@@ -17,6 +17,7 @@ import { NotFound } from '../Errors'
 import { useAllOffices } from '../admin/Offices'
 import { DIVISIONS, bookingLabel, fromLocalInput, km, toLocalInput, tripDuration, TripStatusBadge } from './common'
 import { useAvailability } from './DispatchForm'
+import { ChecklistFields, ChecklistView } from './driver'
 import { formatPeso, odometerField, parseKm, VehiclePhoto } from '../vehicles/common'
 import { isLoad, providerLabel } from '../rfid/common'
 import TollForm, { BalanceNote, EMPTY_TOLL, missingPlaza, TollLines, tollItems } from '../rfid/TollForm'
@@ -54,6 +55,7 @@ export default function TripDetail() {
           </div>
           <p className="text-slate-600">{t.purpose}</p>
         </div>
+        <Link to={`/trips/${t.id}/ticket`} className="inline-flex items-center gap-2 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium hover:bg-slate-50"><Printer size={16} aria-hidden="true" /> Print ticket</Link>
         {canChange && <Button variant="secondary" onClick={() => setDialog('edit')}><Pencil size={16} /> Edit details</Button>}
         {canChange && scheduled && <Button variant="secondary" onClick={() => setDialog('reschedule')}><Repeat size={16} /> Reschedule</Button>}
         {canChange && (open || scheduled) && <Button variant="secondary" className="text-danger" onClick={() => setDialog('cancel')}><XCircle size={16} /> Cancel trip</Button>}
@@ -142,6 +144,7 @@ export default function TripDetail() {
             </div>
           </Card>
 
+          <ChecklistView checklist={t.checklist} />
           <Attachments basePath={`/trips/${t.id}`} canChange={canChange} title="Trip ticket scans and attachments" />
         </div>
 
@@ -290,9 +293,11 @@ const tollFor = (t) => ({
 export function CompleteForm({ trip, onClose }) {
   const can = useCan()
   const qc = useQueryClient()
-  const canToll = can('operations.add_tolltransaction')
-  const accounts = useList('/rfid-accounts/', { page_size: 500 }, { enabled: canToll }) // drivers record returns without toll access
-  const pickable = (accounts.data?.results ?? []).filter((a) => a.is_active && (a.vehicle == null || a.vehicle === trip.vehicle))
+  const canToll = can('operations.add_tolltransaction') || can('operations.drive_trip') // drivers: tolls of their own trip
+  // The trip's usable accounts (its vehicle's own and unassigned ones), with balances; masked for view-only users.
+  const accounts = useQuery({ queryKey: ['/trips/', trip.id, 'rfid-accounts'], enabled: canToll,
+    queryFn: () => api.get(`/trips/${trip.id}/rfid-accounts/`).then((r) => r.data) })
+  const pickable = accounts.data ?? []
   const own = pickable.find((a) => a.vehicle === trip.vehicle)
   const [tollError, setTollError] = useState('')
   const { register, handleSubmit, setError, setValue, watch, getValues, control, formState: { errors } } = useForm({
@@ -529,10 +534,11 @@ export function DispatchScheduledForm({ trip, onClose }) {
     if (vehicle.data && !getValues('odometer_start')) setValue('odometer_start', String(vehicle.data.current_odometer))
   }, [vehicle.data, getValues, setValue])
   const [save, error] = useTripMutation(trip, 'dispatch', 'Trip dispatched. Vehicle is now in use.', onClose, setError, ['driver', 'departed_at', 'odometer_start'])
+  const [check, setCheck] = useState({})
 
   return (
     <form noValidate className="space-y-4" onSubmit={handleSubmit((v) => save.mutate({
-      driver: Number(v.driver), departed_at: fromLocalInput(v.departed_at), odometer_start: Number(v.odometer_start),
+      driver: Number(v.driver), departed_at: fromLocalInput(v.departed_at), odometer_start: Number(v.odometer_start), checklist: check,
     }))}>
       {error && <div role="alert" className="rounded-md bg-red-50 px-3 py-2 text-sm text-danger">{error}</div>}
       <p className="text-sm text-slate-600">{trip.plate_number} to {trip.destination}.</p>
@@ -554,6 +560,7 @@ export function DispatchScheduledForm({ trip, onClose }) {
       <Field label="Departure time *" htmlFor="departed_at" error={errors.departed_at?.message} hint="Today only.">
         <input id="departed_at" type="datetime-local" max={toLocalInput()} className={inputClass} {...register('departed_at')} />
       </Field>
+      <ChecklistFields value={check} onChange={setCheck} />
       <div className="flex justify-end gap-2">
         <Button variant="secondary" onClick={onClose}>Back</Button>
         <Button type="submit" disabled={save.isPending}>{save.isPending ? 'Dispatching…' : 'Dispatch trip'}</Button>

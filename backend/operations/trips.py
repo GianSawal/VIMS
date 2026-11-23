@@ -196,6 +196,39 @@ def _check_reserved(vehicle, driver, at, exclude=None):
             _fail(who, f'This {who} is reserved for {b.ticket_number} ({span}). Dispatch that booking or reschedule it first.')
 
 
+# ---------------------------------------------------------------- driver notifications and pre-trip check
+
+CHECKLIST_ITEMS = {'tires': 'Tires', 'brakes': 'Brakes', 'lights': 'Lights and signals', 'oil': 'Engine oil',
+                   'coolant': 'Coolant / water', 'fuel': 'Enough fuel', 'documents': 'OR/CR and trip ticket on board'}
+
+
+def clean_checklist(raw):
+    """{item: bool, ..., 'notes': str} from the Start trip form; unknown keys are refused."""
+    if not raw:
+        return {}
+    if not isinstance(raw, dict) or set(raw) - set(CHECKLIST_ITEMS) - {'notes'}:
+        _fail('checklist', f'Use the items {", ".join(CHECKLIST_ITEMS)} and notes.')
+    out = {k: bool(raw[k]) for k in CHECKLIST_ITEMS if k in raw}
+    notes = str(raw.get('notes') or '').strip()
+    if len(notes) > 500:
+        _fail('checklist', 'Notes: 500 characters at most.')
+    return {**out, **({'notes': notes} if notes else {})}
+
+
+def _when(dt):
+    return timezone.localtime(dt).strftime('%b %d, %I:%M %p')
+
+
+def tell_driver(driver, trip, user, title, message):
+    """Notify the driver's own login about their trip, unless the driver made the change themselves."""
+    if not driver or not driver.user_id or (user is not None and driver.user_id == user.pk):
+        return
+    from notifications.models import Notification  # notifications imports fleet/maintenance; keep this lazy
+    from notifications.services import notify
+    notify([driver.user], type=Notification.Type.TRIP, title=title, message=message,
+           dedupe_key=f'trip:{trip.pk}:{uuid.uuid4().hex[:12]}', related=trip)  # every change is its own alert
+
+
 def schedule(*, user, vehicle, scheduled_departure, driver=None, scheduled_return=None, ticket_number='', **fields):
     """Book a trip ahead. No odometer yet: it is read on the day, at dispatch. The driver can be left for later."""
     _check_scope(user, vehicle, driver)
@@ -209,6 +242,8 @@ def schedule(*, user, vehicle, scheduled_departure, driver=None, scheduled_retur
             scheduled_return=scheduled_return, created_by=user, **fields)
         if not ticket:
             _auto_number(trip, scheduled_departure)
+    tell_driver(driver, trip, user, f'New trip {trip.ticket_number}',
+                f'{vehicle.plate_number} to {trip.destination}, leaving {_when(scheduled_departure)}.')
     return trip
 
 
@@ -229,13 +264,20 @@ def reschedule(trip, *, user, vehicle, scheduled_departure, driver=None, schedul
         trip.scheduled_departure, trip.scheduled_return = scheduled_departure, scheduled_return
         trip.save()
         _renumber(trip, old_driver, scheduled_departure)
+    where = f'{vehicle.plate_number} to {trip.destination}, leaving {_when(scheduled_departure)}.'
+    if old_driver != driver:
+        tell_driver(old_driver, trip, user, f'Trip {trip.ticket_number} reassigned', f'You no longer drive this trip ({where})')
+        tell_driver(driver, trip, user, f'New trip {trip.ticket_number}', where)
+    elif before['scheduled_departure'] != scheduled_departure.isoformat() or before['vehicle'] != vehicle.plate_number:
+        tell_driver(driver, trip, user, f'Trip {trip.ticket_number} rescheduled', f'Now {where}')
     return trip, before
 
 
-def dispatch_scheduled(trip, *, user, odometer_start, departed_at=None, driver=None):
+def dispatch_scheduled(trip, *, user, odometer_start, departed_at=None, driver=None, checklist=None):
     """The vehicle leaves on a scheduled trip. Only on the scheduled day; the odometer is read now.
     `driver` assigns (or replaces) the driver; a trip booked without one must get one here."""
     departed_at = departed_at or timezone.now()
+    checklist = clean_checklist(checklist)
     if driver:
         _check_scope(user, trip.vehicle, driver)
     if departed_at > timezone.now() + timedelta(minutes=5):
@@ -261,9 +303,12 @@ def dispatch_scheduled(trip, *, user, odometer_start, departed_at=None, driver=N
         old_driver = trip.driver
         trip.driver = driver
         trip.status, trip.departed_at, trip.odometer_start = Trip.Status.DISPATCHED, departed_at, odometer_start
+        trip.checklist = checklist
         trip.save()
         _renumber(trip, old_driver, departed_at)
         _mark_in_use(vehicle)
+    tell_driver(driver, trip, user, f'Trip {trip.ticket_number} started',
+                f'{vehicle.plate_number} to {trip.destination} left at {_when(departed_at)}. Record the return when you are back.')
     return trip
 
 
@@ -283,6 +328,8 @@ def dispatch(*, user, vehicle, driver, departed_at, odometer_start, ticket_numbe
         if not ticket:
             _auto_number(trip, departed_at)
         _mark_in_use(vehicle)
+    tell_driver(driver, trip, user, f'Trip {trip.ticket_number} started',
+                f'{vehicle.plate_number} to {trip.destination} left at {_when(departed_at)}. Record the return when you are back.')
     return trip
 
 
@@ -317,7 +364,7 @@ def complete(trip, *, returned_at, odometer_end, remarks=None):
     return trip, previous
 
 
-def cancel(trip, *, reason):
+def cancel(trip, *, reason, user=None):
     with transaction.atomic():
         vehicle = _lock_vehicle(trip.vehicle_id)
         trip = Trip.objects.select_for_update().get(pk=trip.pk)
@@ -330,4 +377,5 @@ def cancel(trip, *, reason):
         if was_out and vehicle.status == Vehicle.Status.IN_USE:
             vehicle.status = Vehicle.Status.SERVICEABLE
             vehicle.save(update_fields=['status', 'updated_at'])
+    tell_driver(trip.driver, trip, user, f'Trip {trip.ticket_number} cancelled', f'{vehicle.plate_number} to {trip.destination}: {reason}')
     return trip

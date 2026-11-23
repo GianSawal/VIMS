@@ -17,6 +17,7 @@ from maintenance.views import CategoryViewSet, MaintenanceRecordViewSet, Schedul
 from notifications.api import NotificationViewSet
 from operations.views import (DisplayScreenViewSet, DisplayTripsView, FuelRecordViewSet, MapsView,
                               RFIDAccountViewSet, TollTransactionViewSet, TripViewSet, VehicleRequestViewSet)
+from operations.driver_portal import DriverHomeView, ReportProblemView
 from reports.views import ReportListView, ReportView
 
 router = DefaultRouter()
@@ -42,6 +43,8 @@ urlpatterns = [
     path('api/health/', health, name='health'),  # public: container healthcheck and uptime monitor
     path('api/auth/', include('accounts.urls')),
     path('api/dashboard/', DashboardView.as_view(), name='dashboard'),
+    path('api/driver/home/', DriverHomeView.as_view(), name='driver-home'),  # driver accounts (drive_trip)
+    path('api/driver/report-problem/', ReportProblemView.as_view(), name='driver-report-problem'),
     path('api/reports/', ReportListView.as_view(), name='reports'),
     path('api/reports/<slug:slug>/', ReportView.as_view(), name='report'),
     path('api/display/trips/', DisplayTripsView.as_view(), name='display-trips'),
