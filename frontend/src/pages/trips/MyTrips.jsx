@@ -98,18 +98,23 @@ export default function MyTrips() {
   const later = booked.filter((t) => t.schedule_day !== 'TODAY')
   const loading = out.isLoading || upcoming.isLoading
   const h = home.data
-  const status = outNow.length ? `You are on the road with ${outNow[0].plate_number}.`
-    : leavingToday.length ? `You leave today at ${whenText(leavingToday[0])[0].replace('Leaves ', '')}.`
-    : later[0] ? `Next trip: ${shortDateTime(later[0].scheduled_departure)}.` : 'Nothing scheduled right now.'
+  const [StatusIcon, status] = outNow.length ? [Navigation, `You are on the road with ${outNow[0].plate_number}.`]
+    : leavingToday.length ? [Play, `You leave today at ${whenText(leavingToday[0])[0].replace('Leaves ', '')}.`]
+    : later[0] ? [CalendarClock, `Next trip: ${shortDateTime(later[0].scheduled_departure)}.`] : [CalendarClock, 'Nothing scheduled right now.']
+  const licenseTint = { VALID: 'text-green-300', EXPIRING: 'text-amber-300', EXPIRED: 'text-red-300' }[h?.driver?.license_status]
 
   return (
     <div className="space-y-5">
       <motion.header {...rise(0)} className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-brand to-brand-dark px-5 py-6 text-white shadow-lg shadow-brand/20 sm:px-8">
+        {/* Decoration only: a soft light in the corner and the brand triangles from the driver profile header. */}
+        <div aria-hidden="true" className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_0%_0%,rgb(255_255_255/0.18),transparent_55%)]" />
+        <div aria-hidden="true" className="pointer-events-none absolute -top-10 right-20 h-36 w-36 rotate-12 bg-white/10 [clip-path:polygon(50%_0,100%_100%,0_100%)]" />
+        <div aria-hidden="true" className="pointer-events-none absolute -right-4 -bottom-10 h-28 w-28 -rotate-12 bg-gold/25 [clip-path:polygon(50%_0,100%_100%,0_100%)]" />
         <img src="/dole-logo.png" alt="" aria-hidden="true" className="pointer-events-none absolute -top-6 -right-6 h-44 w-44 opacity-10" />
         <div className="relative flex items-center gap-4">
           {h?.driver && (h.driver.photo_url
-            ? <img src={h.driver.photo_url} alt="" className="h-16 w-16 shrink-0 rounded-2xl object-cover ring-2 ring-white/70 sm:h-20 sm:w-20" />
-            : <span aria-hidden="true" className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-white/15 text-xl font-bold ring-2 ring-white/40 sm:h-20 sm:w-20">{initials(h.driver.full_name)}</span>)}
+            ? <img src={h.driver.photo_url} alt="" className="h-16 w-16 shrink-0 rounded-2xl object-cover shadow-lg ring-2 ring-gold ring-offset-2 ring-offset-brand sm:h-20 sm:w-20" />
+            : <span aria-hidden="true" className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-white/15 text-xl font-bold shadow-lg ring-2 ring-gold ring-offset-2 ring-offset-brand sm:h-20 sm:w-20">{initials(h.driver.full_name)}</span>)}
           <div className="min-w-0">
             <p className="text-xs text-white/70 sm:text-sm">{longDate.format(new Date())}</p>
             <h1 className="mt-0.5 leading-tight">
@@ -118,15 +123,19 @@ export default function MyTrips() {
             </h1>
           </div>
         </div>
-        <p className="relative mt-3 text-sm text-white/90">{status}</p>
+        <p className="relative mt-4 inline-flex items-center gap-2 rounded-xl bg-white/15 px-3 py-1.5 text-sm font-medium ring-1 ring-white/20 backdrop-blur-sm">
+          <StatusIcon size={15} className="shrink-0 text-gold" aria-hidden="true" /> {status}
+        </p>
         {h?.driver && (
           // Short labels that never wrap, the period underneath, so the three tiles line up on a phone.
           <dl className="relative mt-3 grid grid-cols-3 gap-2">
             {[[Milestone, 'Trips', h.month.trips, 'this month'], [Gauge, 'Distance', `${h.month.distance_km.toLocaleString('en-PH')} km`, 'this month'],
               [IdCard, 'License', { VALID: 'Valid', EXPIRING: `${h.driver.license_days_left} days left`, EXPIRED: 'Expired' }[h.driver.license_status], `until ${formatDate(h.driver.license_expiry_date)}`]].map(([Icon, label, value, sub]) => (
-              <div key={label} className="min-w-0 rounded-xl bg-white/10 px-3 py-2 ring-1 ring-white/15 ring-inset">
-                <dt className="flex items-center gap-1 text-[11px] whitespace-nowrap text-white/70"><Icon size={12} aria-hidden="true" /> {label}</dt>
-                <dd className="truncate text-lg leading-snug font-bold tabular-nums">{value}</dd>
+              <div key={label} className="min-w-0 rounded-xl bg-white/10 px-3 py-2.5 shadow-sm ring-1 ring-white/15 backdrop-blur-sm ring-inset">
+                <dt className="flex items-center gap-1.5 text-[11px] whitespace-nowrap text-white/75">
+                  <span className="flex h-5 w-5 items-center justify-center rounded-md bg-white/15"><Icon size={12} aria-hidden="true" /></span> {label}
+                </dt>
+                <dd className={`mt-1 truncate text-lg leading-snug font-bold tabular-nums ${label === 'License' ? licenseTint : ''}`}>{value}</dd>
                 <dd className="truncate text-[11px] text-white/60">{sub}</dd>
               </div>
             ))}
