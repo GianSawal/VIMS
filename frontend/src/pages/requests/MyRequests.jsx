@@ -140,7 +140,7 @@ export default function MyRequests() {
   )
 }
 
-function LatestNotifications() {
+export function LatestNotifications({ empty = 'Nothing yet. Updates on your requests show here.' }) {
   const q = useList('/notifications/', { page: 1, page_size: 3 })
   const items = q.data?.results ?? []
   return (
@@ -151,7 +151,7 @@ function LatestNotifications() {
       </div>
       {q.isLoading ? <div className="h-20 animate-pulse rounded-lg bg-slate-50" />
         : !items.length ? (
-          <p className="flex items-center gap-2 py-3 text-sm text-slate-500"><Bell size={16} className="text-slate-400" aria-hidden="true" /> Nothing yet. Updates on your requests show here.</p>
+          <p className="flex items-center gap-2 py-3 text-sm text-slate-500"><Bell size={16} className="text-slate-400" aria-hidden="true" /> {empty}</p>
         ) : (
           <ul className="divide-y divide-slate-100">
             {items.map((n) => (

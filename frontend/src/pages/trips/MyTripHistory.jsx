@@ -1,4 +1,5 @@
 import { useSearchParams } from 'react-router-dom'
+import { CircleCheck, Milestone, Navigation, Route as RouteIcon } from 'lucide-react'
 import { useList } from '../../api'
 import DataTable from '../../components/DataTable'
 import DateChip from '../../components/DateChip'
@@ -28,15 +29,25 @@ export default function MyTripHistory() {
 
   return (
     <>
-      <PageHeader title="Trip history">Your trips, by month.</PageHeader>
+      <PageHeader title="Trip history">Your trips, one month at a time. Print any trip ticket from here.</PageHeader>
       <div className="mb-3 flex flex-wrap items-center gap-3">
         <label className="flex items-center gap-2 text-sm font-medium">Month
           <input type="month" className={inputBase} value={month} max={thisMonth()} onChange={(e) => setParam('month', e.target.value || thisMonth())} />
         </label>
-        {s && <span className="text-sm text-slate-600">{s.by_status.COMPLETED} completed · {km(s.distance_km)}</span>}
       </div>
+      <dl className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-4" aria-busy={summary.isLoading}>
+        {[[RouteIcon, 'bg-brand-light text-brand', 'Trips', s?.total],
+          [CircleCheck, 'bg-green-50 text-green-700', 'Completed', s?.by_status.COMPLETED],
+          [Navigation, 'bg-sky-50 text-sky-700', 'On the road', s?.by_status.DISPATCHED],
+          [Milestone, 'bg-amber-50 text-amber-700', 'Distance', s && km(s.distance_km)]].map(([Icon, tint, label, value]) => (
+          <div key={label} className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
+            <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${tint}`}><Icon size={18} aria-hidden="true" /></span>
+            <div className="min-w-0"><dt className="text-xs text-slate-500">{label}</dt><dd className="truncate text-lg font-bold tabular-nums">{value ?? '…'}</dd></div>
+          </div>
+        ))}
+      </dl>
       <DataTable label="Trip history" query={history} page={page} onPage={(p) => setParam('page', p)}
-        empty="No trips this month."
+        empty="No trips in this month. Pick another month above."
         columns={[
           { key: 'when', label: 'When', className: 'w-px', render: (t) => (
             <div className="flex items-center gap-3 whitespace-nowrap">
