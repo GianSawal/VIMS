@@ -8,10 +8,10 @@ import DateChip from '../../components/DateChip'
 import { initials } from '../../components/filters'
 import { EASE_OUT } from '../../components/motion'
 import { Button, Modal } from '../../components/ui'
-import { VehiclePhoto } from '../vehicles/common'
+import { formatDate, VehiclePhoto } from '../vehicles/common'
 import { LatestNotifications } from '../requests/MyRequests'
 import { CompleteForm } from './TripDetail'
-import { driverWarnings, FuelTripForm, licenseText, StartTripForm, useDriverHome, VehicleCard, Warnings } from './driver'
+import { driverWarnings, FuelTripForm, StartTripForm, useDriverHome, VehicleCard, Warnings } from './driver'
 import { RouteLine, whenText } from './TripList'
 import { DivisionTag, km, shortDateTime, tripDuration } from './common'
 
@@ -100,7 +100,7 @@ export default function MyTrips() {
   const h = home.data
   const status = outNow.length ? `You are on the road with ${outNow[0].plate_number}.`
     : leavingToday.length ? `You leave today at ${whenText(leavingToday[0])[0].replace('Leaves ', '')}.`
-    : later[0] ? `Next trip: ${shortDateTime(later[0].scheduled_departure)}.` : 'No trips booked for you yet.'
+    : later[0] ? `Next trip: ${shortDateTime(later[0].scheduled_departure)}.` : 'Nothing scheduled right now.'
 
   return (
     <div className="space-y-5">
@@ -111,18 +111,23 @@ export default function MyTrips() {
             ? <img src={h.driver.photo_url} alt="" className="h-16 w-16 shrink-0 rounded-2xl object-cover ring-2 ring-white/70 sm:h-20 sm:w-20" />
             : <span aria-hidden="true" className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-white/15 text-xl font-bold ring-2 ring-white/40 sm:h-20 sm:w-20">{initials(h.driver.full_name)}</span>)}
           <div className="min-w-0">
-            <p className="text-sm text-white/70">{longDate.format(new Date())}</p>
-            <h1 className="mt-0.5 text-2xl font-bold sm:text-3xl">{greeting()}, {me?.first_name || me?.username}</h1>
-            <p className="mt-0.5 text-white/85">{status}</p>
+            <p className="text-xs text-white/70 sm:text-sm">{longDate.format(new Date())}</p>
+            <h1 className="mt-0.5 leading-tight">
+              <span className="block text-sm font-medium text-white/85">{greeting()},</span>
+              <span className="block text-xl font-bold text-balance break-words sm:text-3xl">{me?.first_name || me?.username}</span>
+            </h1>
           </div>
         </div>
+        <p className="relative mt-3 text-sm text-white/90">{status}</p>
         {h?.driver && (
-          <dl className="relative mt-4 grid grid-cols-3 gap-2">
-            {[[Milestone, 'Trips this month', h.month.trips], [Gauge, 'Km this month', h.month.distance_km.toLocaleString('en-PH')],
-              [IdCard, 'License', licenseText(h.driver)]].map(([Icon, label, value]) => (
-              <div key={label} className="rounded-xl bg-white/10 px-3 py-2 ring-1 ring-white/15 ring-inset">
-                <dt className="flex items-center gap-1 text-[11px] text-white/70"><Icon size={12} aria-hidden="true" /> {label}</dt>
-                <dd className="truncate text-lg font-bold tabular-nums">{value}</dd>
+          // Short labels that never wrap, the period underneath, so the three tiles line up on a phone.
+          <dl className="relative mt-3 grid grid-cols-3 gap-2">
+            {[[Milestone, 'Trips', h.month.trips, 'this month'], [Gauge, 'Distance', `${h.month.distance_km.toLocaleString('en-PH')} km`, 'this month'],
+              [IdCard, 'License', { VALID: 'Valid', EXPIRING: `${h.driver.license_days_left} days left`, EXPIRED: 'Expired' }[h.driver.license_status], `until ${formatDate(h.driver.license_expiry_date)}`]].map(([Icon, label, value, sub]) => (
+              <div key={label} className="min-w-0 rounded-xl bg-white/10 px-3 py-2 ring-1 ring-white/15 ring-inset">
+                <dt className="flex items-center gap-1 text-[11px] whitespace-nowrap text-white/70"><Icon size={12} aria-hidden="true" /> {label}</dt>
+                <dd className="truncate text-lg leading-snug font-bold tabular-nums">{value}</dd>
+                <dd className="truncate text-[11px] text-white/60">{sub}</dd>
               </div>
             ))}
           </dl>

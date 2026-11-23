@@ -857,6 +857,7 @@ Added 2026-11-23. Drivers sign in to see their own trips and record the return.
 -   [x] Today trip card spacing (2026-11-23): departure time and "Out 5 h 40 min" moved beside the vehicle (was an orphan line), passengers shown as a comma list (typed one per line), roomier detail rows with fitting icons
 -   [x] My vehicle card redone (2026-11-23): stacked (photo + plate/model, odometer and colored status tiles, full-width papers/maintenance line, full-width Report a problem) instead of a button squeezing the text; two per row on My profile
 -   [x] Today trip details (2026-11-23): route moved into the details box above a divider; details as label-above-value (Purpose, Passengers full width; Requested by, Odometer out, Expected back) without icons
+-   [x] Today banner fixes (2026-11-23): greeting on a small line with the name as the heading (no "DANIEL / D." break), status line full width, tiles with short labels (Trips, Distance, License) and the period underneath so they line up; "Nothing scheduled right now" instead of "No trips booked for you yet"
 -   [x] Install on phone: `public/manifest.json`, 192/512 icons from the logo, theme color; no service worker (online only). Unread badge on Notifications already existed
 -   [ ] Known limit: tolls/fuel/report check the vehicle against the driver's office (`User.offices`); a driver on another office's vehicle gets "no access to this vehicle"
 -   [ ] Run `seed_reference` on the server after deploying (creates the Driver role)
