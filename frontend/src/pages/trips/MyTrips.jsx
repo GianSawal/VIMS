@@ -5,6 +5,7 @@ import { CalendarClock, ChevronRight, CircleCheck, Fuel, Gauge, History, IdCard,
 import { useList } from '../../api'
 import { useMe } from '../../auth'
 import DateChip from '../../components/DateChip'
+import { initials } from '../../components/filters'
 import { EASE_OUT } from '../../components/motion'
 import { Button, Modal } from '../../components/ui'
 import { VehiclePhoto } from '../vehicles/common'
@@ -98,9 +99,16 @@ export default function MyTrips() {
     <div className="space-y-5">
       <motion.header {...rise(0)} className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-brand to-brand-dark px-5 py-6 text-white shadow-lg shadow-brand/20 sm:px-8">
         <img src="/dole-logo.png" alt="" aria-hidden="true" className="pointer-events-none absolute -top-6 -right-6 h-44 w-44 opacity-10" />
-        <p className="relative text-sm text-white/70">{longDate.format(new Date())}</p>
-        <h1 className="relative mt-1 text-2xl font-bold sm:text-3xl">{greeting()}, {me?.first_name || me?.username}</h1>
-        <p className="relative mt-1 text-white/85">{status}</p>
+        <div className="relative flex items-center gap-4">
+          {h?.driver && (h.driver.photo_url
+            ? <img src={h.driver.photo_url} alt="" className="h-16 w-16 shrink-0 rounded-2xl object-cover ring-2 ring-white/70 sm:h-20 sm:w-20" />
+            : <span aria-hidden="true" className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-white/15 text-xl font-bold ring-2 ring-white/40 sm:h-20 sm:w-20">{initials(h.driver.full_name)}</span>)}
+          <div className="min-w-0">
+            <p className="text-sm text-white/70">{longDate.format(new Date())}</p>
+            <h1 className="mt-0.5 text-2xl font-bold sm:text-3xl">{greeting()}, {me?.first_name || me?.username}</h1>
+            <p className="mt-0.5 text-white/85">{status}</p>
+          </div>
+        </div>
         {h?.driver && (
           <dl className="relative mt-4 grid grid-cols-3 gap-2">
             {[[Milestone, 'Trips this month', h.month.trips], [Gauge, 'Km this month', h.month.distance_km.toLocaleString('en-PH')],
