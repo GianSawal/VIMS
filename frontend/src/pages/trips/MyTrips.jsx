@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { motion } from 'motion/react'
-import { Building2, CalendarClock, ChevronRight, CircleCheck, Fuel, Gauge, History, IdCard, Milestone, Navigation, Play, Printer, Target, UserRound, Users } from 'lucide-react'
+import { CalendarClock, ChevronRight, CircleCheck, Fuel, Gauge, History, IdCard, Milestone, Navigation, Play, Printer, UserRound } from 'lucide-react'
 import { useList } from '../../api'
 import { useMe } from '../../auth'
 import DateChip from '../../components/DateChip'
@@ -26,12 +26,13 @@ const greeting = () => { const h = new Date().getHours(); return h < 12 ? 'Good 
 const longDate = new Intl.DateTimeFormat('en-PH', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })
 const rise = (i) => ({ initial: { opacity: 0, y: 10 }, animate: { opacity: 1, y: 0 }, transition: { duration: 0.3, delay: i * 0.06, ease: EASE_OUT } })
 
-function Fact({ icon: Icon, label, children }) {
+// Label above value: scans as a column, unlike "Label: value" sentences.
+function Fact({ label, wide, children }) {
   if (!children) return null
   return (
-    <div className="flex min-w-0 items-start gap-2 text-sm">
-      <Icon size={15} className="mt-0.5 shrink-0 text-slate-400" aria-hidden="true" />
-      <div className="min-w-0"><span className="text-slate-500">{label}: </span><span className="font-medium break-words">{children}</span></div>
+    <div className={`min-w-0 ${wide ? 'sm:col-span-2' : ''}`}>
+      <dt className="text-[11px] font-semibold tracking-wider text-slate-500 uppercase">{label}</dt>
+      <dd className="mt-0.5 text-sm font-medium break-words text-ink">{children}</dd>
     </div>
   )
 }
@@ -56,13 +57,15 @@ function FocusCard({ t, label, tone, when, children }) {
           {when && <div className="mt-1.5 text-sm text-slate-700">{when}</div>}
         </div>
       </div>
-      <RouteLine t={t} />
-      <div className="grid gap-2.5 rounded-xl bg-slate-50 p-3 sm:grid-cols-2">
-        <Fact icon={Target} label="Purpose">{t.purpose}</Fact>
-        <Fact icon={Users} label="Passengers">{passengerList(t.passengers)}</Fact>
-        <Fact icon={Building2} label="For">{[t.requesting_office_name, t.requesting_division].filter(Boolean).join(' · ')}</Fact>
-        <Fact icon={Gauge} label="Odometer out">{t.odometer_start != null && km(t.odometer_start)}</Fact>
-        <Fact icon={CalendarClock} label="Expected back">{t.scheduled_return && shortDateTime(t.scheduled_return)}</Fact>
+      <div className="rounded-xl bg-slate-50 p-3">
+        <div className="border-b border-slate-200 pb-3"><RouteLine t={t} /></div> {/* padding outside: it would stretch the route's connector line */}
+        <dl className="mt-3 grid gap-x-4 gap-y-3 sm:grid-cols-2">
+          <Fact label="Purpose" wide>{t.purpose}</Fact>
+          <Fact label="Passengers" wide>{passengerList(t.passengers)}</Fact>
+          <Fact label="Requested by">{[t.requesting_office_name, t.requesting_division].filter(Boolean).join(' · ')}</Fact>
+          <Fact label="Odometer out">{t.odometer_start != null && km(t.odometer_start)}</Fact>
+          <Fact label="Expected back">{t.scheduled_return && shortDateTime(t.scheduled_return)}</Fact>
+        </dl>
       </div>
       {late && <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-danger">Past the expected return time. Record the return as soon as you are back.</p>}
       {children}
