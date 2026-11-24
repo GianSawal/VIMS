@@ -24,7 +24,25 @@ export const ticketLink = (t, label = 'Print ticket') => (
 const photo = (t) => ({ photo_url: t.vehicle_photo_url, plate_number: t.plate_number, make: '', model: t.vehicle_label })
 const greeting = () => { const h = new Date().getHours(); return h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening' }
 const longDate = new Intl.DateTimeFormat('en-PH', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })
-const rise = (i) => ({ initial: { opacity: 0, y: 10 }, animate: { opacity: 1, y: 0 }, transition: { duration: 0.3, delay: i * 0.06, ease: EASE_OUT } })
+// Low-poly facets for the Today banner: a jittered 8x4 grid, each cell split into two triangles.
+// Fixed seed, so the pattern is the same on every render. White at a low opacity, brighter toward the top left.
+const FACETS = (() => {
+  let s = 7
+  const rnd = () => ((s = (s * 16807) % 2147483647) / 2147483647)
+  const C = 8, R = 4, W = 800, H = 400
+  const p = Array.from({ length: R + 1 }, (_, r) => Array.from({ length: C + 1 }, (_, c) => [
+    c * W / C + (c % C ? (rnd() - 0.5) * 70 : 0), r * H / R + (r % R ? (rnd() - 0.5) * 70 : 0)]))
+  const out = []
+  for (let r = 0; r < R; r++) for (let c = 0; c < C; c++) {
+    const [a, b, d, e] = [p[r][c], p[r][c + 1], p[r + 1][c], p[r + 1][c + 1]]
+    for (const tri of (r + c) % 2 ? [[a, b, e], [a, e, d]] : [[a, b, d], [b, e, d]]) {
+      const light = 0.13 * (1 - (c / C + r / R) / 2)
+      out.push({ points: tri.map((q) => q.join(',')).join(' '), opacity: (light + rnd() * 0.07).toFixed(3) })
+    }
+  }
+  return out
+})()
+const rise = (i) =>({ initial: { opacity: 0, y: 10 }, animate: { opacity: 1, y: 0 }, transition: { duration: 0.3, delay: i * 0.06, ease: EASE_OUT } })
 
 // Label above value: scans as a column, unlike "Label: value" sentences.
 function Fact({ label, wide, children }) {
@@ -106,11 +124,11 @@ export default function MyTrips() {
   return (
     <div className="space-y-5">
       <motion.header {...rise(0)} className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-brand to-brand-dark px-5 py-6 text-white shadow-lg shadow-brand/20 sm:px-8">
-        {/* Decoration only: a soft light in the corner and the brand triangles from the driver profile header. */}
-        <div aria-hidden="true" className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_0%_0%,rgb(255_255_255/0.18),transparent_55%)]" />
-        <div aria-hidden="true" className="pointer-events-none absolute -top-10 right-20 h-36 w-36 rotate-12 bg-white/10 [clip-path:polygon(50%_0,100%_100%,0_100%)]" />
-        <div aria-hidden="true" className="pointer-events-none absolute -right-4 -bottom-10 h-28 w-28 -rotate-12 bg-gold/25 [clip-path:polygon(50%_0,100%_100%,0_100%)]" />
-        <img src="/dole-logo.png" alt="" aria-hidden="true" className="pointer-events-none absolute -top-6 -right-6 h-44 w-44 opacity-10" />
+        {/* Decoration only: low-poly facets over the brand gradient, with one gold facet in the corner. */}
+        <svg aria-hidden="true" viewBox="0 0 800 400" preserveAspectRatio="none" className="pointer-events-none absolute inset-0 h-full w-full">
+          {FACETS.map((f, i) => <polygon key={i} points={f.points} fill="white" fillOpacity={f.opacity} stroke="white" strokeOpacity="0.06" strokeWidth="1" vectorEffect="non-scaling-stroke" />)}
+          <polygon points="800,290 800,400 690,400" className="fill-gold" fillOpacity="0.3" />
+        </svg>
         <div className="relative flex items-center gap-4">
           {h?.driver && (h.driver.photo_url
             ? <img src={h.driver.photo_url} alt="" className="h-16 w-16 shrink-0 rounded-2xl object-cover shadow-lg ring-2 ring-gold ring-offset-2 ring-offset-brand sm:h-20 sm:w-20" />
@@ -122,6 +140,8 @@ export default function MyTrips() {
               <span className="block text-xl font-bold text-balance break-words sm:text-3xl">{me?.first_name || me?.username}</span>
             </h1>
           </div>
+          {/* The logo is mostly the same blue as the banner, so it sits in full colour on a white seal instead of faded into it. */}
+          <img src="/dole-logo.png" alt="DOLE" className="ml-auto h-14 w-14 shrink-0 self-start rounded-full bg-white p-1 shadow-lg ring-2 ring-gold/70 sm:h-16 sm:w-16" />
         </div>
         <p className="relative mt-4 inline-flex items-center gap-2 rounded-xl bg-white/15 px-3 py-1.5 text-sm font-medium ring-1 ring-white/20 backdrop-blur-sm">
           <StatusIcon size={15} className="shrink-0 text-gold" aria-hidden="true" /> {status}
