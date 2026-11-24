@@ -51,9 +51,9 @@ export default function MyProfile() {
               : <div role="img" aria-label="No photo" className="flex h-24 w-24 items-center justify-center rounded-2xl border-4 border-white bg-brand-light text-3xl font-bold text-brand shadow-md">{initials(d.full_name)}</div>}
           </div>
           <div className="min-w-0 flex-1">
-            <h1 className="text-2xl leading-tight font-bold text-ink sm:text-xl"> {/* smaller on desktop: the row is bottom-aligned, so this drops the name ~5px off the banner */}{d.full_name}</h1>
+            <h1 className="text-2xl leading-tight font-bold text-ink sm:text-xl sm:leading-none"> {/* desktop: smaller, tighter line and badges a touch closer; the row is bottom-aligned, so the name drops ~12px off the banner while the badges stay put */}{d.full_name}</h1>
             <p className="text-sm text-slate-500">Driver · {d.office_name}</p>
-            <div className="mt-2 flex flex-wrap gap-2">
+            <div className="mt-2 flex flex-wrap gap-2 sm:mt-1.5">
               <Badge tone={licenseTone[d.license_status]} dot>License {licenseText(d).toLowerCase()}</Badge>
               <Badge tone="blue">{d.license_type}</Badge>
             </div>
