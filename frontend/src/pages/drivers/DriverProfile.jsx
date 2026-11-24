@@ -5,6 +5,7 @@ import { Building2, Car, CircleCheck, IdCard, KeyRound, Milestone, Pencil, Phone
 import { api, errorMessage, useList } from '../../api'
 import { useCan } from '../../auth'
 import Attachments from '../../components/Attachments'
+import ContourLines from '../../components/ContourLines'
 import DataTable from '../../components/DataTable'
 import { initials } from '../../components/filters'
 import PhotoUpload from '../../components/PhotoUpload'
@@ -43,8 +44,7 @@ export default function DriverProfile() {
       {/* Header card */}
       <section className="mb-4 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
         <div className="relative h-24 overflow-hidden bg-gradient-to-r from-brand to-brand-dark" aria-hidden="true">
-          <div className="absolute -top-8 right-24 h-32 w-32 rotate-12 bg-white/10 [clip-path:polygon(50%_0,100%_100%,0_100%)]" />
-          <div className="absolute -bottom-10 right-4 h-24 w-24 -rotate-12 bg-gold/25 [clip-path:polygon(50%_0,100%_100%,0_100%)]" />
+          <ContourLines />
         </div>
         <div className="flex flex-col gap-7 px-8 pb-7 sm:flex-row sm:items-end">
           <div className="relative z-10 -mt-14 w-36 shrink-0">

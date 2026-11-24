@@ -4,6 +4,7 @@ import { motion } from 'motion/react'
 import { CalendarClock, ChevronRight, CircleCheck, Fuel, Gauge, History, IdCard, Milestone, Navigation, Play, Printer, UserRound } from 'lucide-react'
 import { useList } from '../../api'
 import { useMe } from '../../auth'
+import ContourLines from '../../components/ContourLines'
 import DateChip from '../../components/DateChip'
 import { initials } from '../../components/filters'
 import { EASE_OUT } from '../../components/motion'
@@ -24,13 +25,7 @@ export const ticketLink = (t, label = 'Print ticket') => (
 const photo = (t) => ({ photo_url: t.vehicle_photo_url, plate_number: t.plate_number, make: '', model: t.vehicle_label })
 const greeting = () => { const h = new Date().getHours(); return h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening' }
 const longDate = new Intl.DateTimeFormat('en-PH', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })
-// Contour lines for the Today banner, like the guilloche on an ID card: stacked waves made of two sines whose
-// phases drift from line to line, so neighbours bunch up and spread out like a topographic map. Fixed, same every render.
-const CONTOURS = Array.from({ length: 36 }, (_, i) => {
-  const y = (x) => -70 + i * 14 + 40 * Math.sin(x / 260 + i * 0.09) + 22 * Math.sin(x / 110 - i * 0.15 + 1.3)
-  return Array.from({ length: 101 }, (_, k) => `${k ? 'L' : 'M'}${k * 16},${y(k * 16).toFixed(1)}`).join('')
-})
-const rise = (i) =>({ initial: { opacity: 0, y: 10 }, animate: { opacity: 1, y: 0 }, transition: { duration: 0.3, delay: i * 0.06, ease: EASE_OUT } })
+const rise = (i) => ({ initial: { opacity: 0, y: 10 }, animate: { opacity: 1, y: 0 }, transition: { duration: 0.3, delay: i * 0.06, ease: EASE_OUT } })
 
 // Label above value: scans as a column, unlike "Label: value" sentences.
 function Fact({ label, wide, children }) {
@@ -112,12 +107,7 @@ export default function MyTrips() {
   return (
     <div className="space-y-5">
       <motion.header {...rise(0)} className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-brand to-brand-dark px-5 py-6 text-white shadow-lg shadow-brand/20 sm:px-8">
-        {/* Decoration only: thin gold contour lines over the brand gradient. */}
-        <svg aria-hidden="true" viewBox="0 0 1600 400" preserveAspectRatio="xMidYMid slice" className="pointer-events-none absolute inset-0 h-full w-full">
-          <g fill="none" className="stroke-gold" strokeOpacity="0.16" strokeWidth="1" vectorEffect="non-scaling-stroke">
-            {CONTOURS.map((d, i) => <path key={i} d={d} vectorEffect="non-scaling-stroke" />)}
-          </g>
-        </svg>
+        <ContourLines />
         <div className="relative flex items-center gap-4">
           {h?.driver && (h.driver.photo_url
             ? <img src={h.driver.photo_url} alt="" className="h-16 w-16 shrink-0 rounded-2xl object-cover shadow-lg ring-2 ring-gold ring-offset-2 ring-offset-brand sm:h-20 sm:w-20" />
