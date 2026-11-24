@@ -56,11 +56,12 @@ export function TimeBars({ data, format, valueLabel, height = 'h-56' }) {
           </table>
         </div>
       ) : (
-        <div className="flex gap-2">
+        // pt-5: headroom for the value label above a bar that reaches the axis max.
+        <div className="flex gap-2 pt-5">
           {/* y axis */}
           <div className={`relative w-12 shrink-0 ${height}`} aria-hidden="true">
             {ticks.map((t) => (
-              <span key={t} className="absolute right-0 -translate-y-1/2 text-[11px] text-slate-400 tabular-nums" style={{ bottom: `${(t / top) * 100}%` }}>
+              <span key={t} className="absolute right-0 translate-y-1/2 text-[11px] text-slate-400 tabular-nums" style={{ bottom: `${(t / top) * 100}%` }}>
                 {t === 0 ? '0' : `₱${compact.format(t)}`}
               </span>
             ))}
