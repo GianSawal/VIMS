@@ -4,7 +4,7 @@ import {
   Ban, CalendarClock, Car, CircleCheck, ClipboardPen, Clock, CreditCard, FileText, Fuel, IdCard, Navigation, PackageX, Route as RouteIcon,
   ShieldCheck, TriangleAlert, UserRound, UserX, Wrench,
 } from 'lucide-react'
-import { useId } from 'react'
+import { useState } from 'react'
 import { useList } from '../api'
 import { useCan, useMe } from '../auth'
 import { RankBars, TimeBars } from '../components/charts'
@@ -232,50 +232,52 @@ function StatusBar({ byStatus, total, height = 'h-3', office, officeId }) {
   )
 }
 
-// Donut of the fleet by status: one arc per non-zero status with a small gap between arcs, total in the middle.
-// Arcs navigate on click (mouse); the legend beside it carries the same links for keyboard users.
-// Dash values go in style (not attributes) so a filter change transitions the arcs instead of jumping.
-// On first load a mask sweeps clockwise from 12 o'clock over the real arcs (speedometer fill), so the
-// proportions are exact throughout; no mask with reduced motion.
-function StatusDonut({ byStatus, total, office }) {
+// Concentric ring chart (after bklit's RingChart): one ring per status, outermost first, each filled clockwise
+// from 12 o'clock to its share of the fleet over a light track. Rings scale in one after another, then fill.
+// Hovering a ring or its legend row (hover state lives in FleetStatus) lifts that ring, fades the rest and shows
+// its count in the middle. Arcs navigate on click; the legend carries the same links for keyboard users.
+const RING_STEP = 5.4 // band width + gap, in viewBox units (0-100)
+const RING_WIDTH = 4.2
+
+function StatusRings({ byStatus, total, office, hovered, setHovered }) {
   const navigate = useNavigate()
-  const sweep = useEntrance()
-  const maskId = `donut-${useId().replace(/[^\w-]/g, '')}`
-  const r = 42
-  const c = 2 * Math.PI * r
-  const parts = STATUSES.filter(([s]) => byStatus[s])
-  const gap = parts.length > 1 ? 1.5 : 0
-  let offset = 0
+  const enter = useEntrance()
+  const active = STATUSES.find(([s]) => s === hovered)
   return (
-    <div className="relative h-44 w-44 shrink-0">
-      <svg viewBox="0 0 100 100" className="h-full w-full -rotate-90" role="img"
-        aria-label={`Fleet by status: ${parts.map(([s, label]) => `${label} ${byStatus[s]}`).join(', ') || 'no vehicles'}`}>
-        <circle cx="50" cy="50" r={r} fill="none" stroke="var(--color-slate-100)" strokeWidth="12" />
-        {sweep && (
-          <mask id={maskId} maskUnits="userSpaceOnUse" x="0" y="0" width="100" height="100">
-            <motion.circle cx="50" cy="50" r={r} fill="none" stroke="white" strokeWidth="14"
-              initial={{ pathLength: 0 }} animate={{ pathLength: 1 }} transition={{ duration: 1, ease: EASE_FILL }} />
-          </mask>
-        )}
-        <g mask={sweep ? `url(#${maskId})` : undefined}>
-        {total > 0 && parts.map(([s, label, , , stroke]) => {
-          const len = (byStatus[s] / total) * c
-          const arc = (
-            <circle key={s} cx="50" cy="50" r={r} fill="none" stroke={stroke} strokeWidth="12"
-              style={{ strokeDasharray: `${Math.max(len - gap, 0.5)} ${c}`, strokeDashoffset: -offset }}
-              className="cursor-pointer transition-opacity hover:opacity-80 motion-safe:transition-[stroke-dasharray,stroke-dashoffset,opacity] motion-safe:duration-300 ease-out"
-              onClick={() => navigate(href('/vehicles', { status: s }, office))}>
-              <title>{`${label}: ${byStatus[s]} of ${total} (${Math.round((byStatus[s] / total) * 100)}%)`}</title>
-            </circle>
+    <div className="relative h-52 w-52 shrink-0">
+      <svg viewBox="0 0 100 100" className="h-full w-full -rotate-90 overflow-visible" role="img"
+        aria-label={`Fleet by status: ${STATUSES.filter(([s]) => byStatus[s]).map(([s, label]) => `${label} ${byStatus[s]}`).join(', ') || 'no vehicles'}`}
+        onMouseLeave={() => setHovered(null)}>
+        {STATUSES.map(([s, label, , , stroke], i) => {
+          const r = 47.5 - i * RING_STEP
+          const share = total ? byStatus[s] / total : 0
+          const faded = hovered && hovered !== s
+          return (
+            <motion.g key={s} className="cursor-pointer" onMouseEnter={() => setHovered(s)}
+              onClick={() => navigate(href('/vehicles', { status: s }, office))}
+              initial={enter ? { scale: 0 } : false}
+              animate={{ scale: hovered === s ? 1.03 : 1, opacity: faded ? 0.35 : 1 }}
+              transition={{ scale: hovered ? { type: 'spring', stiffness: 400, damping: 25 } : { duration: 0.5, delay: i * 0.08, ease: EASE_FILL }, opacity: { duration: 0.15 } }}
+              style={{ originX: '50px', originY: '50px', filter: hovered === s ? `drop-shadow(0 0 3px ${stroke})` : 'none' }}>
+              <title>{`${label}: ${byStatus[s]} of ${total}${total ? ` (${Math.round(share * 100)}%)` : ''}`}</title>
+              {/* ponytail: transparent full-width stroke = steady hit band, so hover doesn't flicker on thin rings */}
+              <circle cx="50" cy="50" r={r} fill="none" stroke="transparent" strokeWidth={RING_STEP} />
+              <circle cx="50" cy="50" r={r} fill="none" stroke="var(--color-slate-100)" strokeWidth={RING_WIDTH} />
+              {share > 0 && (
+                <motion.circle cx="50" cy="50" r={r} fill="none" stroke={stroke} strokeWidth={RING_WIDTH} strokeLinecap="round"
+                  initial={enter ? { pathLength: 0 } : false} animate={{ pathLength: share }}
+                  transition={{ duration: 0.9, delay: enter ? 0.6 + i * 0.1 : 0, ease: EASE_FILL }} />
+              )}
+            </motion.g>
           )
-          offset += len
-          return arc
         })}
-        </g>
       </svg>
-      <Link to={href('/vehicles', {}, office)} className="absolute inset-0 m-auto flex h-24 w-24 flex-col items-center justify-center rounded-full hover:text-brand">
-        <span className="text-3xl leading-none font-semibold text-ink tabular-nums"><CountUp value={total} format={num.format} duration={1} /></span>
-        <span className="mt-1 text-xs text-slate-500">{total === 1 ? 'vehicle' : 'vehicles'}</span>
+      <Link to={href('/vehicles', active ? { status: active[0] } : {}, office)}
+        className="absolute inset-0 m-auto flex h-20 w-20 flex-col items-center justify-center rounded-full text-center hover:text-brand">
+        <span className="text-2xl leading-none font-semibold text-ink tabular-nums">
+          <CountUp value={active ? byStatus[active[0]] : total} format={num.format} duration={active ? 0.3 : 1} />
+        </span>
+        <span className="mt-1 text-[11px] leading-tight text-slate-500">{active ? active[1] : total === 1 ? 'vehicle' : 'vehicles'}</span>
       </Link>
     </div>
   )
@@ -286,6 +288,7 @@ function FleetStatus({ v, office }) {
   const operable = v.total - s.DISPOSED
   const available = operable ? Math.round(((s.SERVICEABLE + s.IN_USE) / operable) * 100) : null
   const share = (n) => (v.total ? `${Math.round((n / v.total) * 100)}%` : '–')
+  const [hovered, setHovered] = useState(null)
   return (
     <section className="h-full rounded-xl border border-slate-200 bg-white p-5 shadow-sm" aria-labelledby="fleet-title">
       <div className="mb-3 flex flex-wrap items-baseline gap-x-3">
@@ -293,7 +296,7 @@ function FleetStatus({ v, office }) {
         <Link to={href('/vehicles', {}, office)} className="text-xs font-medium text-brand hover:underline">View vehicles</Link>
       </div>
       <div className="flex flex-col items-center gap-6 sm:flex-row sm:items-center">
-        <StatusDonut byStatus={s} total={v.total} office={office} />
+        <StatusRings byStatus={s} total={v.total} office={office} hovered={hovered} setHovered={setHovered} />
         <div className="w-full min-w-0 flex-1">
           {available != null && (
             <div className="mb-3 flex flex-wrap items-baseline gap-x-3 border-b border-slate-100 pb-3">
@@ -304,8 +307,9 @@ function FleetStatus({ v, office }) {
           )}
           <ul className="grid gap-x-6 gap-y-1 sm:grid-cols-2 xl:grid-cols-3">
             {STATUSES.map(([status, label, Icon, color]) => (
-              <li key={status}>
-                <Link to={href('/vehicles', { status }, office)} className="flex items-center gap-2.5 rounded-lg px-2 py-1.5 hover:bg-slate-50">
+              <li key={status} onMouseEnter={() => setHovered(status)} onMouseLeave={() => setHovered(null)}>
+                <Link to={href('/vehicles', { status }, office)} onFocus={() => setHovered(status)} onBlur={() => setHovered(null)}
+                  className={`flex items-center gap-2.5 rounded-lg px-2 py-1.5 hover:bg-slate-50 ${hovered === status ? 'bg-slate-50' : ''}`}>
                   <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${color}`} aria-hidden="true" />
                   <Icon size={15} className="shrink-0 text-slate-500" aria-hidden="true" />
                   <span className="min-w-0 flex-1 truncate text-sm text-slate-600">{label}</span>
