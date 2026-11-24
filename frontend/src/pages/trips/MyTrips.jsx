@@ -105,12 +105,12 @@ export default function MyTrips() {
 
   return (
     <div className="space-y-5">
-      <motion.header {...rise(0)} className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-brand to-brand-dark px-5 py-6 text-white shadow-lg shadow-brand/20 sm:px-8">
+      <motion.header {...rise(0)} className="relative overflow-hidden rounded-2xl bg-gradient-to-l from-brand/50 to-brand-dark px-5 py-6 text-white shadow-lg shadow-brand/20 sm:px-8">
         {/* Decoration only: a soft light in the corner and the brand triangles from the driver profile header. */}
         <div aria-hidden="true" className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_0%_0%,rgb(255_255_255/0.18),transparent_55%)]" />
         <div aria-hidden="true" className="pointer-events-none absolute -top-10 right-20 h-36 w-36 rotate-12 bg-white/10 [clip-path:polygon(50%_0,100%_100%,0_100%)]" />
         <div aria-hidden="true" className="pointer-events-none absolute -right-4 -bottom-10 h-28 w-28 -rotate-12 bg-gold/25 [clip-path:polygon(50%_0,100%_100%,0_100%)]" />
-        <img src="/dole-logo.png" alt="" aria-hidden="true" className="pointer-events-none absolute -top-6 -right-6 h-44 w-44 opacity-10" />
+        <img src="/dole-logo.png" alt="" aria-hidden="true" className="pointer-events-none absolute -top-6 -right-6 h-44 w-44 opacity-25" />
         <div className="relative flex items-center gap-4">
           {h?.driver && (h.driver.photo_url
             ? <img src={h.driver.photo_url} alt="" className="h-16 w-16 shrink-0 rounded-2xl object-cover shadow-lg ring-2 ring-gold ring-offset-2 ring-offset-brand sm:h-20 sm:w-20" />
