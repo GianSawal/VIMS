@@ -45,6 +45,8 @@ export default function DriverProfile() {
       <section className="mb-4 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
         <div className="relative h-24 overflow-hidden bg-gradient-to-r from-brand to-brand-dark" aria-hidden="true">
           <ContourLines />
+          {/* Same white seal as the driver's Today banner; the logo's blue would vanish on the banner otherwise. */}
+          <img src="/dole-logo.png" alt="" className="absolute top-1/2 right-6 h-16 w-16 -translate-y-1/2 rounded-full bg-white p-1 shadow-lg ring-2 ring-gold/70 sm:right-8" />
         </div>
         <div className="flex flex-col gap-7 px-8 pb-7 sm:flex-row sm:items-end">
           <div className="relative z-10 -mt-14 w-36 shrink-0">
