@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Building2, History, IdCard, KeyRound, MessageSquareWarning, Phone, UserRound } from 'lucide-react'
 import { errorMessage } from '../../api'
+import ContourLines from '../../components/ContourLines'
 import { initials } from '../../components/filters'
 import { Badge, Button, Modal } from '../../components/ui'
 import { formatDate } from '../vehicles/common'
@@ -39,7 +40,9 @@ export default function MyProfile() {
     <>
       <section aria-label="Driver" className="mb-4 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
         <div className="relative h-20 overflow-hidden bg-gradient-to-r from-brand to-brand-dark" aria-hidden="true">
-          <img src="/dole-logo.png" alt="" className="absolute -top-6 right-2 h-32 w-32 opacity-10" />
+          <ContourLines />
+          {/* Same white seal as the Today banner; the logo's blue would vanish on the banner otherwise. */}
+          <img src="/dole-logo.png" alt="" className="absolute top-1/2 right-5 h-14 w-14 -translate-y-1/2 rounded-full bg-white p-1 shadow-lg ring-2 ring-gold/70 sm:right-8" />
         </div>
         <div className="flex flex-col gap-4 px-5 pb-5 sm:flex-row sm:items-end">
           <div className="relative z-10 -mt-12 shrink-0"> {/* above the positioned banner strip, which would otherwise paint over it */}
